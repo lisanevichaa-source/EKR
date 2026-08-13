@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Электронный кадровый резерв — демо</title>
+<style>
+  :root{
+    --grad-a:#1b2560;
+    --grad-b:#3a1a4d;
+    --grad-c:#5c1b3f;
+    --bg-page:#f2f3f8;
+    --card:#ffffff;
+    --ink:#1c1e2b;
+    --ink-soft:#6b7182;
+    --line:#e6e7ee;
+    --accent:#4f46e5;
+    --accent-soft:#eef0fd;
+    --red:#c81e3a;
+    --gold:#c9a227;
+    --green:#1f8a52;
+    --amber:#b5790e;
+    --auto-bg:#f4f5f9;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:8px;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg-page);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
+    padding:28px 32px 40px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:radial-gradient(600px 300px at 85% -10%, rgba(255,255,255,0.10), transparent 60%);
+    pointer-events:none;
+  }
+  .breadcrumb{
+    color:rgba(255,255,255,0.55);
+    font-size:12.5px;
+    letter-spacing:.02em;
+    margin-bottom:14px;
+  }
+  .hero-top{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:24px;
+    flex-wrap:wrap;
+    margin-bottom:24px;
+  }
+  .hero-title h1{
+    color:#fff; margin:0 0 6px; font-size:26px; font-weight:700; letter-spacing:-0.01em;
+  }
+  .hero-title p{
+    color:rgba(255,255,255,0.68); margin:0; font-size:14px; max-width:560px; line-height:1.5;
+  }
+
+  .save-status{
+    display:flex; align-items:center; gap:7px;
+    color:rgba(255,255,255,0.6); font-size:12.5px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.16);
+    padding:6px 12px; border-radius:999px;
+    white-space:nowrap; flex-shrink:0;
+  }
+  .save-status .save-dot{
+    width:7px; height:7px; border-radius:50%; background:#3fcf7f; flex-shrink:0;
+  }
+  .save-status.saving .save-dot{ background:#e0b23a; }
+  .save-status.error{ color:#ffd7dd; border-color:rgba(255,120,140,0.4); background:rgba(255,80,100,0.14); }
+  .save-status.error .save-dot{ background:#ff6b7d; }
+  .demo-badge{
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.25);
+    color:#fff;
+    font-size:12px;
+    padding:7px 12px;
+    border-radius:999px;
+    white-space:nowrap;
+    backdrop-filter:blur(4px);
+  }
+
+  .widgets{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:16px;
+  }
+  @media (max-width:980px){ .widgets{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:640px){ .widgets{grid-template-columns:1fr;} }
+
+  .card{
+    background:var(--card);
+    border-radius:var(--radius-lg);
+    padding:18px 20px;
+    box-shadow:0 10px 30px rgba(15,15,40,0.18);
+  }
+  .card-label{
+    font-size:13.5px; color:var(--ink); font-weight:500; margin-bottom:10px;
+  }
+  .card-row{ display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .big-num{ font-size:30px; font-weight:800; letter-spacing:-0.01em; }
+  .sub-num{ font-size:24px; font-weight:800; }
+
+  /* donut */
+  .donut{
+    --pct:10;
+    width:56px;height:56px;border-radius:50%;
+    background:conic-gradient(var(--gold) calc(var(--pct)*1%), #e3e4ea 0);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .donut span{
+    width:40px;height:40px;border-radius:50%;background:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;color:var(--ink);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.04);
+  }
+
+  .quad{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:10px; text-align:center;
+  }
+  .quad div .q-num{ font-size:22px; font-weight:800; }
+  .quad div .q-num.zero{ color:var(--red); }
+  .quad div .q-label{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.25; }
+
+  .bars{ display:flex; flex-direction:column; gap:8px; }
+  .bar-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-soft);}
+  .bar-track{ flex:1; height:7px; border-radius:999px; background:#eef0f4; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:999px; }
+  .bar-val{ width:34px; text-align:right; font-weight:700; color:var(--ink); font-size:12px;}
+
+  .progress-track{ height:10px; border-radius:999px; background:#eef0f4; overflow:hidden; margin-top:10px;}
+  .progress-fill{ height:100%; border-radius:999px; background:linear-gradient(90deg,#4f46e5,#7c73f0); }
+  .progress-foot{ display:flex; justify-content:space-between; margin-top:8px; font-size:12px; color:var(--ink-soft);}
+
+  .trend{
+    display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700;
+    color:var(--green); background:#e9f7ef; padding:3px 8px; border-radius:999px;
+  }
+
+  /* ---------- MAIN CONTENT ---------- */
+  .content{ padding:24px 32px 60px; }
+  .section-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;}
+  .section-head h2{ font-size:18px; margin:0; }
+  .section-head p{ margin:2px 0 0; color:var(--ink-soft); font-size:13px; }
+
+  .toolbar{
+    background:var(--card);
+    border-radius:var(--radius-md);
+    padding:14px 16px;
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    margin-bottom:14px;
+    box-shadow:0 1px 3px rgba(15,15,40,0.05);
+  }
+  .search{
+    display:flex; align-items:center; gap:8px;
+    border:1px solid var(--line); border-radius:999px; padding:8px 14px;
+    min-width:220px; flex:0 0 auto;
+  }
+  .search input{
+    border:none; outline:none; font-size:13.5px; width:180px; background:transparent; color:var(--ink);
+  }
+  .search svg{ flex-shrink:0; opacity:.5; }
+
+  .divider-v{ width:1px; height:22px; background:var(--line); margin:0 4px; }
+
+  .chip{
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink);
+    font-size:12.5px;
+    padding:7px 13px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:all .15s ease;
+    white-space:nowrap;
+    user-select:none;
+  }
+  .chip:hover{ border-color:#c7cae8; }
+  .chip.active{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+  }
+  .chip-group{ display:flex; flex-wrap:wrap; gap:8px; }
+
+  .toolbar-right{ margin-left:auto; display:flex; gap:8px; align-items:center;}
+  .ghost-btn{
+    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+    font-size:12.5px; padding:7px 13px; border-radius:999px; cursor:pointer;
+  }
+  .ghost-btn:hover{ color:var(--ink); border-color:#c7cae8; }
+  .primary-btn{
+    border:1px solid var(--accent); background:var(--accent); color:#fff;
+    font-size:12.5px; font-weight:600; padding:8px 15px; border-radius:999px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .primary-btn:hover{ background:#4038c9; border-color:#4038c9; }
+
+  .legend{
+    display:flex; flex-wrap:wrap; gap:16px;
+    font-size:12px; color:var(--ink-soft);
+    padding:10px 16px; margin-bottom:14px;
+  }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .swatch{ width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .swatch.auto{ background:var(--auto-bg); border:1px solid var(--line); }
+  .swatch.select{ background:#fff; border:1.5px solid var(--accent); }
+  .swatch.free{ background:#fff; border:1px solid var(--line); }
+  .swatch.date{ background:#fff; border:1.5px solid var(--green); }
+  .swatch.empty{ background:#fff; border:1px dashed #cfd2de; }
+
+  /* table */
+  .table-wrap{
+    background:var(--card);
+    border-radius:var(--radius-md);
+    box-shadow:0 1px 3px rgba(15,15,40,0.05);
+    overflow:hidden;
+  }
+  .table-scroll{
+    overflow:auto;
+    max-height:70vh;
+  }
+  table{ border-collapse:separate; border-spacing:0; font-size:13px; width:max-content; min-width:100%; }
+  thead th{
+    position:sticky; top:0; z-index:3;
+    background:#fafafe;
+    border-bottom:1px solid var(--line);
+    border-right:1px solid var(--line);
+    text-align:left;
+    padding:10px 12px;
+    font-weight:600;
+    color:var(--ink);
+    white-space:nowrap;
+  }
+  thead tr.group-row th{
+    top:0;
+    background:#f3f3fb;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--ink-soft);
+    font-weight:700;
+    padding:6px 12px;
+    border-bottom:none;
+  }
+  thead tr.label-row th{ top:29px; }
+
+  .th-row{ display:flex; align-items:center; gap:5px; }
+  .th-text{ overflow:hidden; text-overflow:ellipsis; }
+  .filter-btn{
+    position:relative;
+    border:none; background:transparent; cursor:pointer;
+    padding:3px; margin:0; border-radius:5px;
+    color:#b7bacb; display:inline-flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .filter-btn:hover{ color:var(--accent); background:var(--accent-soft); }
+  .filter-btn.active{ color:var(--accent); }
+  .filter-btn.active::after{
+    content:''; position:absolute; top:1px; right:1px;
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent); border:1.5px solid #fafafe;
+  }
+
+  tbody td{
+    border-bottom:1px solid var(--line);
+    border-right:1px solid var(--line);
+    padding:6px 8px;
+    vertical-align:middle;
+  }
+  tbody tr:hover td{ background:#fbfbff; }
+  tbody tr:nth-child(even) td{ background:#fcfcfe; }
+  tbody tr:nth-child(even):hover td{ background:#f7f7fd; }
+
+  col.hidden, th.hidden, td.hidden{ display:none; }
+
+  .col-rownum, .col-fio{
+    position:sticky; z-index:2; background:#fff;
+  }
+  .col-rownum{ left:0; width:44px; text-align:center; color:var(--ink-soft); font-weight:600;}
+  .col-fio{ left:44px; min-width:200px; font-weight:600; }
+  thead .col-rownum, thead .col-fio{ z-index:4; }
+  tbody tr:nth-child(even) .col-rownum, tbody tr:nth-child(even) .col-fio{ background:#fcfcfe; }
+  tbody tr:hover .col-rownum, tbody tr:hover .col-fio{ background:#fbfbff; }
+
+  .cell-auto{
+    background:var(--auto-bg);
+    color:var(--ink);
+    padding:7px 10px;
+    border-radius:var(--radius-sm);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:220px;
+  }
+  .cell-empty{
+    color:#c3c6d4;
+    font-style:italic;
+    padding-left:10px;
+  }
+  input.cell-input, select.cell-input{
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+    padding:7px 9px;
+    font-size:13px;
+    font-family:inherit;
+    color:var(--ink);
+    background:#fff;
+    min-width:130px;
+    max-width:220px;
+    outline:none;
+  }
+  select.cell-input{ border-color:#cfd3f5; }
+  input.cell-input:focus, select.cell-input:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  input[type="date"].cell-input{ border-color:#bfe3cf; min-width:150px; }
+
+  .col-actions{ width:52px; text-align:center; }
+  .row-remove-btn{
+    width:28px; height:28px; border-radius:50%;
+    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+    font-size:14px; line-height:1; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .row-remove-btn:hover{ background:#fdeeef; border-color:#f3c3ca; color:var(--red); }
+
+  .table-foot{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    padding:12px 16px; font-size:12.5px; color:var(--ink-soft);
+    border-top:1px solid var(--line);
+  }
+  .note{
+    font-size:12.5px; color:var(--ink-soft); margin-top:10px; line-height:1.5;
+  }
+  .note b{ color:var(--ink); }
+
+  @media (max-width:700px){
+    .hero{ padding:20px 16px 28px; }
+    .content{ padding:18px 14px 40px; }
+  }
+
+  /* ---------- MODAL ---------- */
+  .modal-overlay{
+    display:none;
+    position:fixed; inset:0; z-index:50;
+    background:rgba(20,20,35,0.45);
+    align-items:center; justify-content:center;
+    padding:24px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-card{
+    background:#fff;
+    border-radius:var(--radius-lg);
+    width:100%; max-width:520px;
+    max-height:80vh;
+    display:flex; flex-direction:column;
+    box-shadow:0 24px 60px rgba(15,15,40,0.35);
+  }
+  .modal-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 20px 14px; border-bottom:1px solid var(--line);
+  }
+  .modal-head h3{ margin:0; font-size:16px; }
+  .modal-close{
+    border:none; background:transparent; font-size:18px; color:var(--ink-soft); cursor:pointer;
+    width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close:hover{ background:var(--auto-bg); color:var(--ink); }
+  .modal-search{
+    margin:14px 20px 8px;
+    display:flex; align-items:center; gap:8px;
+    border:1px solid var(--line); border-radius:999px; padding:8px 14px;
+  }
+  .modal-search input{ border:none; outline:none; font-size:13.5px; width:100%; background:transparent; color:var(--ink); }
+  .modal-search svg{ flex-shrink:0; opacity:.5; }
+  .modal-list{ overflow-y:auto; padding:6px 12px 16px; flex:1; }
+  .pool-item{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:10px 8px; border-radius:var(--radius-sm);
+  }
+  .pool-item:hover{ background:var(--auto-bg); }
+  .pool-item-name{ font-size:13.5px; font-weight:600; color:var(--ink); }
+  .pool-item-sub{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+  .pool-add-btn{
+    border:1px solid var(--accent); background:#fff; color:var(--accent);
+    font-size:12px; font-weight:600; padding:6px 12px; border-radius:999px; cursor:pointer;
+    white-space:nowrap;
+  }
+  .pool-add-btn:hover{ background:var(--accent); color:#fff; }
+  .modal-empty{ text-align:center; color:var(--ink-soft); font-size:13px; padding:30px 10px; }
+  .modal-foot{
+    padding:14px 20px; border-top:1px solid var(--line);
+    display:flex; justify-content:flex-end;
+  }
+
+  /* ---------- DISMISSED (уволенные) ---------- */
+  .collapsible-card{
+    background:var(--card);
+    border-radius:var(--radius-md);
+    box-shadow:0 1px 3px rgba(15,15,40,0.05);
+    margin-top:16px;
+    overflow:hidden;
+  }
+  .collapsible-head{
+    width:100%;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 18px;
+    background:none; border:none; cursor:pointer;
+    font-size:14px; font-weight:600; color:var(--ink);
+    font-family:inherit;
+  }
+  .collapsible-head:hover{ background:#fbfbfe; }
+  .collapsible-title{ display:flex; align-items:center; gap:10px; }
+  .count-badge{
+    background:var(--auto-bg); color:var(--ink-soft);
+    font-size:11.5px; font-weight:700;
+    padding:2px 9px; border-radius:999px;
+  }
+  .chevron{ color:var(--ink-soft); transition:transform .15s ease; font-size:13px; }
+  .chevron.open{ transform:rotate(180deg); }
+  .collapsible-body{ border-top:1px solid var(--line); padding:6px 12px 12px; }
+  .collapsible-body .pool-item{ padding:12px 8px; }
+  .collapsible-body .pool-item:not(:last-child){ border-bottom:1px solid var(--line); }
+
+  /* ---------- FILTER POPOVER ---------- */
+  .filter-popover{
+    display:none;
+    position:fixed; z-index:70;
+    width:240px; max-height:340px;
+    background:#fff; border-radius:var(--radius-md);
+    border:1px solid var(--line);
+    box-shadow:0 18px 50px rgba(15,15,40,0.28);
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .filter-popover.open{ display:flex; }
+  .filter-popover-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 12px; border-bottom:1px solid var(--line);
+    font-size:13px; font-weight:600; color:var(--ink);
+  }
+  .filter-popover-search{ padding:8px 10px; border-bottom:1px solid var(--line); }
+  .filter-popover-search input{
+    width:100%; border:1px solid var(--line); border-radius:8px;
+    padding:6px 9px; font-size:12.5px; outline:none; font-family:inherit; color:var(--ink);
+  }
+  .filter-popover-search input:focus{ border-color:var(--accent); }
+  .filter-popover-list{ overflow-y:auto; padding:6px 4px; flex:1; }
+  .filter-option{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 8px; border-radius:6px; font-size:12.5px; cursor:pointer;
+  }
+  .filter-option:hover{ background:var(--auto-bg); }
+  .filter-option input{ accent-color:var(--accent); width:14px; height:14px; flex-shrink:0; }
+  .filter-option span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .filter-empty{ text-align:center; color:var(--ink-soft); font-size:12px; padding:24px 10px; }
+  .filter-popover-foot{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px; border-top:1px solid var(--line);
+  }
+  .filter-popover-foot .ghost-btn{ padding:5px 11px; font-size:12px; }
+  .filter-popover-count{ font-size:11.5px; color:var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-top">
+    <div class="hero-title">
+      <h1>Электронный кадровый резерв</h1>
+    </div>
+    <div class="save-status" id="saveStatus"><span class="save-dot"></span><span class="save-status-text">Загрузка…</span></div>
+  </div>
+
+  <div class="widgets" id="widgets"></div>
+</div>
+
+<div class="content">
+
+  <div class="toolbar">
+    <button class="primary-btn" id="addEmployeeBtn">+ Добавить сотрудника</button>
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" placeholder="Поиск по ФИО...">
+    </div>
+    <div class="divider-v"></div>
+    <div class="chip-group" id="groupChips"></div>
+    <div class="toolbar-right">
+      <button class="ghost-btn" id="clearFiltersBtn">Сбросить фильтры</button>
+      <button class="ghost-btn" id="expandAllBtn">Показать все столбцы</button>
+      <button class="ghost-btn" id="collapseAllBtn">Свернуть до основных</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="swatch auto"></i> Автоматически (не редактируется)</span>
+    <span><i class="swatch select"></i> Выпадающий список</span>
+    <span><i class="swatch free"></i> Свободный ввод</span>
+    <span><i class="swatch date"></i> Свободный ввод — дата</span>
+    <span><i class="swatch empty"></i> Не заполняется (?)</span>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table id="mainTable"></table>
+    </div>
+    <div class="table-foot">
+      <span id="rowCount">Показано 10 из 10 строк</span>
+      <span>Столбцов видно: <b id="visibleColCount"></b> из 34</span>
+    </div>
+  </div>
+
+  <div class="collapsible-card" id="dismissedSection">
+    <button class="collapsible-head" id="dismissedToggle">
+      <span class="collapsible-title">Уволенные сотрудники <span class="count-badge" id="dismissedCount">0</span></span>
+      <span class="chevron" id="dismissedChevron">⌄</span>
+    </button>
+    <div class="collapsible-body" id="dismissedBody" style="display:none;">
+      <div id="dismissedList"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="addModalOverlay">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>Добавить сотрудника в резерв</h3>
+      <button class="modal-close" id="modalCloseBtn">✕</button>
+    </div>
+    <div class="modal-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="poolSearchInput" type="text" placeholder="Поиск по ФИО, магазину, городу...">
+    </div>
+    <div class="modal-list" id="poolList"></div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="modalDoneBtn">Готово</button>
+    </div>
+  </div>
+</div>
+
+<div class="filter-popover" id="filterPopover">
+  <div class="filter-popover-head">
+    <span id="filterPopoverTitle">Фильтр</span>
+    <button class="modal-close" id="filterPopoverClose">✕</button>
+  </div>
+  <div class="filter-popover-search">
+    <input id="filterPopoverSearch" type="text" placeholder="Поиск значения...">
+  </div>
+  <div class="filter-popover-list" id="filterPopoverList"></div>
+  <div class="filter-popover-foot">
+    <button class="ghost-btn" id="filterPopoverClear">Сбросить</button>
+    <span class="filter-popover-count" id="filterPopoverSelCount"></span>
+  </div>
+</div>
+
+<script>
+/* ===================== СОСТОЯНИЕ (загружается и сохраняется через API) ===================== */
+let GROUPS = [];
+let COLUMNS = [];
+let reserveRows = [];
+let dismissedRows = [];
+let EMPLOYEE_POOL = [];
+
+let activeGroups = new Set(); // toggleable groups currently shown ('core' always shown, not stored here)
+
+// активные фильтры по столбцам: colKey -> Set выбранных значений
+let columnFilters = {};
+let openFilterCol = null;
+
+/* ===================== СВЯЗЬ С СЕРВЕРОМ ===================== */
+function setSaveStatus(kind, text){
+  const el = document.getElementById('saveStatus');
+  if (!el) return;
+  el.className = 'save-status' + (kind === 'error' ? ' error' : kind === 'saving' ? ' saving' : '');
+  el.querySelector('.save-status-text').textContent = text;
+}
+
+function applyState(data){
+  reserveRows = data.reserveRows;
+  dismissedRows = data.dismissedRows;
+  EMPLOYEE_POOL = data.employeePool;
+}
+
+async function loadMetaAndState(){
+  const [metaRes, stateRes] = await Promise.all([fetch('/api/meta'), fetch('/api/state')]);
+  if (!metaRes.ok || !stateRes.ok) throw new Error('Сервер вернул ошибку при загрузке данных');
+  const meta = await metaRes.json();
+  const st = await stateRes.json();
+  GROUPS = meta.groups;
+  COLUMNS = meta.columns;
+  applyState(st);
+}
+
+/** Выполнить изменяющий запрос к API, обновить локальное состояние из ответа сервера. */
+async function mutate(url, options){
+  setSaveStatus('saving', 'Сохранение…');
+  try{
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Ошибка запроса к серверу');
+    applyState(data);
+    setSaveStatus('ok', 'Сохранено');
+    return data;
+  } catch(err){
+    console.error(err);
+    setSaveStatus('error', 'Не сохранено: ' + err.message);
+    throw err;
+  }
+}
+
+
+/* ===================== ВИДЖЕТЫ ===================== */
+function renderWidgets(){
+  const el = document.getElementById('widgets');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-label">Сотрудников в КР</div>
+      <div class="card-row">
+        <div class="big-num">110 772</div>
+        <div class="donut" style="--pct:10"><span>10%</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Средний срок пребывания в КР</div>
+      <div class="sub-num">45 дней</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">КР по должностям</div>
+      <div class="quad">
+        <div><div class="q-num">1</div><div class="q-label">Директор магазина</div></div>
+        <div><div class="q-num">1</div><div class="q-label">Начальник отдела</div></div>
+        <div><div class="q-num zero">0</div><div class="q-label">Старший кассир</div></div>
+        <div><div class="q-num zero">0</div><div class="q-label">Заведующий складом</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Готовность к релокации</div>
+      <div class="bars">
+        <div class="bar-row"><span style="width:74px">Готовы</span><div class="bar-track"><div class="bar-fill" style="width:62%;background:#1f8a52"></div></div><span class="bar-val">62%</span></div>
+        <div class="bar-row"><span style="width:74px">Не готовы</span><div class="bar-track"><div class="bar-fill" style="width:28%;background:#c81e3a"></div></div><span class="bar-val">28%</span></div>
+        <div class="bar-row"><span style="width:74px">Ожидание</span><div class="bar-track"><div class="bar-fill" style="width:10%;background:#b5790e"></div></div><span class="bar-val">10%</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">ИПР оформлено</div>
+      <div class="card-row"><div class="big-num">78%</div><span class="trend">▲ 4%</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:78%"></div></div>
+      <div class="progress-foot"><span>план 90%</span><span>к концу квартала</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Открытые позиции под резерв</div>
+      <div class="card-row"><div class="big-num">24</div><span class="trend">▲ 3 за месяц</span></div>
+    </div>
+  `;
+}
+
+/* ===================== ТАБЛИЦА ===================== */
+function typeSwatchClass(type){
+  return { auto:'auto', select:'select', free:'free', date:'date', empty:'empty' }[type];
+}
+
+function buildGroupChips(){
+  const wrap = document.getElementById('groupChips');
+  wrap.innerHTML = '';
+  GROUPS.filter(g => g.key !== 'core').forEach(g => {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.textContent = g.label;
+    chip.dataset.group = g.key;
+    chip.addEventListener('click', () => {
+      if (activeGroups.has(g.key)) activeGroups.delete(g.key);
+      else activeGroups.add(g.key);
+      chip.classList.toggle('active');
+      applyColumnVisibility();
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+function applyColumnVisibility(){
+  COLUMNS.forEach(col => {
+    const visible = col.group === 'core' || activeGroups.has(col.group);
+    document.querySelectorAll(`[data-col="${col.key}"]`).forEach(cell => {
+      cell.classList.toggle('hidden', !visible);
+    });
+  });
+  const visibleCount = COLUMNS.filter(c => c.group === 'core' || activeGroups.has(c.group)).length;
+  document.getElementById('visibleColCount').textContent = visibleCount;
+}
+
+function renderTable(){
+  const table = document.getElementById('mainTable');
+
+  // group header row (spans)
+  let groupCells = [`<th class="col-rownum" rowspan="2">#</th>`];
+  GROUPS.forEach(g => {
+    const cols = COLUMNS.filter(c => c.group === g.key);
+    if (cols.length === 0) return;
+    groupCells.push(`<th colspan="${cols.length}" data-colgroup="${g.key}">${g.label}</th>`);
+  });
+  groupCells.push(`<th class="col-actions" rowspan="2"></th>`);
+
+  // label header row
+  let labelCells = [];
+  COLUMNS.forEach(col => {
+    const cls = col.key === 'fio' ? ' class="col-fio"' : '';
+    const filterBtn = col.key === 'fio' ? '' :
+      `<button class="filter-btn${(columnFilters[col.key] && columnFilters[col.key].size > 0) ? ' active' : ''}" data-filter-col="${col.key}" title="Фильтр по столбцу">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M4 5h16l-6.5 7.5V19l-3 1.5v-8z"/></svg>
+      </button>`;
+    labelCells.push(`<th${cls} data-col="${col.key}"><span class="th-row"><span class="th-text">${col.label}</span>${filterBtn}</span></th>`);
+  });
+
+  let thead = `<thead>
+    <tr class="group-row">${groupCells.join('')}</tr>
+    <tr class="label-row">${labelCells.join('')}</tr>
+  </thead>`;
+
+  // body rows
+  let bodyRows = [];
+  reserveRows.forEach((row, idx) => {
+    let cells = [`<td class="col-rownum" data-col="__rownum">${idx + 1}</td>`];
+    COLUMNS.forEach(col => {
+      const value = row.values[col.key];
+      const fioClass = col.key === 'fio' ? ' col-fio' : '';
+      let inner = '';
+      switch(col.type){
+        case 'auto':
+          inner = `<div class="cell-auto" title="${value}">${value}</div>`;
+          break;
+        case 'select':
+          inner = `<select class="cell-input" data-row="${row.id}" data-col="${col.key}">` +
+            col.options.map(o => `<option ${o === value ? 'selected' : ''}>${o}</option>`).join('') +
+            `</select>`;
+          break;
+        case 'free':
+          inner = `<input class="cell-input" type="text" data-row="${row.id}" data-col="${col.key}" value="${value}" placeholder="—">`;
+          break;
+        case 'date':
+          inner = `<input class="cell-input" type="date" data-row="${row.id}" data-col="${col.key}" value="${value}">`;
+          break;
+        case 'empty':
+          inner = `<div class="cell-empty">—</div>`;
+          break;
+      }
+      cells.push(`<td class="${fioClass}" data-col="${col.key}">${inner}</td>`);
+    });
+    cells.push(`<td class="col-actions"><button class="row-remove-btn" data-remove-row="${row.id}" title="Убрать из резерва">✕</button></td>`);
+    bodyRows.push(`<tr data-row="${row.id}">${cells.join('')}</tr>`);
+  });
+
+  table.innerHTML = thead + `<tbody>${bodyRows.join('')}</tbody>`;
+  closeFilterPopover();
+  applyRowFilters();
+}
+
+/* синхронизация ввода пользователя с моделью данных, чтобы значения не терялись при перерисовке */
+const cellSaveTimers = {};
+
+function updateLocalCellValue(el){
+  const row = reserveRows.find(r => r.id === el.dataset.row);
+  if (row) row.values[el.dataset.col] = el.value;
+}
+
+async function saveCell(rowId, col, value){
+  try{
+    await mutate(`/api/reserve/${encodeURIComponent(rowId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ col, value }),
+    });
+  } catch(err){
+    // запрос не прошёл — перерисуем таблицу из последнего известного состояния сервера
+  }
+  // после сохранения статус мог стать "Уволен" — сервер уже перенёс строку,
+  // перерисовываем и резерв, и список уволенных
+  renderTable();
+  applyColumnVisibility();
+  renderDismissedList();
+}
+
+function scheduleCellSave(rowId, col, value){
+  const key = rowId + ':' + col;
+  clearTimeout(cellSaveTimers[key]);
+  cellSaveTimers[key] = setTimeout(() => saveCell(rowId, col, value), 600);
+}
+
+function setupTableInputSync(){
+  const table = document.getElementById('mainTable');
+
+  // текстовые поля — сохраняем с задержкой, пока пользователь печатает
+  table.addEventListener('input', e => {
+    const el = e.target;
+    if (!el.dataset.row || !el.dataset.col) return;
+    if (el.tagName === 'INPUT' && el.type === 'text'){
+      updateLocalCellValue(el);
+      scheduleCellSave(el.dataset.row, el.dataset.col, el.value);
+    }
+  });
+
+  // списки и даты — сохраняем сразу по выбору значения
+  table.addEventListener('change', e => {
+    const el = e.target;
+    if (!el.dataset.row || !el.dataset.col) return;
+    if (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type === 'date')){
+      updateLocalCellValue(el);
+      const key = el.dataset.row + ':' + el.dataset.col;
+      clearTimeout(cellSaveTimers[key]);
+      saveCell(el.dataset.row, el.dataset.col, el.value);
+    }
+  });
+
+  table.addEventListener('click', e => {
+    const btn = e.target.closest('[data-remove-row]');
+    if (!btn) return;
+    removeFromReserveRow(btn.dataset.removeRow);
+  });
+}
+
+function applyRowFilters(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  let visibleCount = 0;
+  reserveRows.forEach(row => {
+    let visible = true;
+    if (q && !(row.values.fio || '').toLowerCase().includes(q)) visible = false;
+    if (visible){
+      for (const colKey in columnFilters){
+        const set = columnFilters[colKey];
+        if (!set || set.size === 0) continue;
+        const val = (row.values[colKey] || '').toString();
+        if (!set.has(val)){ visible = false; break; }
+      }
+    }
+    const tr = document.querySelector(`tr[data-row="${row.id}"]`);
+    if (tr) tr.style.display = visible ? '' : 'none';
+    if (visible) visibleCount++;
+  });
+  document.getElementById('rowCount').textContent = `Показано ${visibleCount} из ${reserveRows.length} строк`;
+}
+
+/* ===================== УВОЛЕННЫЕ СОТРУДНИКИ ===================== */
+/* Перенос в уволенные происходит автоматически на сервере при сохранении
+   статуса "Уволен" (см. saveCell) — здесь только возврат обратно в резерв. */
+async function restoreFromDismissedRow(rowId){
+  try{
+    await mutate(`/api/dismissed/${encodeURIComponent(rowId)}/restore`, { method: 'POST' });
+  } catch(err){
+    return;
+  }
+  renderTable();
+  applyColumnVisibility();
+  renderDismissedList();
+}
+
+function renderDismissedList(){
+  document.getElementById('dismissedCount').textContent = dismissedRows.length;
+  const list = document.getElementById('dismissedList');
+  if (dismissedRows.length === 0){
+    list.innerHTML = `<div class="modal-empty">Пока никто не уволен.</div>`;
+    return;
+  }
+  list.innerHTML = dismissedRows.map(row => `
+    <div class="pool-item">
+      <div>
+        <div class="pool-item-name">${row.values.fio}</div>
+        <div class="pool-item-sub">${row.values.curPos} · ${row.values.depart} · уволен ${row.dismissedAt}</div>
+      </div>
+      <button class="pool-add-btn" data-restore-id="${row.id}">Вернуть в резерв</button>
+    </div>
+  `).join('');
+}
+
+function setupDismissedSection(){
+  const toggle = document.getElementById('dismissedToggle');
+  const body = document.getElementById('dismissedBody');
+  const chevron = document.getElementById('dismissedChevron');
+
+  toggle.addEventListener('click', () => {
+    const isOpen = body.style.display !== 'none';
+    body.style.display = isOpen ? 'none' : 'block';
+    chevron.classList.toggle('open', !isOpen);
+  });
+
+  document.getElementById('dismissedList').addEventListener('click', e => {
+    const btn = e.target.closest('[data-restore-id]');
+    if (!btn) return;
+    restoreFromDismissedRow(btn.dataset.restoreId);
+  });
+
+  renderDismissedList();
+}
+
+/* ===================== ДОБАВЛЕНИЕ / УДАЛЕНИЕ СОТРУДНИКОВ ===================== */
+async function removeFromReserveRow(rowId){
+  const row = reserveRows.find(r => r.id === rowId);
+  if (!row) return;
+  const ok = confirm(`Убрать «${row.values.fio}» из кадрового резерва и вернуть в общий список сотрудников?`);
+  if (!ok) return;
+
+  try{
+    await mutate(`/api/reserve/${encodeURIComponent(rowId)}`, { method: 'DELETE' });
+  } catch(err){
+    return;
+  }
+  renderTable();
+  applyColumnVisibility();
+  renderPoolList(document.getElementById('poolSearchInput').value);
+}
+
+async function addToReserveFromPool(poolId){
+  try{
+    await mutate('/api/reserve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ poolId }),
+    });
+  } catch(err){
+    return;
+  }
+  renderTable();
+  applyColumnVisibility();
+  renderPoolList(document.getElementById('poolSearchInput').value);
+}
+
+function renderPoolList(filter=''){
+  const list = document.getElementById('poolList');
+  const q = filter.trim().toLowerCase();
+  const items = EMPLOYEE_POOL.filter(p =>
+    !q || p.fio.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || p.shop.includes(q)
+  );
+
+  if (items.length === 0){
+    list.innerHTML = `<div class="modal-empty">${EMPLOYEE_POOL.length === 0 ? 'В общем списке больше нет сотрудников — все уже в резерве.' : 'Никого не найдено.'}</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(p => `
+    <div class="pool-item">
+      <div>
+        <div class="pool-item-name">${p.fio}</div>
+        <div class="pool-item-sub">${p.curPos} · ${p.city} · магазин ${p.shop}</div>
+      </div>
+      <button class="pool-add-btn" data-add-id="${p.id}">Добавить</button>
+    </div>
+  `).join('');
+}
+
+function setupAddModal(){
+  const overlay = document.getElementById('addModalOverlay');
+  const openBtn = document.getElementById('addEmployeeBtn');
+  const closeBtn = document.getElementById('modalCloseBtn');
+  const doneBtn = document.getElementById('modalDoneBtn');
+  const searchInput = document.getElementById('poolSearchInput');
+  const list = document.getElementById('poolList');
+
+  const open = () => { overlay.classList.add('open'); searchInput.value=''; renderPoolList(); searchInput.focus(); };
+  const close = () => overlay.classList.remove('open');
+
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  doneBtn.addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  searchInput.addEventListener('input', () => renderPoolList(searchInput.value));
+
+  list.addEventListener('click', e => {
+    const btn = e.target.closest('[data-add-id]');
+    if (!btn) return;
+    addToReserveFromPool(btn.dataset.addId);
+  });
+}
+
+/* ===================== ПОИСК ===================== */
+function setupSearch(){
+  const input = document.getElementById('searchInput');
+  input.addEventListener('input', applyRowFilters);
+}
+
+/* ===================== ФИЛЬТРЫ ПО СТОЛБЦАМ ===================== */
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function formatIsoToRu(iso){
+  const p = iso.split('-');
+  return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : iso;
+}
+function getColumnValueUniverse(col){
+  if (col.type === 'select') return col.options.slice();
+  const set = new Set();
+  reserveRows.forEach(r => set.add((r.values[col.key] || '').toString().trim()));
+  return Array.from(set).sort((a,b) => a.localeCompare(b,'ru'));
+}
+function valueLabel(col, v){
+  if (v === '') return '(не заполнено)';
+  return col.type === 'date' ? formatIsoToRu(v) : v;
+}
+function renderFilterOptions(col, searchQ){
+  const universe = getColumnValueUniverse(col);
+  const q = (searchQ || '').trim().toLowerCase();
+  const selected = columnFilters[col.key] || new Set();
+  const filtered = universe.filter(v => !q || valueLabel(col, v).toLowerCase().includes(q));
+  const list = document.getElementById('filterPopoverList');
+  list.innerHTML = filtered.length === 0
+    ? `<div class="filter-empty">Ничего не найдено</div>`
+    : filtered.map(v => `
+        <label class="filter-option">
+          <input type="checkbox" data-filter-value value="${escapeHtml(v)}" ${selected.has(v) ? 'checked' : ''}>
+          <span>${escapeHtml(valueLabel(col, v))}</span>
+        </label>
+      `).join('');
+  updateFilterSelCount(col.key);
+}
+function updateFilterSelCount(colKey){
+  const selected = columnFilters[colKey] || new Set();
+  document.getElementById('filterPopoverSelCount').textContent = selected.size > 0 ? `Выбрано: ${selected.size}` : 'Показаны все';
+}
+function updateFilterButtonState(colKey){
+  const active = !!(columnFilters[colKey] && columnFilters[colKey].size > 0);
+  document.querySelectorAll(`[data-filter-col="${colKey}"]`).forEach(btn => btn.classList.toggle('active', active));
+}
+function openFilterPopover(colKey, btnEl){
+  const col = COLUMNS.find(c => c.key === colKey);
+  if (!col) return;
+  openFilterCol = colKey;
+  document.getElementById('filterPopoverTitle').textContent = col.label;
+  document.getElementById('filterPopoverSearch').value = '';
+  renderFilterOptions(col, '');
+
+  const popover = document.getElementById('filterPopover');
+  popover.classList.add('open');
+  const rect = btnEl.getBoundingClientRect();
+  const popW = 240, popH = popover.offsetHeight || 300;
+  let left = Math.min(rect.left, window.innerWidth - popW - 12);
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
+  popover.style.left = Math.max(12, left) + 'px';
+  popover.style.top = top + 'px';
+  document.getElementById('filterPopoverSearch').focus();
+}
+function closeFilterPopover(){
+  document.getElementById('filterPopover').classList.remove('open');
+  openFilterCol = null;
+}
+function setupFilterPopover(){
+  document.getElementById('mainTable').addEventListener('click', e => {
+    const btn = e.target.closest('[data-filter-col]');
+    if (!btn) return;
+    e.stopPropagation();
+    if (openFilterCol === btn.dataset.filterCol){ closeFilterPopover(); return; }
+    openFilterPopover(btn.dataset.filterCol, btn);
+  });
+
+  document.getElementById('filterPopoverClose').addEventListener('click', closeFilterPopover);
+
+  document.getElementById('filterPopoverClear').addEventListener('click', () => {
+    if (!openFilterCol) return;
+    delete columnFilters[openFilterCol];
+    renderFilterOptions(COLUMNS.find(c => c.key === openFilterCol), document.getElementById('filterPopoverSearch').value);
+    updateFilterButtonState(openFilterCol);
+    applyRowFilters();
+  });
+
+  document.getElementById('filterPopoverSearch').addEventListener('input', e => {
+    const col = COLUMNS.find(c => c.key === openFilterCol);
+    if (col) renderFilterOptions(col, e.target.value);
+  });
+
+  document.getElementById('filterPopoverList').addEventListener('change', e => {
+    const cb = e.target.closest('[data-filter-value]');
+    if (!cb || !openFilterCol) return;
+    if (!columnFilters[openFilterCol]) columnFilters[openFilterCol] = new Set();
+    const set = columnFilters[openFilterCol];
+    if (cb.checked) set.add(cb.value); else set.delete(cb.value);
+    if (set.size === 0) delete columnFilters[openFilterCol];
+    updateFilterSelCount(openFilterCol);
+    updateFilterButtonState(openFilterCol);
+    applyRowFilters();
+  });
+
+  document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+    columnFilters = {};
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    if (openFilterCol) renderFilterOptions(COLUMNS.find(c => c.key === openFilterCol), document.getElementById('filterPopoverSearch').value);
+    applyRowFilters();
+  });
+
+  document.addEventListener('click', e => {
+    const popover = document.getElementById('filterPopover');
+    if (!popover.classList.contains('open')) return;
+    if (popover.contains(e.target) || e.target.closest('[data-filter-col]')) return;
+    closeFilterPopover();
+  });
+}
+
+/* ===================== КНОПКИ ПОКАЗАТЬ/СВЕРНУТЬ ===================== */
+function setupToolbarButtons(){
+  document.getElementById('expandAllBtn').addEventListener('click', () => {
+    activeGroups = new Set(GROUPS.filter(g => g.key !== 'core').map(g => g.key));
+    document.querySelectorAll('.chip-group .chip').forEach(c => c.classList.add('active'));
+    applyColumnVisibility();
+  });
+  document.getElementById('collapseAllBtn').addEventListener('click', () => {
+    activeGroups = new Set();
+    document.querySelectorAll('.chip-group .chip').forEach(c => c.classList.remove('active'));
+    applyColumnVisibility();
+  });
+}
+
+/* ===================== ИНИЦИАЛИЗАЦИЯ ===================== */
+async function init(){
+  setSaveStatus('saving', 'Загрузка данных…');
+  try{
+    await loadMetaAndState();
+  } catch(err){
+    console.error(err);
+    setSaveStatus('error', 'Нет связи с сервером');
+    document.querySelector('.content').insertAdjacentHTML('afterbegin',
+      `<div class="card" style="margin-bottom:16px;border:1px solid #f3c3ca;color:#c81e3a;">
+        Не удалось загрузить данные с сервера (${escapeHtmlSafe(err.message)}). Проверьте, что сервер запущен (npm start), и обновите страницу.
+      </div>`);
+    return;
+  }
+  setSaveStatus('ok', 'Данные загружены');
+
+  renderWidgets();
+  buildGroupChips();
+  renderTable();
+  applyColumnVisibility();
+  setupSearch();
+  setupToolbarButtons();
+  setupTableInputSync();
+  setupAddModal();
+  setupDismissedSection();
+  setupFilterPopover();
+}
+
+function escapeHtmlSafe(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+
+</body>
+</html>
