@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { GROUPS, COLUMNS } = require('./columns');
+const { GROUPS, COLUMNS, POSITIONS } = require('./columns');
 const db = require('./db');
 
 const app = express();
@@ -9,7 +9,7 @@ app.use(express.json());
 // --- API ---
 
 app.get('/api/meta', (req, res) => {
-  res.json({ groups: GROUPS, columns: COLUMNS });
+  res.json({ groups: GROUPS, columns: COLUMNS, positions: POSITIONS });
 });
 
 app.get('/api/state', (req, res) => {
@@ -47,6 +47,43 @@ app.delete('/api/reserve/:id', (req, res) => {
 app.post('/api/dismissed/:id/restore', (req, res) => {
   try {
     res.json(db.restoreFromDismissed(req.params.id));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// --- Роли и доступы ---
+
+app.post('/api/roles', (req, res) => {
+  const { name, positions } = req.body || {};
+  try {
+    res.json(db.createRole(name, positions));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.patch('/api/roles/:id', (req, res) => {
+  const { name, positions } = req.body || {};
+  try {
+    res.json(db.updateRole(req.params.id, name, positions));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.patch('/api/roles/:id/permissions', (req, res) => {
+  const { permissions } = req.body || {};
+  try {
+    res.json(db.updateRolePermissions(req.params.id, permissions || {}));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/roles/:id', (req, res) => {
+  try {
+    res.json(db.deleteRole(req.params.id));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

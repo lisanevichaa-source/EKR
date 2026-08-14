@@ -86,4 +86,76 @@ const INITIAL_EMPLOYEE_POOL = [
   { id:'p12', fio:'Григорьев Павел Игоревич',     email:'p.grigoriev@company.ru',  phone:'+7 391 502 17 88', region:'Сибирский регион',        depart:'Красноярское отделение',     city:'Красноярск',       shop:'21744', curPos:'Продавец-консультант' },
 ];
 
-module.exports = { GROUPS, COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL };
+// Справочник должностей для назначения ролей (страница "Роли и доступы").
+// Это отдельный список, не связанный со значениями столбцов "Текущая/Потенциальная должность".
+const POSITIONS = [
+  'Директор магазина',
+  'Директор отделения (ДО)',
+  'Директор по продажам региона',
+  'HR BP',
+  'Менеджер по оценке',
+  'Начальник отдела',
+  'Старший кассир',
+  'Заведующий складом',
+  'Сотрудник',
+];
+
+// Столбцы, тип которых делает их принципиально нередактируемыми ни для какой роли
+// (данные приходят автоматически из смежных систем — Pub3 -> СМ Скиллс).
+const NON_EDITABLE_TYPES = ['auto', 'empty'];
+
+function isColumnEverEditable(colKey){
+  const col = COLUMNS.find(c => c.key === colKey);
+  return !!col && !NON_EDITABLE_TYPES.includes(col.type);
+}
+
+// Права доступа "по умолчанию" для новой роли — чистый лист, всё скрыто.
+function blankPermissions(){
+  const perms = {};
+  COLUMNS.forEach(col => { perms[col.key] = { view: false, edit: false }; });
+  return perms;
+}
+
+// Принудительно выставляет edit:false для полей, которые в принципе нельзя редактировать,
+// независимо от того, что прислали с клиента. Используется и при создании, и при обновлении роли.
+function sanitizePermissions(rawPerms){
+  const perms = blankPermissions();
+  COLUMNS.forEach(col => {
+    const incoming = (rawPerms && rawPerms[col.key]) || {};
+    const view = !!incoming.view;
+    const edit = isColumnEverEditable(col.key) ? !!incoming.edit && view : false;
+    perms[col.key] = { view, edit: edit };
+  });
+  return perms;
+}
+
+function seedRoles(){
+  const managerPerms = blankPermissions();
+  ['fio','status','curPos','potPos','krStatus','krDate','region','depart','city','shop',
+   'hard','hardDate','soft','softDate','managerFio','managerRec','relocReady','relocNotes',
+   'sed','assignment','assignDate','ipr'].forEach(k => { managerPerms[k].view = true; });
+  managerPerms.managerRec.edit = true; // руководитель оставляет своё ОС
+
+  const employeePerms = blankPermissions();
+  ['fio','curPos','potPos','krStatus','krDate','relocReady','status'].forEach(k => { employeePerms[k].view = true; });
+
+  return [
+    {
+      id: 'role_manager',
+      name: 'Руководитель',
+      positions: ['Директор магазина', 'Директор отделения (ДО)'],
+      permissions: sanitizePermissions(managerPerms),
+    },
+    {
+      id: 'role_employee',
+      name: 'Сотрудник',
+      positions: ['Сотрудник'],
+      permissions: sanitizePermissions(employeePerms),
+    },
+  ];
+}
+
+module.exports = {
+  GROUPS, COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
+  POSITIONS, isColumnEverEditable, blankPermissions, sanitizePermissions, seedRoles,
+};
