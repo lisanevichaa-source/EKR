@@ -132,26 +132,6 @@
 
   .divider-v{ width:1px; height:22px; background:var(--line); margin:0 4px; }
 
-  .chip{
-    border:1px solid var(--line);
-    background:#fff;
-    color:var(--ink);
-    font-size:12.5px;
-    padding:7px 13px;
-    border-radius:999px;
-    cursor:pointer;
-    transition:all .15s ease;
-    white-space:nowrap;
-    user-select:none;
-  }
-  .chip:hover{ border-color:#c7cae8; }
-  .chip.active{
-    background:var(--accent);
-    border-color:var(--accent);
-    color:#fff;
-  }
-  .chip-group{ display:flex; flex-wrap:wrap; gap:8px; }
-
   .toolbar-right{ margin-left:auto; display:flex; gap:8px; align-items:center;}
 
   .legend{
@@ -360,6 +340,10 @@
   .filter-option input{ accent-color:var(--accent); width:14px; height:14px; flex-shrink:0; }
   .filter-option span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .filter-empty{ text-align:center; color:var(--ink-soft); font-size:12px; padding:24px 10px; }
+  .colvis-group-label{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-soft); font-weight:700; padding:8px 8px 4px;
+  }
   .filter-popover-foot{
     display:flex; align-items:center; justify-content:space-between;
     padding:8px 12px; border-top:1px solid var(--line);
@@ -407,12 +391,10 @@
         <option value="">Без ограничений (полный доступ)</option>
       </select>
     </div>
-    <div class="divider-v"></div>
-    <div class="chip-group" id="groupChips"></div>
     <div class="toolbar-right">
       <button class="ghost-btn" id="clearFiltersBtn">Сбросить фильтры</button>
       <button class="ghost-btn" id="expandAllBtn">Показать все столбцы</button>
-      <button class="ghost-btn" id="collapseAllBtn">Свернуть до основных</button>
+      <button class="ghost-btn" id="columnVisibilityBtn">Настроить отображение столбцов</button>
     </div>
   </div>
 
@@ -478,6 +460,21 @@
   </div>
 </div>
 
+<div class="filter-popover" id="columnVisibilityPopover">
+  <div class="filter-popover-head">
+    <span>Отображение столбцов</span>
+    <button class="modal-close" id="columnVisibilityClose">✕</button>
+  </div>
+  <div class="filter-popover-search">
+    <input id="columnVisibilitySearch" type="text" placeholder="Поиск столбца...">
+  </div>
+  <div class="filter-popover-list" id="columnVisibilityList"></div>
+  <div class="filter-popover-foot">
+    <button class="ghost-btn" id="columnVisibilityShowAll">Показать все</button>
+    <span class="filter-popover-count" id="columnVisibilitySelCount"></span>
+  </div>
+</div>
+
 <script src="common.js"></script>
 <script>
 /* ===================== СОСТОЯНИЕ (загружается и сохраняется через API) ===================== */
@@ -491,7 +488,7 @@ let ROLES = [];
 
 let currentRoleId = ''; // '' = без ограничений (полный доступ), иначе id роли из ROLES
 
-let activeGroups = new Set(); // toggleable groups currently shown ('core' always shown, not stored here)
+let hiddenColumns = new Set(); // столбцы, скрытые пользователем через "Настроить отображение столбцов" (по умолчанию пусто — показаны все)
 
 // активные фильтры по столбцам: colKey -> Set выбранных значений
 let columnFilters = {};
@@ -564,28 +561,6 @@ function renderWidgets(){
 }
 
 /* ===================== ТАБЛИЦА ===================== */
-function typeSwatchClass(type){
-  return { auto:'auto', select:'select', free:'free', date:'date', empty:'empty' }[type];
-}
-
-function buildGroupChips(){
-  const wrap = document.getElementById('groupChips');
-  wrap.innerHTML = '';
-  GROUPS.filter(g => g.key !== 'core').forEach(g => {
-    const chip = document.createElement('button');
-    chip.className = 'chip';
-    chip.textContent = g.label;
-    chip.dataset.group = g.key;
-    chip.addEventListener('click', () => {
-      if (activeGroups.has(g.key)) activeGroups.delete(g.key);
-      else activeGroups.add(g.key);
-      chip.classList.toggle('active');
-      applyColumnVisibility();
-    });
-    wrap.appendChild(chip);
-  });
-}
-
 /* ===================== РОЛИ И ПРАВА ДОСТУПА ===================== */
 /** Эффективные права на поле с учётом выбранной "роли просмотра" в реестре.
  *  Без выбранной роли — полный доступ (как в обычном режиме). */
@@ -599,14 +574,14 @@ function getEffectivePermission(colKey){
 function applyColumnVisibility(){
   COLUMNS.forEach(col => {
     const roleAllowsView = getEffectivePermission(col.key).view;
-    const groupVisible = col.group === 'core' || activeGroups.has(col.group);
-    const visible = roleAllowsView && groupVisible;
+    const userWantsVisible = !hiddenColumns.has(col.key);
+    const visible = roleAllowsView && userWantsVisible;
     document.querySelectorAll(`[data-col="${col.key}"]`).forEach(cell => {
       cell.classList.toggle('hidden', !visible);
     });
   });
   const visibleCount = COLUMNS.filter(c =>
-    getEffectivePermission(c.key).view && (c.group === 'core' || activeGroups.has(c.group))
+    getEffectivePermission(c.key).view && !hiddenColumns.has(c.key)
   ).length;
   document.getElementById('visibleColCount').textContent = visibleCount;
 }
@@ -945,6 +920,7 @@ function updateFilterButtonState(colKey){
 function openFilterPopover(colKey, btnEl){
   const col = COLUMNS.find(c => c.key === colKey);
   if (!col) return;
+  closeColumnVisibilityPopover();
   openFilterCol = colKey;
   document.getElementById('filterPopoverTitle').textContent = col.label;
   document.getElementById('filterPopoverSearch').value = '';
@@ -1019,14 +995,96 @@ function setupFilterPopover(){
 /* ===================== КНОПКИ ПОКАЗАТЬ/СВЕРНУТЬ ===================== */
 function setupToolbarButtons(){
   document.getElementById('expandAllBtn').addEventListener('click', () => {
-    activeGroups = new Set(GROUPS.filter(g => g.key !== 'core').map(g => g.key));
-    document.querySelectorAll('.chip-group .chip').forEach(c => c.classList.add('active'));
+    hiddenColumns.clear();
+    applyColumnVisibility();
+    if (document.getElementById('columnVisibilityPopover').classList.contains('open')){
+      renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
+    }
+  });
+}
+
+/* ===================== НАСТРОЙКА ОТОБРАЖЕНИЯ СТОЛБЦОВ ===================== */
+function renderColumnVisibilityList(searchQ){
+  const q = (searchQ || '').trim().toLowerCase();
+  const list = document.getElementById('columnVisibilityList');
+  let html = '';
+  GROUPS.forEach(g => {
+    const cols = COLUMNS.filter(c => c.group === g.key && (!q || c.label.toLowerCase().includes(q)));
+    if (cols.length === 0) return;
+    html += `<div class="colvis-group-label">${escapeHtml(g.label)}</div>`;
+    cols.forEach(col => {
+      const checked = !hiddenColumns.has(col.key);
+      html += `
+        <label class="filter-option">
+          <input type="checkbox" data-colvis="${col.key}" ${checked ? 'checked' : ''}>
+          <span>${escapeHtml(col.label)}</span>
+        </label>
+      `;
+    });
+  });
+  list.innerHTML = html || `<div class="filter-empty">Ничего не найдено</div>`;
+  updateColumnVisibilityCount();
+}
+
+function updateColumnVisibilityCount(){
+  const total = COLUMNS.length;
+  const shown = COLUMNS.filter(c => !hiddenColumns.has(c.key)).length;
+  document.getElementById('columnVisibilitySelCount').textContent = `Показано: ${shown} из ${total}`;
+}
+
+function openColumnVisibilityPopover(){
+  const popover = document.getElementById('columnVisibilityPopover');
+  document.getElementById('columnVisibilitySearch').value = '';
+  renderColumnVisibilityList('');
+  popover.classList.add('open');
+
+  const btn = document.getElementById('columnVisibilityBtn');
+  const rect = btn.getBoundingClientRect();
+  const popW = 260, popH = popover.offsetHeight || 320;
+  let left = Math.min(rect.right - popW, window.innerWidth - popW - 12);
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
+  popover.style.left = Math.max(12, left) + 'px';
+  popover.style.top = top + 'px';
+  document.getElementById('columnVisibilitySearch').focus();
+}
+function closeColumnVisibilityPopover(){
+  document.getElementById('columnVisibilityPopover').classList.remove('open');
+}
+
+function setupColumnVisibilityPopover(){
+  document.getElementById('columnVisibilityBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    const popover = document.getElementById('columnVisibilityPopover');
+    if (popover.classList.contains('open')){ closeColumnVisibilityPopover(); return; }
+    closeFilterPopover();
+    openColumnVisibilityPopover();
+  });
+  document.getElementById('columnVisibilityClose').addEventListener('click', closeColumnVisibilityPopover);
+
+  document.getElementById('columnVisibilitySearch').addEventListener('input', e => {
+    renderColumnVisibilityList(e.target.value);
+  });
+
+  document.getElementById('columnVisibilityList').addEventListener('change', e => {
+    const cb = e.target.closest('[data-colvis]');
+    if (!cb) return;
+    if (cb.checked) hiddenColumns.delete(cb.dataset.colvis); else hiddenColumns.add(cb.dataset.colvis);
+    updateColumnVisibilityCount();
     applyColumnVisibility();
   });
-  document.getElementById('collapseAllBtn').addEventListener('click', () => {
-    activeGroups = new Set();
-    document.querySelectorAll('.chip-group .chip').forEach(c => c.classList.remove('active'));
+
+  document.getElementById('columnVisibilityShowAll').addEventListener('click', () => {
+    hiddenColumns.clear();
+    renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
     applyColumnVisibility();
+  });
+
+  document.addEventListener('click', e => {
+    const popover = document.getElementById('columnVisibilityPopover');
+    if (!popover.classList.contains('open')) return;
+    if (popover.contains(e.target) || e.target.closest('#columnVisibilityBtn')) return;
+    closeColumnVisibilityPopover();
   });
 }
 
@@ -1066,7 +1124,6 @@ async function init(){
   setSaveStatus('ok', 'Данные загружены');
 
   renderWidgets();
-  buildGroupChips();
   renderRoleSwitcherOptions();
   renderTable();
   applyColumnVisibility();
@@ -1076,6 +1133,7 @@ async function init(){
   setupAddModal();
   setupDismissedSection();
   setupFilterPopover();
+  setupColumnVisibilityPopover();
   setupRoleSwitcher();
 }
 
