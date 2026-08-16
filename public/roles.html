@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Роли и доступы — Электронный кадровый резерв</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* ---------- PAGE HEADER (аналог hero, но без виджетов) ---------- */
+  .page-header{
+    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
+    padding:24px 32px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  }
+  .page-header h1{ color:#fff; margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em; }
+
+  /* ---------- ROLES PAGE ---------- */
+  .roles-page-inner{ padding:28px 32px 60px; max-width:1100px; }
+  .roles-page-head{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:20px;
+    margin-bottom:22px; flex-wrap:wrap;
+  }
+  .roles-page-head h2{ margin:0 0 6px; font-size:20px; }
+  .roles-page-head p{ margin:0; color:var(--ink-soft); font-size:13px; max-width:560px; line-height:1.5; }
+
+  .roles-list{ display:flex; flex-direction:column; gap:14px; }
+  .role-card{
+    background:var(--card); border-radius:var(--radius-md);
+    padding:18px 20px; box-shadow:0 1px 3px rgba(15,15,40,0.05);
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  }
+  .role-card-main{ flex:1; min-width:220px; }
+  .role-card-name{ font-size:15px; font-weight:700; margin-bottom:6px; }
+  .role-card-positions{ display:flex; flex-wrap:wrap; gap:6px; }
+  .role-position-chip{
+    background:var(--auto-bg); color:var(--ink-soft);
+    font-size:11.5px; padding:4px 10px; border-radius:999px;
+  }
+  .role-card-empty-positions{ color:#c3c6d4; font-size:12.5px; font-style:italic; }
+  .role-card-actions{ display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap; }
+  .role-card-summary{ font-size:11.5px; color:var(--ink-soft); margin-top:8px; }
+  .roles-empty{
+    text-align:center; color:var(--ink-soft); font-size:13.5px;
+    padding:50px 20px; background:var(--card); border-radius:var(--radius-md);
+  }
+
+  .danger-btn{
+    border:1px solid #f3c3ca; background:#fff; color:var(--red);
+    font-size:12px; font-weight:600; padding:7px 13px; border-radius:999px; cursor:pointer;
+  }
+  .danger-btn:hover{ background:#fdeeef; }
+
+  /* ---------- ROLE EDIT MODAL (name + positions) ---------- */
+  .field-label{ font-size:12.5px; font-weight:600; color:var(--ink); margin:14px 20px 6px; display:block; }
+  .field-label:first-of-type{ margin-top:16px; }
+  .text-input{
+    width:calc(100% - 40px); margin:0 20px;
+    border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:9px 12px; font-size:13.5px; font-family:inherit; color:var(--ink); outline:none;
+  }
+  .text-input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .positions-picker{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin:0 20px 16px; padding:12px; border:1px solid var(--line); border-radius:var(--radius-sm);
+  }
+  .position-chip-toggle{
+    border:1px solid var(--line); background:#fff; color:var(--ink);
+    font-size:12px; padding:6px 12px; border-radius:999px; cursor:pointer;
+  }
+  .position-chip-toggle.active{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  /* ---------- PERMISSIONS MODAL ---------- */
+  .perm-modal-card{ max-width:640px; }
+  .perm-table-wrap{ overflow-y:auto; max-height:52vh; margin:0 20px 16px; border:1px solid var(--line); border-radius:var(--radius-sm); }
+  .perm-row{
+    display:grid; grid-template-columns:1fr 70px 90px;
+    align-items:center; gap:8px;
+    padding:8px 12px; border-bottom:1px solid var(--line);
+    font-size:12.5px;
+  }
+  .perm-row:last-child{ border-bottom:none; }
+  .perm-group-row{
+    background:#f3f3fb; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-soft); font-weight:700; padding:6px 12px;
+  }
+  .perm-head-row{
+    display:grid; grid-template-columns:1fr 70px 90px;
+    padding:8px 12px; font-size:11px; font-weight:700; color:var(--ink-soft);
+    background:#fafafe; border-bottom:1px solid var(--line);
+    position:sticky; top:0;
+  }
+  .perm-col-label{ display:flex; align-items:center; gap:6px; }
+  .perm-lock-note{ font-size:10.5px; color:#c3c6d4; }
+  .perm-checkbox{ justify-self:center; accent-color:var(--accent); width:15px; height:15px; cursor:pointer; }
+  .perm-checkbox:disabled{ cursor:not-allowed; opacity:.35; }
+</style>
+</head>
+<body>
+
+<div class="topnav">
+  <div class="topnav-inner">
+    <div class="topnav-tabs">
+      <a class="topnav-tab" href="index.html">Реестр резервистов</a>
+      <a class="topnav-tab active" href="roles.html">Роли и доступы</a>
+    </div>
+  </div>
+</div>
+
+<div class="page-header">
+  <h1>Роли и доступы</h1>
+  <div class="save-status" id="saveStatus"><span class="save-dot"></span><span class="save-status-text">Загрузка…</span></div>
+</div>
+
+<div class="roles-page-inner">
+
+  <div class="roles-page-head">
+    <div>
+      <p>Настройте, какие столбцы видит и может редактировать каждая роль. Поля, помеченные значком СМ Скиллс, нередактируемы в принципе — они приходят автоматически из смежных систем.</p>
+    </div>
+    <button class="primary-btn" id="addRoleBtn">+ Добавить роль</button>
+  </div>
+
+  <div id="rolesList" class="roles-list"></div>
+
+</div>
+
+<div class="modal-overlay" id="roleEditModalOverlay">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="roleEditModalTitle">Новая роль</h3>
+      <button class="modal-close" id="roleEditModalClose">✕</button>
+    </div>
+    <label class="field-label" for="roleNameInput">Название роли</label>
+    <input class="text-input" id="roleNameInput" type="text" placeholder="Например, Директор магазина">
+    <label class="field-label">Должности (можно выбрать несколько)</label>
+    <div class="positions-picker" id="positionsPicker"></div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="roleEditCancelBtn">Отмена</button>
+      <button class="primary-btn" id="roleEditSaveBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="permModalOverlay">
+  <div class="modal-card perm-modal-card">
+    <div class="modal-head">
+      <h3 id="permModalTitle">Видимость полей</h3>
+      <button class="modal-close" id="permModalClose">✕</button>
+    </div>
+    <div class="perm-table-wrap">
+      <div class="perm-head-row">
+        <span>Поле</span>
+        <span style="text-align:center;">Просмотр</span>
+        <span style="text-align:center;">Редактирование</span>
+      </div>
+      <div id="permTableBody"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="permCancelBtn">Отмена</button>
+      <button class="primary-btn" id="permSaveBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+/* ===================== СОСТОЯНИЕ (загружается и сохраняется через API) ===================== */
+let GROUPS = [];
+let COLUMNS = [];
+let POSITIONS = [];
+let ROLES = [];
+
+let editingRoleId = null;     // роль, которую редактируем в модалке названия/должностей (null = создание)
+let permEditingRoleId = null; // роль, для которой открыт редактор видимости полей
+let permDraft = {};           // локальный черновик прав до нажатия "Сохранить"
+
+function applyState(data){
+  ROLES = data.roles || [];
+}
+
+async function loadMetaAndState(){
+  const meta = await fetchMeta();
+  const st = await fetchState();
+  GROUPS = meta.groups;
+  COLUMNS = meta.columns;
+  POSITIONS = meta.positions || [];
+  applyState(st);
+}
+
+/* ===================== СТРАНИЦА "РОЛИ И ДОСТУПЫ" ===================== */
+function renderRolesList(){
+  const container = document.getElementById('rolesList');
+  if (ROLES.length === 0){
+    container.innerHTML = `<div class="roles-empty">Ролей пока нет. Нажмите «+ Добавить роль», чтобы создать первую.</div>`;
+    return;
+  }
+  container.innerHTML = ROLES.map(role => {
+    const posHtml = role.positions.length
+      ? role.positions.map(p => `<span class="role-position-chip">${escapeHtml(p)}</span>`).join('')
+      : `<span class="role-card-empty-positions">Должности не выбраны</span>`;
+    const viewCount = COLUMNS.filter(c => role.permissions[c.key] && role.permissions[c.key].view).length;
+    const editCount = COLUMNS.filter(c => role.permissions[c.key] && role.permissions[c.key].edit).length;
+    return `
+      <div class="role-card" data-role-id="${role.id}">
+        <div class="role-card-main">
+          <div class="role-card-name">${escapeHtml(role.name)}</div>
+          <div class="role-card-positions">${posHtml}</div>
+          <div class="role-card-summary">Видит ${viewCount} из ${COLUMNS.length} полей, может редактировать ${editCount}</div>
+        </div>
+        <div class="role-card-actions">
+          <button class="ghost-btn" data-edit-role="${role.id}">Изменить</button>
+          <button class="ghost-btn" data-perm-role="${role.id}">Настроить видимость полей</button>
+          <button class="danger-btn" data-delete-role="${role.id}">Удалить</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setupRolesPage(){
+  document.getElementById('rolesList').addEventListener('click', e => {
+    const editBtn = e.target.closest('[data-edit-role]');
+    if (editBtn){ openRoleEditModal(editBtn.dataset.editRole); return; }
+    const permBtn = e.target.closest('[data-perm-role]');
+    if (permBtn){ openPermModal(permBtn.dataset.permRole); return; }
+    const delBtn = e.target.closest('[data-delete-role]');
+    if (delBtn){ deleteRoleById(delBtn.dataset.deleteRole); return; }
+  });
+}
+
+async function deleteRoleById(roleId){
+  const role = ROLES.find(r => r.id === roleId);
+  if (!role) return;
+  const ok = confirm(`Удалить роль «${role.name}»? Это действие нельзя отменить.`);
+  if (!ok) return;
+  try{
+    applyState(await mutate(`/api/roles/${encodeURIComponent(roleId)}`, { method: 'DELETE' }));
+  } catch(err){
+    return;
+  }
+  renderRolesList();
+}
+
+/* ---------- Модалка "Название + должности" ---------- */
+function renderPositionsPicker(selected){
+  const wrap = document.getElementById('positionsPicker');
+  wrap.innerHTML = POSITIONS.map(p => `
+    <button type="button" class="position-chip-toggle${selected.includes(p) ? ' active' : ''}" data-position="${escapeHtml(p)}">${escapeHtml(p)}</button>
+  `).join('');
+}
+function getSelectedPositions(){
+  return Array.from(document.querySelectorAll('#positionsPicker .position-chip-toggle.active')).map(b => b.dataset.position);
+}
+function openRoleEditModal(roleId){
+  editingRoleId = roleId || null;
+  const role = roleId ? ROLES.find(r => r.id === roleId) : null;
+  document.getElementById('roleEditModalTitle').textContent = role ? 'Изменить роль' : 'Новая роль';
+  document.getElementById('roleNameInput').value = role ? role.name : '';
+  renderPositionsPicker(role ? role.positions : []);
+  document.getElementById('roleEditModalOverlay').classList.add('open');
+  document.getElementById('roleNameInput').focus();
+}
+function closeRoleEditModal(){
+  document.getElementById('roleEditModalOverlay').classList.remove('open');
+  editingRoleId = null;
+}
+function setupRoleEditModal(){
+  document.getElementById('addRoleBtn').addEventListener('click', () => openRoleEditModal(null));
+  document.getElementById('roleEditModalClose').addEventListener('click', closeRoleEditModal);
+  document.getElementById('roleEditCancelBtn').addEventListener('click', closeRoleEditModal);
+  document.getElementById('roleEditModalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'roleEditModalOverlay') closeRoleEditModal();
+  });
+  document.getElementById('positionsPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.position-chip-toggle');
+    if (!btn) return;
+    btn.classList.toggle('active');
+  });
+  document.getElementById('roleEditSaveBtn').addEventListener('click', async () => {
+    const name = document.getElementById('roleNameInput').value.trim();
+    if (!name){ alert('Введите название роли'); return; }
+    const positions = getSelectedPositions();
+    try{
+      if (editingRoleId){
+        applyState(await mutate(`/api/roles/${encodeURIComponent(editingRoleId)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, positions }),
+        }));
+      } else {
+        applyState(await mutate('/api/roles', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, positions }),
+        }));
+      }
+    } catch(err){
+      return;
+    }
+    closeRoleEditModal();
+    renderRolesList();
+  });
+}
+
+/* ---------- Модалка "Видимость полей" ---------- */
+function renderPermTable(){
+  const body = document.getElementById('permTableBody');
+  let html = '';
+  GROUPS.forEach(g => {
+    const cols = COLUMNS.filter(c => c.group === g.key);
+    if (cols.length === 0) return;
+    html += `<div class="perm-group-row">${escapeHtml(g.label)}</div>`;
+    cols.forEach(col => {
+      const perm = permDraft[col.key] || { view: false, edit: false };
+      const lockedEdit = !isEditableType(col.type);
+      html += `
+        <div class="perm-row">
+          <span class="perm-col-label">${escapeHtml(col.label)}${lockedEdit ? '<span class="perm-lock-note">СМ Скиллс</span>' : ''}</span>
+          <input type="checkbox" class="perm-checkbox" data-perm-col="${col.key}" data-perm-type="view" ${perm.view ? 'checked' : ''}>
+          <input type="checkbox" class="perm-checkbox" data-perm-col="${col.key}" data-perm-type="edit" ${perm.edit ? 'checked' : ''} ${lockedEdit ? 'disabled' : ''}>
+        </div>
+      `;
+    });
+  });
+  body.innerHTML = html;
+}
+function openPermModal(roleId){
+  const role = ROLES.find(r => r.id === roleId);
+  if (!role) return;
+  permEditingRoleId = roleId;
+  permDraft = {};
+  COLUMNS.forEach(col => {
+    permDraft[col.key] = { ...(role.permissions[col.key] || { view: false, edit: false }) };
+  });
+  document.getElementById('permModalTitle').textContent = 'Видимость полей — ' + role.name;
+  renderPermTable();
+  document.getElementById('permModalOverlay').classList.add('open');
+}
+function closePermModal(){
+  document.getElementById('permModalOverlay').classList.remove('open');
+  permEditingRoleId = null;
+}
+function setupPermModal(){
+  document.getElementById('permModalClose').addEventListener('click', closePermModal);
+  document.getElementById('permCancelBtn').addEventListener('click', closePermModal);
+  document.getElementById('permModalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'permModalOverlay') closePermModal();
+  });
+
+  document.getElementById('permTableBody').addEventListener('change', e => {
+    const cb = e.target.closest('[data-perm-col]');
+    if (!cb) return;
+    const key = cb.dataset.permCol;
+    const type = cb.dataset.permType;
+    if (!permDraft[key]) permDraft[key] = { view: false, edit: false };
+    permDraft[key][type] = cb.checked;
+    if (type === 'view' && !cb.checked){
+      permDraft[key].edit = false;
+      const editCb = document.querySelector(`[data-perm-col="${key}"][data-perm-type="edit"]`);
+      if (editCb) editCb.checked = false;
+    }
+  });
+
+  document.getElementById('permSaveBtn').addEventListener('click', async () => {
+    if (!permEditingRoleId) return;
+    try{
+      applyState(await mutate(`/api/roles/${encodeURIComponent(permEditingRoleId)}/permissions`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permissions: permDraft }),
+      }));
+    } catch(err){
+      return;
+    }
+    closePermModal();
+    renderRolesList();
+  });
+}
+
+
+/* ===================== ИНИЦИАЛИЗАЦИЯ ===================== */
+async function init(){
+  setSaveStatus('saving', 'Загрузка данных…');
+  try{
+    await loadMetaAndState();
+  } catch(err){
+    console.error(err);
+    setSaveStatus('error', 'Нет связи с сервером');
+    document.querySelector('.roles-page-inner').insertAdjacentHTML('afterbegin',
+      `<div class="role-card" style="border:1px solid #f3c3ca;color:#c81e3a;">
+        Не удалось загрузить данные с сервера (${escapeHtml(err.message)}). Проверьте, что сервер запущен (npm start), и обновите страницу.
+      </div>`);
+    return;
+  }
+  setSaveStatus('ok', 'Данные загружены');
+
+  renderRolesList();
+  setupRolesPage();
+  setupRoleEditModal();
+  setupPermModal();
+}
+
+init();
+</script>
+
+</body>
+</html>
