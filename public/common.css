@@ -36,30 +36,6 @@
   }
 
 
-  /* ---------- TOP NAV ---------- */
-  .topnav{
-    background:#161327;
-    padding:0 32px;
-  }
-  .topnav-inner{
-    display:flex; align-items:center;
-    max-width:100%;
-  }
-  .topnav-tabs{ display:flex; gap:4px; }
-  .topnav-tab{
-    border:none; background:transparent; cursor:pointer;
-    color:rgba(255,255,255,0.55);
-    font-size:13.5px; font-weight:600;
-    padding:14px 16px;
-    border-bottom:2.5px solid transparent;
-    font-family:inherit;
-    text-decoration:none;
-    display:inline-block;
-  }
-  .topnav-tab:hover{ color:rgba(255,255,255,0.85); }
-  .topnav-tab.active{ color:#fff; border-bottom-color:var(--accent); }
-
-
   /* ---------- BUTTONS ---------- */
   .ghost-btn{
     border:1px solid var(--line); background:#fff; color:var(--ink-soft);
