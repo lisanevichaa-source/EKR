@@ -348,18 +348,21 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:8px 12px; border-top:1px solid var(--line);
   }
+  .filter-popover-foot-btns{ display:flex; gap:8px; }
   .filter-popover-foot .ghost-btn{ padding:5px 11px; font-size:12px; }
   .filter-popover-count{ font-size:11.5px; color:var(--ink-soft); }
 
-  /* ---------- ROLE SWITCHER (toolbar) ---------- */
+  /* ---------- ROLE SWITCHER (в шапке, тёмный фон) ---------- */
+  .hero-top-right{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .role-view-as{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
-  .role-view-as-label{ font-size:12.5px; color:var(--ink-soft); white-space:nowrap; }
+  .role-view-as-label{ font-size:12.5px; color:rgba(255,255,255,0.65); white-space:nowrap; }
   .role-switcher-select{
-    border:1px solid var(--line); border-radius:999px;
-    padding:7px 12px; font-size:12.5px; font-family:inherit; color:var(--ink);
-    background:#fff; cursor:pointer; max-width:220px;
+    border:1px solid rgba(255,255,255,0.25); border-radius:999px;
+    padding:7px 12px; font-size:12.5px; font-family:inherit; color:#fff;
+    background:rgba(255,255,255,0.1); cursor:pointer; max-width:220px;
   }
-  .role-switcher-select:focus{ outline:none; border-color:var(--accent); }
+  .role-switcher-select:focus{ outline:none; border-color:rgba(255,255,255,0.55); }
+  .role-switcher-select option{ color:var(--ink); background:#fff; }
 
 </style>
 </head>
@@ -370,7 +373,15 @@
     <div class="hero-title">
       <h1>Электронный кадровый резерв</h1>
     </div>
-    <div class="save-status" id="saveStatus"><span class="save-dot"></span><span class="save-status-text">Загрузка…</span></div>
+    <div class="hero-top-right">
+      <div class="role-view-as">
+        <span class="role-view-as-label">Смотреть как:</span>
+        <select id="roleSwitcher" class="role-switcher-select">
+          <option value="">Без ограничений (полный доступ)</option>
+        </select>
+      </div>
+      <div class="save-status" id="saveStatus"><span class="save-dot"></span><span class="save-status-text">Загрузка…</span></div>
+    </div>
   </div>
 
   <div class="widgets" id="widgets"></div>
@@ -384,16 +395,7 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
       <input id="searchInput" type="text" placeholder="Поиск по ФИО...">
     </div>
-    <div class="divider-v"></div>
-    <div class="role-view-as">
-      <span class="role-view-as-label">Смотреть как:</span>
-      <select id="roleSwitcher" class="role-switcher-select">
-        <option value="">Без ограничений (полный доступ)</option>
-      </select>
-    </div>
     <div class="toolbar-right">
-      <button class="ghost-btn" id="clearFiltersBtn">Сбросить фильтры</button>
-      <button class="ghost-btn" id="expandAllBtn">Показать все столбцы</button>
       <button class="ghost-btn" id="columnVisibilityBtn">Настроить отображение столбцов</button>
     </div>
   </div>
@@ -470,7 +472,10 @@
   </div>
   <div class="filter-popover-list" id="columnVisibilityList"></div>
   <div class="filter-popover-foot">
-    <button class="ghost-btn" id="columnVisibilityShowAll">Показать все</button>
+    <div class="filter-popover-foot-btns">
+      <button class="ghost-btn" id="columnVisibilityShowAll">Показать все</button>
+      <button class="ghost-btn" id="columnVisibilityHideAll">Снять все</button>
+    </div>
     <span class="filter-popover-count" id="columnVisibilitySelCount"></span>
   </div>
 </div>
@@ -977,29 +982,11 @@ function setupFilterPopover(){
     applyRowFilters();
   });
 
-  document.getElementById('clearFiltersBtn').addEventListener('click', () => {
-    columnFilters = {};
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    if (openFilterCol) renderFilterOptions(COLUMNS.find(c => c.key === openFilterCol), document.getElementById('filterPopoverSearch').value);
-    applyRowFilters();
-  });
-
   document.addEventListener('click', e => {
     const popover = document.getElementById('filterPopover');
     if (!popover.classList.contains('open')) return;
     if (popover.contains(e.target) || e.target.closest('[data-filter-col]')) return;
     closeFilterPopover();
-  });
-}
-
-/* ===================== КНОПКИ ПОКАЗАТЬ/СВЕРНУТЬ ===================== */
-function setupToolbarButtons(){
-  document.getElementById('expandAllBtn').addEventListener('click', () => {
-    hiddenColumns.clear();
-    applyColumnVisibility();
-    if (document.getElementById('columnVisibilityPopover').classList.contains('open')){
-      renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
-    }
   });
 }
 
@@ -1009,7 +996,11 @@ function renderColumnVisibilityList(searchQ){
   const list = document.getElementById('columnVisibilityList');
   let html = '';
   GROUPS.forEach(g => {
-    const cols = COLUMNS.filter(c => c.group === g.key && (!q || c.label.toLowerCase().includes(q)));
+    const cols = COLUMNS.filter(c =>
+      c.group === g.key &&
+      getEffectivePermission(c.key).view &&
+      (!q || c.label.toLowerCase().includes(q))
+    );
     if (cols.length === 0) return;
     html += `<div class="colvis-group-label">${escapeHtml(g.label)}</div>`;
     cols.forEach(col => {
@@ -1027,9 +1018,9 @@ function renderColumnVisibilityList(searchQ){
 }
 
 function updateColumnVisibilityCount(){
-  const total = COLUMNS.length;
-  const shown = COLUMNS.filter(c => !hiddenColumns.has(c.key)).length;
-  document.getElementById('columnVisibilitySelCount').textContent = `Показано: ${shown} из ${total}`;
+  const permitted = COLUMNS.filter(c => getEffectivePermission(c.key).view);
+  const shown = permitted.filter(c => !hiddenColumns.has(c.key)).length;
+  document.getElementById('columnVisibilitySelCount').textContent = `Показано: ${shown} из ${permitted.length}`;
 }
 
 function openColumnVisibilityPopover(){
@@ -1080,6 +1071,12 @@ function setupColumnVisibilityPopover(){
     applyColumnVisibility();
   });
 
+  document.getElementById('columnVisibilityHideAll').addEventListener('click', () => {
+    hiddenColumns = new Set(COLUMNS.map(c => c.key));
+    renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
+    applyColumnVisibility();
+  });
+
   document.addEventListener('click', e => {
     const popover = document.getElementById('columnVisibilityPopover');
     if (!popover.classList.contains('open')) return;
@@ -1103,6 +1100,9 @@ function setupRoleSwitcher(){
     currentRoleId = e.target.value;
     renderTable();
     applyColumnVisibility();
+    if (document.getElementById('columnVisibilityPopover').classList.contains('open')){
+      renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
+    }
   });
 }
 
@@ -1128,7 +1128,6 @@ async function init(){
   renderTable();
   applyColumnVisibility();
   setupSearch();
-  setupToolbarButtons();
   setupTableInputSync();
   setupAddModal();
   setupDismissedSection();
