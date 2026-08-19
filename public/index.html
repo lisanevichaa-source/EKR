@@ -752,21 +752,35 @@ function applyRowFilters(){
   reserveRows.forEach(row => {
     let visible = true;
     if (q && !(row.values.fio || '').toLowerCase().includes(q)) visible = false;
+
     if (visible){
+      // обычные фильтры (не devRecords) — проверяем как раньше, независимо друг от друга
+      const devFilterEntries = []; // { col, set } — фильтры по связке "Потенциальная должность / Обучение / Дата HARD"
       for (const colKey in columnFilters){
         const set = columnFilters[colKey];
         if (!set || set.size === 0) continue;
         const col = COLUMNS.find(c => c.key === colKey);
         if (col && col.type === 'devRecords'){
-          const tracks = row.values.devTracks || [];
-          const anyMatch = tracks.some(t => set.has((t[col.recordField] || '').toString()));
-          if (!anyMatch){ visible = false; break; }
+          devFilterEntries.push({ col, set });
         } else {
           const val = (row.values[colKey] || '').toString();
           if (!set.has(val)){ visible = false; break; }
         }
       }
+
+      // фильтры по devRecords-столбцам относятся к общему списку должностей сотрудника
+      // (row.values.devTracks) — чтобы "Потенциальная должность = Начальник отдела" и
+      // "Дата HARD = <дата>" не засчитывались по РАЗНЫМ должностям одного сотрудника,
+      // ищем хотя бы одну ЗАПИСЬ, которая удовлетворяет ВСЕМ активным условиям сразу
+      if (visible && devFilterEntries.length > 0){
+        const tracks = row.values.devTracks || [];
+        const oneRecordMatchesAll = tracks.some(t =>
+          devFilterEntries.every(({ col, set }) => set.has((t[col.recordField] || '').toString()))
+        );
+        if (!oneRecordMatchesAll) visible = false;
+      }
     }
+
     const tr = document.querySelector(`tr[data-row="${row.id}"]`);
     if (tr) tr.style.display = visible ? '' : 'none';
     if (visible) visibleCount++;
