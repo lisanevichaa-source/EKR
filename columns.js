@@ -13,49 +13,54 @@ const GROUPS = [
   { key:'assignment', label:'Назначение и ИПР' },
 ];
 
+// Типы полей:
+//   auto           — автоматически, никогда не редактируется (данные из СМскилл/Pub3)
+//   autoDate       — то же самое, но по смыслу это дата (значение уже хранится в читаемом формате)
+//   autoEditable   — изначально заполняется автоматически, но роль с правом edit может изменить значение
+//   select         — выпадающий список
+//   free           — свободный ввод текстом
+//   date           — свободный ввод через календарь
+//   empty          — источник ещё не определён, поле всегда пустое и нередактируемое
 const COLUMNS = [
-  { key:'fio',          label:'ФИО',                                  group:'core',       type:'auto',  value:'Анисенко Никита Владимирович' },
-  { key:'status',       label:'Статус',                               group:'core',       type:'select',
-    options:['Уволен','Назначен','Декрет','в КР','аннулировано','развиваем на ТД','проходит обучение','Мобилизован','обучение пройдено','тест Soft','тест Hard','сессия ОС','ОС руководителя','встреча с HR','КР ИИ МР','встреча с ЛПР'],
-    value:'Уволен' },
-  { key:'reqDate',      label:'Дата заявки',                          group:'contacts',   type:'free',  value:'13.04.2023' },
-  { key:'email',        label:'Почта кандидата',                      group:'contacts',   type:'auto',  value:'primer_1@yandex.ru' },
-  { key:'phone',        label:'Номер телефона',                       group:'contacts',   type:'auto',  value:'+7 911 111 11 11' },
-  { key:'region',       label:'Регион',                               group:'geo',        type:'auto',  value:'Поволжский регион' },
-  { key:'depart',       label:'Отделение',                            group:'geo',        type:'auto',  value:'Казанское отделение' },
-  { key:'city',         label:'Город проживания',                     group:'geo',        type:'auto',  value:'Казань' },
-  { key:'shop',         label:'Магазин',                              group:'geo',        type:'auto',  value:'12345' },
-  { key:'grade',        label:'Грейд магазина',                       group:'geo',        type:'empty' },
-  { key:'motivation',   label:'Мотивация',                            group:'dev',        type:'empty' },
-  { key:'curPos',       label:'Текущая должность',                    group:'core',       type:'auto',  value:'Продавец' },
-  { key:'potPos',       label:'Потенциальная должность',              group:'core',       type:'select',
-    options:['Старший кассир','Начальник отдела','Заведующий складом','Директор магазина','Директор по Продажам Региона','Директор отделения','Начальник отдела УСМ','Администратор','Администратор моно','Ведущий Региональный Мерчендайзер','Старший продавец'],
-    value:'Старший кассир' },
-  { key:'sed',          label:'Замещение СЭД',                        group:'dev',        type:'select',
-    options:['Да один раз','Да, более одного','Нет'], value:'Да один раз' },
-  { key:'hard',         label:'Оценка HARD (sm_skills)',               group:'assess',     type:'auto',  value:'Успешно пройдено' },
-  { key:'hardDate',     label:'Дата HARD',                            group:'assess',     type:'auto',  value:'01.12.2022' },
-  { key:'soft',         label:'Оценка SOFT',                          group:'assess',     type:'auto',  value:'Тест направлен' },
-  { key:'softDate',     label:'Дата SOFT',                            group:'assess',     type:'auto',  value:'23.06.2021' },
-  { key:'managerFio',   label:'ФИО действующего руководителя',        group:'manager',    type:'auto',  value:'Иванов Иван Директорович' },
-  { key:'managerRec',   label:'ОС руководителя',                      group:'manager',    type:'select',
-    options:['Рекомендован','Не рекомендован','Ожидание ОС'], value:'Не рекомендован' },
-  { key:'relocReady',   label:'Готовность к релокации',                group:'reloc',      type:'auto',  value:'Не готов' },
-  { key:'relocNotes',   label:'Релокация (примечания)',                group:'reloc',      type:'auto',  value:'По региону' },
-  { key:'krStatus',     label:'Статус по КР',                         group:'core',       type:'select',
-    options:['Кадровый резерв','Развитие на текущую должность'], value:'Кадровый резерв' },
-  { key:'krDate',       label:'Дата зачисления КР',                   group:'core',       type:'date',  value:'2025-01-01' },
-  { key:'assignment',   label:'Назначение',                           group:'assignment', type:'select',
+  { key:'fio',             label:'ФИО',                                   group:'core',       type:'auto',  value:'Анисенко Никита Владимирович' },
+  { key:'status',          label:'Статус',                                group:'core',       type:'select',
+    options:['Назначен','В КР','Аннулировано','Развиваем на ТД','Тест Soft','Сессия ОС'],
+    value:'Назначен' },
+  { key:'reqDate',         label:'Дата заявки',                           group:'contacts',   type:'autoDate', value:'13.04.2023' },
+  { key:'employeeComment', label:'Комментарий сотрудника',                group:'contacts',   type:'auto',  value:'Передумал' },
+  { key:'email',           label:'Почта кандидата',                       group:'contacts',   type:'auto',  value:'primer_1@yandex.ru' },
+  { key:'phone',           label:'Номер телефона',                        group:'contacts',   type:'auto',  value:'+7 911 111 11 11' },
+  { key:'region',          label:'Регион',                                group:'geo',        type:'auto',  value:'Поволжский регион' },
+  { key:'depart',          label:'Отделение',                             group:'geo',        type:'auto',  value:'Казанское отделение' },
+  { key:'city',            label:'Город проживания',                      group:'geo',        type:'auto',  value:'Казань' },
+  { key:'shop',            label:'Магазин',                               group:'geo',        type:'auto',  value:'12345' },
+  { key:'grade',           label:'Грейд магазина',                        group:'geo',        type:'auto',  value:'401' },
+  { key:'motivation',      label:'Мотивация',                             group:'dev',        type:'auto',  value:'Бригадная' },
+  { key:'curPos',          label:'Текущая должность',                     group:'core',       type:'auto',  value:'Продавец' },
+  { key:'ipr',             label:'Наличие ИПР',                           group:'dev',        type:'auto',  value:'Да' },
+  { key:'potPos',          label:'Потенциальная должность',               group:'core',       type:'auto',  value:'Старший кассир, Начальник отдела' },
+  { key:'training',        label:'Обучение в кадровый резерв',            group:'dev',        type:'auto',  value:'Старший кассир 89, Начальник отдела 98' },
+  { key:'hardDate',        label:'Дата HARD',                             group:'assess',     type:'auto',  value:'Старший кассир 01.01.2026, Начальник отдела 01.02.2026' },
+  { key:'soft',            label:'Оценка SOFT',                           group:'assess',     type:'select',
+    options:['Успешно пройдено','Тест направлен','Не пройдено','Пройдено не успешно','Опционально'],
+    value:'Тест направлен' },
+  { key:'softDate',        label:'Дата SOFT',                             group:'assess',     type:'autoDate', value:'23.06.2021' },
+  { key:'managerFio',      label:'ФИО действующего руководителя',         group:'manager',    type:'auto',  value:'Иванов Иван Директорович' },
+  { key:'relocReady',      label:'Готовность к релокации',                group:'reloc',      type:'auto',  value:'Не готов' },
+  { key:'reloc',           label:'Релокация',                             group:'reloc',      type:'auto',  value:'По региону' },
+  { key:'krStatus',        label:'Статус по КР',                         group:'core',       type:'select',
+    options:['Да','Нет'], value:'Да' },
+  { key:'krDate',          label:'Дата зачисления КР',                    group:'core',       type:'date',  value:'2025-01-01' },
+  { key:'assignment',      label:'Тип назначения',                        group:'assignment', type:'select',
     options:['Временное','Постоянное'], value:'Временное' },
-  { key:'assignDate',   label:'Дата назначения',                      group:'assignment', type:'free',  value:'01.01.2026' },
-  { key:'ipr',          label:'Наличие ИПР',                          group:'assignment', type:'auto',  value:'Да' },
-  { key:'tempEndDate',  label:'Дата окончания временного назначения', group:'assignment', type:'free',  value:'' },
-  { key:'assignPlace',  label:'Место назначения',                     group:'assignment', type:'free',  value:'' },
-  { key:'assignRegion', label:'Регион назначения',                    group:'assignment', type:'free',  value:'' },
-  { key:'assignDepart', label:'Отделение назначения',                 group:'assignment', type:'free',  value:'' },
-  { key:'assignCity',   label:'Город назначения',                     group:'assignment', type:'free',  value:'' },
-  { key:'deptChange',   label:'Была смена отделения/региона',         group:'assignment', type:'free',  value:'' },
-  { key:'comment',      label:'Комментарий',                          group:'assignment', type:'free',  value:'' },
+  { key:'assignDate',      label:'Дата назначения',                       group:'assignment', type:'date',  value:'2026-01-01' },
+  { key:'tempEndDate',     label:'Дата окончания временного назначения',  group:'assignment', type:'date',  value:'2026-03-01' },
+  { key:'assignPlace',     label:'Место назначения',                      group:'assignment', type:'select',
+    options:['СМ_1234','СМ_20144','СМ_20531','СМ_20812','СМ_20933','СМ_21044','СМ_21102','СМ_21255'],
+    value:'СМ_1234' },
+  { key:'managerComment',  label:'Комментарий менеджера по оценке',       group:'assignment', type:'free',  value:'Молодец, берем' },
+  { key:'managerAtEntry',  label:'Руководитель в момент вступления в КР', group:'manager',    type:'autoEditable', value:'Иванов Руководитель Петрович' },
+  { key:'shopAtEntry',     label:'Магазин в момент вступления в КР',      group:'assignment', type:'autoEditable', value:'СМ_1234' },
 ];
 
 // Поля, которые физически приходят из HR-системы по сотруднику —
@@ -64,10 +69,9 @@ const SOURCE_FIELDS = ['fio','email','phone','region','depart','city','shop','cu
 
 // Разумные значения по умолчанию для выпадающих списков при добавлении сотрудника в резерв.
 const SELECT_DEFAULTS = {
-  status:'в КР',
-  sed:'Нет',
-  managerRec:'Ожидание ОС',
-  krStatus:'Кадровый резерв',
+  status:'Назначен',
+  soft:'Опционально',
+  krStatus:'Да',
   assignment:'Временное',
 };
 
@@ -101,8 +105,9 @@ const POSITIONS = [
 ];
 
 // Столбцы, тип которых делает их принципиально нередактируемыми ни для какой роли
-// (данные приходят автоматически из смежных систем — Pub3 -> СМ Скиллс).
-const NON_EDITABLE_TYPES = ['auto', 'empty'];
+// (данные приходят автоматически из смежных систем — Pub3 -> СМскилл). autoEditable сюда
+// намеренно НЕ входит — такие поля заполняются автоматически, но роль с правом edit может их менять.
+const NON_EDITABLE_TYPES = ['auto', 'autoDate', 'empty'];
 
 function isColumnEverEditable(colKey){
   const col = COLUMNS.find(c => c.key === colKey);
@@ -132,9 +137,8 @@ function sanitizePermissions(rawPerms){
 function seedRoles(){
   const managerPerms = blankPermissions();
   ['fio','status','curPos','potPos','krStatus','krDate','region','depart','city','shop',
-   'hard','hardDate','soft','softDate','managerFio','managerRec','relocReady','relocNotes',
-   'sed','assignment','assignDate','ipr'].forEach(k => { managerPerms[k].view = true; });
-  managerPerms.managerRec.edit = true; // руководитель оставляет своё ОС
+   'hardDate','soft','softDate','managerFio','relocReady','reloc',
+   'assignment','assignDate','ipr'].forEach(k => { managerPerms[k].view = true; });
 
   const employeePerms = blankPermissions();
   ['fio','curPos','potPos','krStatus','krDate','relocReady','status'].forEach(k => { employeePerms[k].view = true; });

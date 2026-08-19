@@ -44,14 +44,6 @@ app.delete('/api/reserve/:id', (req, res) => {
   }
 });
 
-app.post('/api/dismissed/:id/restore', (req, res) => {
-  try {
-    res.json(db.restoreFromDismissed(req.params.id));
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
-
 // --- Роли и доступы ---
 
 app.post('/api/roles', (req, res) => {
