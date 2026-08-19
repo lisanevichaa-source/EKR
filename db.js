@@ -3,7 +3,6 @@ const path = require('path');
 const {
   COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
   sanitizePermissions, blankPermissions, seedRoles,
-  DEV_TRACKS_KEY, DEMO_DEV_TRACKS, parseLegacyDevTracks,
 } = require('./columns');
 
 // DATA_DIR можно переопределить переменной окружения — на Railway это будет
@@ -24,32 +23,17 @@ function todayISO(){
 
 function makeDefaultRow(rowIdCounter){
   const values = {};
-  COLUMNS.forEach(col => {
-    if (col.type === 'devRecords') return; // хранится отдельно, под DEV_TRACKS_KEY
-    values[col.key] = col.value !== undefined ? col.value : '';
-  });
-  values[DEV_TRACKS_KEY] = DEMO_DEV_TRACKS.map(t => ({ ...t }));
+  COLUMNS.forEach(col => { values[col.key] = col.value !== undefined ? col.value : ''; });
   return { id: 'row' + rowIdCounter, values };
 }
 
 function seedState(){
   let rowIdCounter = 0;
   const reserveRows = [];
-
-  // для двух "автоматически редактируемых" полей-снимков используем разные вымышленные
-  // значения по кругу, чтобы демо-строки не были однообразными
-  const managerCol = COLUMNS.find(c => c.key === 'managerAtEntry');
-  const shopCol = COLUMNS.find(c => c.key === 'shopAtEntry');
-  const managerOptions = managerCol.options.filter(o => o !== '—');
-  const shopOptions = shopCol.options.filter(o => o !== '—');
-
   // 10 демо-строк с одинаковыми примерными данными — как в исходной выгрузке
   for (let i = 0; i < 10; i++){
     rowIdCounter++;
-    const row = makeDefaultRow(rowIdCounter);
-    row.values.managerAtEntry = managerOptions[i % managerOptions.length];
-    row.values.shopAtEntry = shopOptions[i % shopOptions.length];
-    reserveRows.push(row);
+    reserveRows.push(makeDefaultRow(rowIdCounter));
   }
   return {
     reserveRows,
@@ -80,7 +64,6 @@ function persist(){
 function reshapeRowValues(values){
   const next = {};
   COLUMNS.forEach(col => {
-    if (col.type === 'devRecords') return; // обрабатывается отдельно ниже, через devTracks
     if (values[col.key] !== undefined){
       next[col.key] = values[col.key];
       return;
@@ -93,18 +76,6 @@ function reshapeRowValues(values){
       next[col.key] = '';
     }
   });
-
-  // devTracks — общее хранилище для потенциальных должностей/программ обучения/дат HARD
-  if (Array.isArray(values[DEV_TRACKS_KEY])){
-    next[DEV_TRACKS_KEY] = values[DEV_TRACKS_KEY];
-  } else if (values.potPos !== undefined || values.training !== undefined || values.hardDate !== undefined){
-    // старый плоский формат (три склеенных через запятую текстовых поля) — восстанавливаем
-    // структуру приблизительно, по порядку значений в списке
-    next[DEV_TRACKS_KEY] = parseLegacyDevTracks(values.potPos, values.training, values.hardDate);
-  } else {
-    next[DEV_TRACKS_KEY] = [];
-  }
-
   return next;
 }
 
@@ -194,7 +165,7 @@ function updateCell(rowId, col, value){
 
   const colDef = findColumn(col);
   if (!colDef) throw new Error('Неизвестное поле: ' + col);
-  if (colDef.type === 'auto' || colDef.type === 'autoDate' || colDef.type === 'devRecords' || colDef.type === 'empty'){
+  if (colDef.type === 'auto' || colDef.type === 'autoDate' || colDef.type === 'empty'){
     throw new Error('Поле "' + colDef.label + '" недоступно для ручного редактирования');
   }
 
@@ -212,7 +183,6 @@ function addToReserve(poolId){
 
   const values = {};
   COLUMNS.forEach(col => {
-    if (col.type === 'devRecords') return; // хранится отдельно, под DEV_TRACKS_KEY
     if (SOURCE_FIELDS.includes(col.key)){
       values[col.key] = poolEntry[col.key] || '';
     } else if (col.type === 'select'){
@@ -231,7 +201,6 @@ function addToReserve(poolId){
       values[col.key] = '';
     }
   });
-  values[DEV_TRACKS_KEY] = []; // у нового кандидата ещё нет потенциальных должностей/обучения
 
   state.rowIdCounter++;
   const newRow = { id: 'row' + state.rowIdCounter, values };
