@@ -581,7 +581,7 @@ function formatDevTrackSummary(col, tracks){
   } else {
     text = top[field] || '—';
   }
-  if (tracks.length > 1) text += ` +${tracks.length - 1}`;
+  if (tracks.length > 1 && col.showCount) text += ` +${tracks.length - 1}`;
   return text;
 }
 
