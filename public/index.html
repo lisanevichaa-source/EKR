@@ -310,6 +310,26 @@
   .filter-popover-foot .ghost-btn{ padding:5px 11px; font-size:12px; }
   .filter-popover-count{ font-size:11.5px; color:var(--ink-soft); }
 
+  /* ---------- DEV RECORDS (несколько потенциальных должностей у одного сотрудника) ---------- */
+  .dev-records-btn{
+    border:1px solid var(--line); background:var(--auto-bg); color:var(--ink);
+    font-size:12.5px; padding:7px 10px; border-radius:var(--radius-sm);
+    cursor:pointer; text-align:left; width:100%;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:220px; font-family:inherit;
+  }
+  .dev-records-btn:hover{ border-color:#c7cae8; background:var(--accent-soft); }
+  .dev-tracks-popover{ width:440px; }
+  .dev-tracks-table-wrap{ padding:6px 12px 14px; overflow-x:auto; }
+  .dev-tracks-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .dev-tracks-table th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-soft); font-weight:700; padding:6px 8px; border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  .dev-tracks-table td{ padding:8px; border-bottom:1px solid var(--line); color:var(--ink); }
+  .dev-tracks-table tr:last-child td{ border-bottom:none; }
+
   /* ---------- ROLE SWITCHER (в шапке, тёмный фон) ---------- */
   .hero-top-right{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .role-view-as{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
@@ -417,6 +437,16 @@
       <button class="ghost-btn" id="columnVisibilityHideAll">Снять все</button>
     </div>
     <span class="filter-popover-count" id="columnVisibilitySelCount"></span>
+  </div>
+</div>
+
+<div class="filter-popover dev-tracks-popover" id="devTracksPopover">
+  <div class="filter-popover-head">
+    <span id="devTracksPopoverTitle">Развитие сотрудника</span>
+    <button class="modal-close" id="devTracksPopoverClose">✕</button>
+  </div>
+  <div class="dev-tracks-table-wrap">
+    <table class="dev-tracks-table" id="devTracksTable"></table>
   </div>
 </div>
 
@@ -529,6 +559,23 @@ function applyColumnVisibility(){
   document.getElementById('visibleColCount').textContent = `${visibleCount} из ${COLUMNS.length}`;
 }
 
+/** Краткая сводка для ячейки devRecords: значение по нужному атрибуту первой записи + "+N",
+ *  если должностей у сотрудника несколько. Полную расшифровку показывает попап по клику. */
+function formatDevTrackSummary(col, tracks){
+  const first = tracks[0];
+  let text;
+  if (col.recordField === 'hardDate'){
+    text = first.hardDate ? formatIsoToRu(first.hardDate) : '—';
+  } else if (col.recordField === 'program'){
+    const pct = (first.percent !== '' && first.percent !== null && first.percent !== undefined) ? ` ${first.percent}%` : '';
+    text = first.program ? `${first.program}${pct}` : '—';
+  } else {
+    text = first[col.recordField] || '—';
+  }
+  if (tracks.length > 1) text += ` +${tracks.length - 1}`;
+  return text;
+}
+
 function renderTable(){
   const table = document.getElementById('mainTable');
 
@@ -579,8 +626,32 @@ function renderTable(){
               `</select>`
             : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
           break;
-        case 'free':
         case 'autoEditable':
+          if (col.options){
+            // автополе-снимок, но редактируется выбором из списка, а не свободным текстом
+            inner = canEdit
+              ? `<select class="cell-input" data-row="${row.id}" data-col="${col.key}">` +
+                  col.options.map(o => `<option ${o === value ? 'selected' : ''}>${o}</option>`).join('') +
+                `</select>`
+              : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+          } else {
+            inner = canEdit
+              ? `<input class="cell-input" type="text" data-row="${row.id}" data-col="${col.key}" value="${value === '—' ? '' : value}" placeholder="—">`
+              : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+          }
+          break;
+        case 'devRecords':
+          {
+            const tracks = row.values.devTracks || [];
+            if (tracks.length === 0){
+              inner = `<div class="cell-auto">—</div>`;
+            } else {
+              const summary = formatDevTrackSummary(col, tracks);
+              inner = `<button type="button" class="dev-records-btn" data-devrow="${row.id}" title="Показать все должности">${escapeHtml(summary)}</button>`;
+            }
+          }
+          break;
+        case 'free':
           inner = canEdit
             ? `<input class="cell-input" type="text" data-row="${row.id}" data-col="${col.key}" value="${value === '—' ? '' : value}" placeholder="—">`
             : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
@@ -659,9 +730,10 @@ function setupTableInputSync(){
   });
 
   table.addEventListener('click', e => {
-    const btn = e.target.closest('[data-remove-row]');
-    if (!btn) return;
-    removeFromReserveRow(btn.dataset.removeRow);
+    const removeBtn = e.target.closest('[data-remove-row]');
+    if (removeBtn){ removeFromReserveRow(removeBtn.dataset.removeRow); return; }
+    const devBtn = e.target.closest('.dev-records-btn');
+    if (devBtn){ openDevTracksPopover(devBtn.dataset.devrow, devBtn); return; }
   });
 }
 
@@ -675,8 +747,15 @@ function applyRowFilters(){
       for (const colKey in columnFilters){
         const set = columnFilters[colKey];
         if (!set || set.size === 0) continue;
-        const val = (row.values[colKey] || '').toString();
-        if (!set.has(val)){ visible = false; break; }
+        const col = COLUMNS.find(c => c.key === colKey);
+        if (col && col.type === 'devRecords'){
+          const tracks = row.values.devTracks || [];
+          const anyMatch = tracks.some(t => set.has((t[col.recordField] || '').toString()));
+          if (!anyMatch){ visible = false; break; }
+        } else {
+          const val = (row.values[colKey] || '').toString();
+          if (!set.has(val)){ visible = false; break; }
+        }
       }
     }
     const tr = document.querySelector(`tr[data-row="${row.id}"]`);
@@ -774,14 +853,23 @@ function setupSearch(){
 
 /* ===================== ФИЛЬТРЫ ПО СТОЛБЦАМ ===================== */
 function getColumnValueUniverse(col){
-  if (col.type === 'select') return col.options.slice();
+  if (col.type === 'select' || (col.type === 'autoEditable' && col.options)) return col.options.slice();
+  if (col.type === 'devRecords'){
+    const set = new Set();
+    reserveRows.forEach(r => {
+      (r.values.devTracks || []).forEach(t => set.add((t[col.recordField] || '').toString().trim()));
+    });
+    return Array.from(set).sort((a,b) => a.localeCompare(b,'ru'));
+  }
   const set = new Set();
   reserveRows.forEach(r => set.add((r.values[col.key] || '').toString().trim()));
   return Array.from(set).sort((a,b) => a.localeCompare(b,'ru'));
 }
 function valueLabel(col, v){
   if (v === '') return '(не заполнено)';
-  return col.type === 'date' ? formatIsoToRu(v) : v;
+  if (col.type === 'date' || col.type === 'autoDate') return formatIsoToRu(v);
+  if (col.type === 'devRecords' && col.recordField === 'hardDate') return formatIsoToRu(v);
+  return v;
 }
 function renderFilterOptions(col, searchQ){
   const universe = getColumnValueUniverse(col);
@@ -811,6 +899,7 @@ function openFilterPopover(colKey, btnEl){
   const col = COLUMNS.find(c => c.key === colKey);
   if (!col) return;
   closeColumnVisibilityPopover();
+  closeDevTracksPopover();
   openFilterCol = colKey;
   document.getElementById('filterPopoverTitle').textContent = col.label;
   document.getElementById('filterPopoverSearch').value = '';
@@ -831,6 +920,52 @@ function closeFilterPopover(){
   document.getElementById('filterPopover').classList.remove('open');
   openFilterCol = null;
 }
+
+/* ===================== ПОПАП-РАСШИФРОВКА "РАЗВИТИЕ СОТРУДНИКА" ===================== */
+function openDevTracksPopover(rowId, btnEl){
+  const row = reserveRows.find(r => r.id === rowId);
+  if (!row) return;
+  const tracks = row.values.devTracks || [];
+
+  document.getElementById('devTracksPopoverTitle').textContent = 'Развитие — ' + (row.values.fio || '');
+  const rowsHtml = tracks.map(t => `
+    <tr>
+      <td>${escapeHtml(t.position || '—')}</td>
+      <td>${escapeHtml(t.program || '—')}</td>
+      <td>${t.percent !== '' && t.percent !== null && t.percent !== undefined ? t.percent + '%' : '—'}</td>
+      <td>${t.hardDate ? formatIsoToRu(t.hardDate) : '—'}</td>
+    </tr>
+  `).join('');
+  document.getElementById('devTracksTable').innerHTML = `
+    <thead><tr><th>Должность</th><th>Программа</th><th>%</th><th>Дата HARD</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  `;
+
+  closeFilterPopover();
+  closeColumnVisibilityPopover();
+  const popover = document.getElementById('devTracksPopover');
+  popover.classList.add('open');
+  const rect = btnEl.getBoundingClientRect();
+  const popW = 440, popH = popover.offsetHeight || 220;
+  let left = Math.min(rect.left, window.innerWidth - popW - 12);
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
+  popover.style.left = Math.max(12, left) + 'px';
+  popover.style.top = top + 'px';
+}
+function closeDevTracksPopover(){
+  document.getElementById('devTracksPopover').classList.remove('open');
+}
+function setupDevTracksPopover(){
+  document.getElementById('devTracksPopoverClose').addEventListener('click', closeDevTracksPopover);
+  document.addEventListener('click', e => {
+    const popover = document.getElementById('devTracksPopover');
+    if (!popover.classList.contains('open')) return;
+    if (popover.contains(e.target) || e.target.closest('.dev-records-btn')) return;
+    closeDevTracksPopover();
+  });
+}
+
 function setupFilterPopover(){
   document.getElementById('mainTable').addEventListener('click', e => {
     const btn = e.target.closest('[data-filter-col]');
@@ -910,6 +1045,8 @@ function updateColumnVisibilityCount(){
 
 function openColumnVisibilityPopover(){
   const popover = document.getElementById('columnVisibilityPopover');
+  closeFilterPopover();
+  closeDevTracksPopover();
   document.getElementById('columnVisibilitySearch').value = '';
   renderColumnVisibilityList('');
   popover.classList.add('open');
@@ -1017,6 +1154,7 @@ async function init(){
   setupAddModal();
   setupFilterPopover();
   setupColumnVisibilityPopover();
+  setupDevTracksPopover();
   setupRoleSwitcher();
 }
 
