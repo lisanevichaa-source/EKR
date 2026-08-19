@@ -43,9 +43,11 @@ async function mutate(url, options){
 }
 
 /** Может ли поле такого типа в принципе редактироваться (независимо от роли).
- *  auto/empty — поля приходят из смежных систем (Pub3 -> СМ Скиллс) либо ещё не определены. */
+ *  auto/autoDate/empty — поля приходят из смежных систем (Pub3 -> СМскилл) либо ещё не определены,
+ *  их нельзя редактировать никогда. autoEditable заполняется автоматически, но роль с правом
+ *  edit может значение поменять — по возможности редактирования он ведёт себя как select/free/date. */
 function isEditableType(type){
-  return type === 'select' || type === 'free' || type === 'date';
+  return type === 'select' || type === 'free' || type === 'date' || type === 'autoEditable';
 }
 
 function escapeHtml(s){

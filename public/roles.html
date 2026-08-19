@@ -106,7 +106,7 @@
 
   <div class="roles-page-head">
     <div>
-      <p>Настройте, какие столбцы видит и может редактировать каждая роль. Поля, помеченные значком СМ Скиллс, нередактируемы в принципе — они приходят автоматически из смежных систем.</p>
+      <p>Настройте, какие столбцы видит и может редактировать каждая роль. Поля, помеченные значком СМскилл, нередактируемы в принципе — они приходят автоматически из смежных систем.</p>
     </div>
     <button class="primary-btn" id="addRoleBtn">+ Добавить роль</button>
   </div>
@@ -304,7 +304,7 @@ function renderPermTable(){
       const lockedEdit = !isEditableType(col.type);
       html += `
         <div class="perm-row">
-          <span class="perm-col-label">${escapeHtml(col.label)}${lockedEdit ? '<span class="perm-lock-note">СМ Скиллс</span>' : ''}</span>
+          <span class="perm-col-label">${escapeHtml(col.label)}${lockedEdit ? '<span class="perm-lock-note">СМскилл</span>' : ''}</span>
           <input type="checkbox" class="perm-checkbox" data-perm-col="${col.key}" data-perm-type="view" ${perm.view ? 'checked' : ''}>
           <input type="checkbox" class="perm-checkbox" data-perm-col="${col.key}" data-perm-type="edit" ${perm.edit ? 'checked' : ''} ${lockedEdit ? 'disabled' : ''}>
         </div>
