@@ -1,10 +1,18 @@
 const fs = require('fs');
 const path = require('path');
+const columnsModule = require('./columns');
 const {
   COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
   sanitizePermissions, blankPermissions, seedRoles,
-  DEV_TRACKS_KEY, DEMO_DEV_TRACKS, parseLegacyDevTracks,
-} = require('./columns');
+  DEMO_DEV_TRACKS, parseLegacyDevTracks,
+} = columnsModule;
+// Защита от рассинхрона версий файлов при ручном деплое (если columns.js вдруг окажется
+// старее db.js и ещё не экспортирует эту константу) — без неё values[undefined] тихо
+// записал бы мусорный ключ "undefined" вместо devTracks прямо в базу.
+const DEV_TRACKS_KEY = columnsModule.DEV_TRACKS_KEY || 'devTracks';
+if (!columnsModule.DEV_TRACKS_KEY){
+  console.error('[db] ВНИМАНИЕ: columns.js не экспортирует DEV_TRACKS_KEY — похоже, файлы columns.js и db.js из разных версий. Используется резервное значение "devTracks", но стоит перезалить оба файла одним пакетом.');
+}
 
 // DATA_DIR можно переопределить переменной окружения — на Railway это будет
 // точка монтирования постоянного Volume (например, /data), локально — папка ./data.
@@ -95,11 +103,14 @@ function reshapeRowValues(values){
   });
 
   // devTracks — общее хранилище для потенциальных должностей/программ обучения/дат HARD
+  const legacyPotPos = typeof values.potPos === 'string' ? values.potPos.trim() : '';
+  const looksLikeRealLegacyData = legacyPotPos !== '' && legacyPotPos !== '—';
   if (Array.isArray(values[DEV_TRACKS_KEY])){
     next[DEV_TRACKS_KEY] = values[DEV_TRACKS_KEY];
-  } else if (values.potPos !== undefined || values.training !== undefined || values.hardDate !== undefined){
+  } else if (looksLikeRealLegacyData){
     // старый плоский формат (три склеенных через запятую текстовых поля) — восстанавливаем
-    // структуру приблизительно, по порядку значений в списке
+    // структуру приблизительно, по порядку значений в списке. "—"/пусто — это не легаси-данные,
+    // а служебная заглушка (например, из-за рассинхрона файлов при деплое), из неё восстанавливать нечего
     next[DEV_TRACKS_KEY] = parseLegacyDevTracks(values.potPos, values.training, values.hardDate);
   } else {
     next[DEV_TRACKS_KEY] = [];

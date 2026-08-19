@@ -559,18 +559,27 @@ function applyColumnVisibility(){
   document.getElementById('visibleColCount').textContent = `${visibleCount} из ${COLUMNS.length}`;
 }
 
-/** Краткая сводка для ячейки devRecords: значение по нужному атрибуту первой записи + "+N",
- *  если должностей у сотрудника несколько. Полную расшифровку показывает попап по клику. */
+/** Сортирует записи развития по убыванию процента прохождения — впереди должна быть
+ *  связка с наибольшим прогрессом (и в сводке ячейки, и в попапе-расшифровке). */
+function sortDevTracksByProgress(tracks){
+  return [...tracks].sort((a, b) => (Number(b.percent) || 0) - (Number(a.percent) || 0));
+}
+
+/** Краткая сводка для ячейки devRecords: значение по нужному атрибуту записи с наибольшим
+ *  прогрессом + "+N", если должностей у сотрудника несколько. Если задан summaryField —
+ *  в ячейке показывается именно он (например, "89%"), а не то, по чему фильтруем (recordField).
+ *  Полную расшифровку показывает попап по клику. */
 function formatDevTrackSummary(col, tracks){
-  const first = tracks[0];
+  const sorted = sortDevTracksByProgress(tracks);
+  const top = sorted[0];
+  const field = col.summaryField || col.recordField;
   let text;
-  if (col.recordField === 'hardDate'){
-    text = first.hardDate ? formatIsoToRu(first.hardDate) : '—';
-  } else if (col.recordField === 'program'){
-    const pct = (first.percent !== '' && first.percent !== null && first.percent !== undefined) ? ` ${first.percent}%` : '';
-    text = first.program ? `${first.program}${pct}` : '—';
+  if (field === 'hardDate'){
+    text = top.hardDate ? formatIsoToRu(top.hardDate) : '—';
+  } else if (field === 'percent'){
+    text = (top.percent !== '' && top.percent !== null && top.percent !== undefined) ? `${top.percent}%` : '—';
   } else {
-    text = first[col.recordField] || '—';
+    text = top[field] || '—';
   }
   if (tracks.length > 1) text += ` +${tracks.length - 1}`;
   return text;
@@ -928,7 +937,7 @@ function openDevTracksPopover(rowId, btnEl){
   const tracks = row.values.devTracks || [];
 
   document.getElementById('devTracksPopoverTitle').textContent = 'Развитие — ' + (row.values.fio || '');
-  const rowsHtml = tracks.map(t => `
+  const rowsHtml = sortDevTracksByProgress(tracks).map(t => `
     <tr>
       <td>${escapeHtml(t.position || '—')}</td>
       <td>${escapeHtml(t.program || '—')}</td>
