@@ -17,6 +17,10 @@ const GROUPS = [
 //   auto           — автоматически, никогда не редактируется (данные из СМскилл/Pub3)
 //   autoDate       — то же самое, но по смыслу это дата (значение уже хранится в читаемом формате)
 //   autoEditable   — изначально заполняется автоматически, но роль с правом edit может изменить значение
+//   devRecords     — автоматически, никогда не редактируется; сотрудник может развиваться сразу на
+//                    несколько должностей одновременно — реальное значение лежит не в самом столбце,
+//                    а в общем списке row.values.devTracks (см. DEV_TRACKS_KEY), столбец лишь показывает
+//                    один из атрибутов записи (recordField) в сводном виде с попапом-расшифровкой
 //   select         — выпадающий список
 //   free           — свободный ввод текстом
 //   date           — свободный ввод через календарь
@@ -38,9 +42,9 @@ const COLUMNS = [
   { key:'motivation',      label:'Мотивация',                             group:'dev',        type:'auto',  value:'Бригадная' },
   { key:'curPos',          label:'Текущая должность',                     group:'core',       type:'auto',  value:'Продавец' },
   { key:'ipr',             label:'Наличие ИПР',                           group:'dev',        type:'auto',  value:'Да' },
-  { key:'potPos',          label:'Потенциальная должность',               group:'core',       type:'auto',  value:'Старший кассир, Начальник отдела' },
-  { key:'training',        label:'Обучение в кадровый резерв',            group:'dev',        type:'auto',  value:'Старший кассир 89, Начальник отдела 98' },
-  { key:'hardDate',        label:'Дата HARD',                             group:'assess',     type:'auto',  value:'Старший кассир 01.01.2026, Начальник отдела 01.02.2026' },
+  { key:'potPos',          label:'Потенциальная должность',               group:'core',       type:'devRecords', recordField:'position' },
+  { key:'training',        label:'Обучение в кадровый резерв',            group:'dev',        type:'devRecords', recordField:'program' },
+  { key:'hardDate',        label:'Дата HARD',                             group:'assess',     type:'devRecords', recordField:'hardDate' },
   { key:'soft',            label:'Оценка SOFT',                           group:'assess',     type:'select',
     options:['Успешно пройдено','Тест направлен','Не пройдено','Пройдено не успешно','Опционально'],
     value:'Тест направлен' },
@@ -59,8 +63,15 @@ const COLUMNS = [
     options:['СМ_1234','СМ_20144','СМ_20531','СМ_20812','СМ_20933','СМ_21044','СМ_21102','СМ_21255'],
     value:'СМ_1234' },
   { key:'managerComment',  label:'Комментарий менеджера по оценке',       group:'assignment', type:'free',  value:'Молодец, берем' },
-  { key:'managerAtEntry',  label:'Руководитель в момент вступления в КР', group:'manager',    type:'autoEditable', value:'Иванов Руководитель Петрович' },
-  { key:'shopAtEntry',     label:'Магазин в момент вступления в КР',      group:'assignment', type:'autoEditable', value:'СМ_1234' },
+  { key:'managerAtEntry',  label:'Руководитель в момент вступления в КР', group:'manager',    type:'autoEditable',
+    options:['—','Иванов Руководитель Петрович','Петров Руководитель Петрович','Сидоров Руководитель Петрович',
+             'Кузнецов Руководитель Петрович','Смирнов Руководитель Петрович','Волков Руководитель Петрович',
+             'Морозов Руководитель Петрович','Соколов Руководитель Петрович','Лебедев Руководитель Петрович',
+             'Захаров Руководитель Петрович'],
+    value:'Иванов Руководитель Петрович' },
+  { key:'shopAtEntry',     label:'Магазин в момент вступления в КР',      group:'assignment', type:'autoEditable',
+    options:['—','СМ_1234','СМ_5678','СМ_9012','СМ_3456','СМ_7890','СМ_2345','СМ_6789','СМ_0123','СМ_4567','СМ_8901'],
+    value:'СМ_1234' },
 ];
 
 // Поля, которые физически приходят из HR-системы по сотруднику —
@@ -90,6 +101,18 @@ const INITIAL_EMPLOYEE_POOL = [
   { id:'p12', fio:'Григорьев Павел Игоревич',     email:'p.grigoriev@company.ru',  phone:'+7 391 502 17 88', region:'Сибирский регион',        depart:'Красноярское отделение',     city:'Красноярск',       shop:'21744', curPos:'Продавец-консультант' },
 ];
 
+// Ключ, под которым в row.values хранится общий список записей развития сотрудника —
+// см. столбцы типа devRecords (Потенциальная должность / Обучение в КР / Дата HARD).
+// Каждая запись: { position, program, percent, hardDate }. hardDate — ISO-строка или ''.
+const DEV_TRACKS_KEY = 'devTracks';
+
+// Демо-набор для 10 сид-строк реестра — сотрудник развивается сразу на две должности,
+// у каждой своя программа обучения, процент прохождения и дата завершения HARD.
+const DEMO_DEV_TRACKS = [
+  { position:'Старший кассир',    program:'Программа на должность Старший кассир',    percent:89, hardDate:'2026-01-01' },
+  { position:'Начальник отдела',  program:'Программа на должность Начальник отдела',  percent:98, hardDate:'2026-02-01' },
+];
+
 // Справочник должностей для назначения ролей (страница "Роли и доступы").
 // Это отдельный список, не связанный со значениями столбцов "Текущая/Потенциальная должность".
 const POSITIONS = [
@@ -107,7 +130,7 @@ const POSITIONS = [
 // Столбцы, тип которых делает их принципиально нередактируемыми ни для какой роли
 // (данные приходят автоматически из смежных систем — Pub3 -> СМскилл). autoEditable сюда
 // намеренно НЕ входит — такие поля заполняются автоматически, но роль с правом edit может их менять.
-const NON_EDITABLE_TYPES = ['auto', 'autoDate', 'empty'];
+const NON_EDITABLE_TYPES = ['auto', 'autoDate', 'devRecords', 'empty'];
 
 function isColumnEverEditable(colKey){
   const col = COLUMNS.find(c => c.key === colKey);
@@ -159,7 +182,31 @@ function seedRoles(){
   ];
 }
 
+/** Миграция: в прошлой версии potPos/training/hardDate хранились как склеенный через ", "
+ *  текст ("Старший кассир, Начальник отдела" / "Старший кассир 89, ..." / "Старший кассир 01.01.2026, ...").
+ *  Восстанавливает из них массив структурированных записей — приблизительно, по позиции в списке,
+ *  раз формат сам это писал в строгом порядке. Используется только при миграции старых файлов базы. */
+function parseLegacyDevTracks(potPosStr, trainingStr, hardDateStr){
+  const positions = (potPosStr || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (positions.length === 0) return [];
+  const trainingParts = (trainingStr || '').split(',').map(s => s.trim()).filter(Boolean);
+  const hardDateParts = (hardDateStr || '').split(',').map(s => s.trim()).filter(Boolean);
+
+  return positions.map((position, i) => {
+    let percent = '';
+    const tMatch = (trainingParts[i] || '').match(/(\d+)\s*%?\s*$/);
+    if (tMatch) percent = Number(tMatch[1]);
+
+    let hardDate = '';
+    const hMatch = (hardDateParts[i] || '').match(/(\d{2})\.(\d{2})\.(\d{4})\s*$/);
+    if (hMatch) hardDate = `${hMatch[3]}-${hMatch[2]}-${hMatch[1]}`;
+
+    return { position, program: position, percent, hardDate };
+  });
+}
+
 module.exports = {
   GROUPS, COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
   POSITIONS, isColumnEverEditable, blankPermissions, sanitizePermissions, seedRoles,
+  DEV_TRACKS_KEY, DEMO_DEV_TRACKS, parseLegacyDevTracks,
 };
