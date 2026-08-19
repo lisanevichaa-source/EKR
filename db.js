@@ -4,7 +4,7 @@ const columnsModule = require('./columns');
 const {
   COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
   sanitizePermissions, blankPermissions, seedRoles,
-  DEMO_DEV_TRACKS, parseLegacyDevTracks,
+  DEMO_DEV_TRACKS, DEV_TRACKS_VARIANTS, parseLegacyDevTracks,
 } = columnsModule;
 // Защита от рассинхрона версий файлов при ручном деплое (если columns.js вдруг окажется
 // старее db.js и ещё не экспортирует эту константу) — без неё values[undefined] тихо
@@ -51,12 +51,15 @@ function seedState(){
   const managerOptions = managerCol.options.filter(o => o !== '—');
   const shopOptions = shopCol.options.filter(o => o !== '—');
 
-  // 10 демо-строк с одинаковыми примерными данными — как в исходной выгрузке
+  // 10 демо-строк — у каждой свой набор потенциальных должностей (см. DEV_TRACKS_VARIANTS),
+  // чтобы фильтры по "Потенциальной должности"/"Обучению"/"Дате HARD" реально что-то отсеивали
   for (let i = 0; i < 10; i++){
     rowIdCounter++;
     const row = makeDefaultRow(rowIdCounter);
     row.values.managerAtEntry = managerOptions[i % managerOptions.length];
     row.values.shopAtEntry = shopOptions[i % shopOptions.length];
+    const variant = DEV_TRACKS_VARIANTS[i % DEV_TRACKS_VARIANTS.length];
+    row.values.devTracks = variant.map(t => ({ ...t }));
     reserveRows.push(row);
   }
   return {
