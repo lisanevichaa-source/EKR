@@ -143,10 +143,14 @@
   }
   .table-scroll-top{
     overflow-x:auto; overflow-y:hidden;
-    height:14px;
+    height:18px;
+    background:var(--auto-bg);
     border-bottom:1px solid var(--line);
   }
-  .table-scroll-top::-webkit-scrollbar{ height:10px; }
+  .table-scroll-top::-webkit-scrollbar{ height:14px; }
+  .table-scroll-top::-webkit-scrollbar-track{ background:var(--auto-bg); }
+  .table-scroll-top::-webkit-scrollbar-thumb{ background:#c7cae8; border-radius:999px; border:3px solid var(--auto-bg); }
+  .table-scroll-top::-webkit-scrollbar-thumb:hover{ background:var(--accent); }
   .table-scroll-top #tableScrollTopInner{ height:1px; }
   .table-scroll{
     overflow:auto;
@@ -341,7 +345,7 @@
   }
   .filter-popover-foot-btns{ display:flex; gap:8px; }
   .filter-popover-foot .ghost-btn{ padding:5px 11px; font-size:12px; }
-  .filter-popover-count{ font-size:11.5px; color:var(--ink-soft); }
+  .filter-popover-count{ display:block; font-size:11.5px; color:var(--ink-soft); padding:0 12px 8px; }
 
   /* ---------- DEV RECORDS (несколько потенциальных должностей у одного сотрудника) ---------- */
   .dev-records-btn{
@@ -464,9 +468,10 @@
     <input id="filterPopoverSearch" type="text" placeholder="Поиск значения...">
   </div>
   <div class="filter-popover-list" id="filterPopoverList"></div>
+  <span class="filter-popover-count" id="filterPopoverSelCount"></span>
   <div class="filter-popover-foot">
     <button class="ghost-btn" id="filterPopoverClear">Сбросить</button>
-    <span class="filter-popover-count" id="filterPopoverSelCount"></span>
+    <button class="primary-btn" id="filterPopoverApply">Применить</button>
   </div>
 </div>
 
@@ -515,6 +520,7 @@ let hiddenColumns = new Set(); // столбцы, скрытые пользов�
 // активные фильтры по столбцам: colKey -> Set выбранных значений
 let columnFilters = {};
 let openFilterCol = null;
+let filterDraft = null; // черновик текущего попапа: Set (список значений) или {onlyFilled,from,to} (диапазон дат) — применяется только по кнопке "Применить"
 
 // пагинация — чтобы не рендерить в DOM тысячи строк разом
 let currentPage = 1;
@@ -908,7 +914,11 @@ function updateRowCountAndPagination(totalRows, totalPages){
 function syncTopScrollbarWidth(){
   const table = document.getElementById('mainTable');
   const inner = document.getElementById('tableScrollTopInner');
-  if (table && inner) inner.style.width = table.scrollWidth + 'px';
+  if (!table || !inner) return;
+  inner.style.width = table.scrollWidth + 'px';
+  // подстраховка: иногда браузер досчитывает реальную ширину таблицы только после
+  // следующего кадра отрисовки (особенно на очень широких таблицах/много столбцов)
+  requestAnimationFrame(() => { inner.style.width = table.scrollWidth + 'px'; });
 }
 function setupTopScrollSync(){
   const top = document.getElementById('tableScrollTop');
@@ -922,6 +932,7 @@ function setupTopScrollSync(){
     if (syncing) return;
     syncing = true; top.scrollLeft = body.scrollLeft; syncing = false;
   });
+  window.addEventListener('resize', syncTopScrollbarWidth);
 }
 
 function setupPagination(){
@@ -1029,7 +1040,11 @@ function setupAddModal(){
 /* ===================== ПОИСК ===================== */
 function setupSearch(){
   const input = document.getElementById('searchInput');
-  input.addEventListener('input', applyRowFilters);
+  let searchTimer = null;
+  input.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyRowFilters, 300);
+  });
 }
 
 /* ===================== ФИЛЬТРЫ ПО СТОЛБЦАМ ===================== */
@@ -1055,7 +1070,7 @@ function valueLabel(col, v){
 function renderFilterOptions(col, searchQ){
   const universe = getColumnValueUniverse(col);
   const q = (searchQ || '').trim().toLowerCase();
-  const selected = columnFilters[col.key] instanceof Set ? columnFilters[col.key] : new Set();
+  const selected = filterDraft instanceof Set ? filterDraft : new Set();
   const filtered = universe.filter(v => !q || valueLabel(col, v).toLowerCase().includes(q));
   const list = document.getElementById('filterPopoverList');
   list.innerHTML = filtered.length === 0
@@ -1066,15 +1081,13 @@ function renderFilterOptions(col, searchQ){
           <span>${escapeHtml(valueLabel(col, v))}</span>
         </label>
       `).join('');
-  updateFilterSelCount(col.key);
+  updateFilterSelCount();
 }
 
 /** UI для столбцов-дат: быстрый переключатель "только заполненные" + диапазон "с/по".
  *  Вместо списка из сотен отдельных дат — то, что реально нужно при масштабе в тысячи сотрудников. */
 function renderDateRangeFilter(col){
-  const filter = (columnFilters[col.key] && !(columnFilters[col.key] instanceof Set))
-    ? columnFilters[col.key]
-    : { onlyFilled:false, from:'', to:'' };
+  const filter = (filterDraft && !(filterDraft instanceof Set)) ? filterDraft : { onlyFilled:false, from:'', to:'' };
   const list = document.getElementById('filterPopoverList');
   list.innerHTML = `
     <div class="date-range-filter">
@@ -1092,21 +1105,20 @@ function renderDateRangeFilter(col){
           <input type="date" id="dateRangeTo" value="${filter.to || ''}">
         </div>
       </div>
-      <div class="date-range-hint">Оставьте оба поля пустыми, чтобы не ограничивать период — тогда переключатель выше покажет все заполненные даты.</div>
+      <div class="date-range-hint">Оставьте оба поля пустыми, чтобы не ограничивать период — тогда переключатель выше покажет все заполненные даты. Значения читаются только по кнопке «Применить».</div>
     </div>
   `;
-  updateFilterSelCount(col.key);
+  updateFilterSelCount();
 }
 
-function updateFilterSelCount(colKey){
-  const filter = columnFilters[colKey];
+function updateFilterSelCount(){
   const el = document.getElementById('filterPopoverSelCount');
-  if (filter instanceof Set){
-    el.textContent = filter.size > 0 ? `Выбрано: ${filter.size}` : 'Показаны все';
-  } else if (filter && (filter.onlyFilled || filter.from || filter.to)){
+  if (filterDraft instanceof Set){
+    el.textContent = filterDraft.size > 0 ? `Выбрано: ${filterDraft.size}` : 'Показаны все';
+  } else if (filterDraft && (filterDraft.onlyFilled || filterDraft.from || filterDraft.to)){
     const parts = [];
-    if (filter.from) parts.push('с ' + formatIsoToRu(filter.from));
-    if (filter.to) parts.push('по ' + formatIsoToRu(filter.to));
+    if (filterDraft.from) parts.push('с ' + formatIsoToRu(filterDraft.from));
+    if (filterDraft.to) parts.push('по ' + formatIsoToRu(filterDraft.to));
     el.textContent = parts.length ? parts.join(' ') : 'Только заполненные';
   } else {
     el.textContent = 'Показаны все';
@@ -1127,9 +1139,16 @@ function openFilterPopover(colKey, btnEl){
   const isDateRange = isDateFilterColumn(col);
   document.getElementById('filterPopoverSearchWrap').style.display = isDateRange ? 'none' : '';
   document.getElementById('filterPopoverSearch').value = '';
+
+  // черновик заводим от уже применённого фильтра (если был) — чтобы попап открывался
+  // с текущим состоянием, а не пустым, но саму таблицу это никак не трогает, пока не
+  // нажали "Применить"
+  const existing = columnFilters[colKey];
   if (isDateRange){
+    filterDraft = (existing && !(existing instanceof Set)) ? { ...existing } : { onlyFilled:false, from:'', to:'' };
     renderDateRangeFilter(col);
   } else {
+    filterDraft = existing instanceof Set ? new Set(existing) : new Set();
     renderFilterOptions(col, '');
   }
 
@@ -1147,6 +1166,7 @@ function openFilterPopover(colKey, btnEl){
 function closeFilterPopover(){
   document.getElementById('filterPopover').classList.remove('open');
   openFilterCol = null;
+  filterDraft = null;
 }
 
 /* ===================== ПОПАП-РАСШИФРОВКА "РАЗВИТИЕ СОТРУДНИКА" ===================== */
@@ -1201,8 +1221,13 @@ function setupFilterPopover(){
     if (openFilterCol){
       const col = COLUMNS.find(c => c.key === openFilterCol);
       if (col){
-        if (isDateFilterColumn(col)) renderDateRangeFilter(col);
-        else renderFilterOptions(col, document.getElementById('filterPopoverSearch').value);
+        if (isDateFilterColumn(col)){
+          filterDraft = { onlyFilled:false, from:'', to:'' };
+          renderDateRangeFilter(col);
+        } else {
+          filterDraft = new Set();
+          renderFilterOptions(col, document.getElementById('filterPopoverSearch').value);
+        }
       }
     }
     applyRowFilters();
@@ -1218,42 +1243,31 @@ function setupFilterPopover(){
 
   document.getElementById('filterPopoverClose').addEventListener('click', closeFilterPopover);
 
+  // "Сбросить" — снимает фильтр сразу (это однозначное действие, не требует подтверждения),
+  // но саму таблицу применяет как обычно через applyRowFilters
   document.getElementById('filterPopoverClear').addEventListener('click', () => {
     if (!openFilterCol) return;
     delete columnFilters[openFilterCol];
     const col = COLUMNS.find(c => c.key === openFilterCol);
     if (isDateFilterColumn(col)){
+      filterDraft = { onlyFilled:false, from:'', to:'' };
       renderDateRangeFilter(col);
     } else {
+      filterDraft = new Set();
       renderFilterOptions(col, document.getElementById('filterPopoverSearch').value);
     }
     updateFilterButtonState(openFilterCol);
     applyRowFilters();
   });
 
-  document.getElementById('filterPopoverSearch').addEventListener('input', e => {
-    const col = COLUMNS.find(c => c.key === openFilterCol);
-    if (col && !isDateFilterColumn(col)) renderFilterOptions(col, e.target.value);
-  });
-
-  document.getElementById('filterPopoverList').addEventListener('change', e => {
+  // "Применить" — единственное место, где черновик реально попадает в columnFilters
+  // и таблица перерисовывается. Ни чекбоксы, ни поля дат сами по себе таблицу не трогают.
+  document.getElementById('filterPopoverApply').addEventListener('click', () => {
     if (!openFilterCol) return;
+    const col = COLUMNS.find(c => c.key === openFilterCol);
+    if (!col) return;
 
-    // чекбоксы из обычного списка значений
-    const cb = e.target.closest('[data-filter-value]');
-    if (cb){
-      if (!(columnFilters[openFilterCol] instanceof Set)) columnFilters[openFilterCol] = new Set();
-      const set = columnFilters[openFilterCol];
-      if (cb.checked) set.add(cb.value); else set.delete(cb.value);
-      if (set.size === 0) delete columnFilters[openFilterCol];
-      updateFilterSelCount(openFilterCol);
-      updateFilterButtonState(openFilterCol);
-      applyRowFilters();
-      return;
-    }
-
-    // диапазон дат: переключатель "только заполненные" + поля "с"/"по"
-    if (e.target.id === 'dateRangeOnlyFilled' || e.target.id === 'dateRangeFrom' || e.target.id === 'dateRangeTo'){
+    if (isDateFilterColumn(col)){
       const onlyFilled = document.getElementById('dateRangeOnlyFilled').checked;
       const from = document.getElementById('dateRangeFrom').value;
       const to = document.getElementById('dateRangeTo').value;
@@ -1262,10 +1276,36 @@ function setupFilterPopover(){
       } else {
         delete columnFilters[openFilterCol];
       }
-      updateFilterSelCount(openFilterCol);
-      updateFilterButtonState(openFilterCol);
-      applyRowFilters();
+    } else {
+      if (filterDraft instanceof Set && filterDraft.size > 0){
+        columnFilters[openFilterCol] = new Set(filterDraft);
+      } else {
+        delete columnFilters[openFilterCol];
+      }
     }
+
+    updateFilterButtonState(openFilterCol);
+    applyRowFilters();
+    closeFilterPopover();
+  });
+
+  document.getElementById('filterPopoverSearch').addEventListener('input', e => {
+    const col = COLUMNS.find(c => c.key === openFilterCol);
+    if (col && !isDateFilterColumn(col)) renderFilterOptions(col, e.target.value);
+  });
+
+  // чекбоксы из списка значений — меняют только черновик и живой счётчик, таблицу
+  // не трогают до нажатия "Применить"
+  document.getElementById('filterPopoverList').addEventListener('change', e => {
+    if (!openFilterCol) return;
+    const cb = e.target.closest('[data-filter-value]');
+    if (!cb) return;
+    if (!(filterDraft instanceof Set)) filterDraft = new Set();
+    if (cb.checked) filterDraft.add(cb.value); else filterDraft.delete(cb.value);
+    updateFilterSelCount();
+    // диапазон дат сюда не попадает вовсе: <input type="date"> в некоторых браузерах
+    // шлёт change ещё во время ввода отдельных сегментов (день/месяц/год) — значения
+    // читаются только по клику на "Применить", напрямую из полей
   });
 
   document.addEventListener('click', e => {
