@@ -141,6 +141,13 @@
     box-shadow:0 1px 3px rgba(15,15,40,0.05);
     overflow:hidden;
   }
+  .table-scroll-top{
+    overflow-x:auto; overflow-y:hidden;
+    height:14px;
+    border-bottom:1px solid var(--line);
+  }
+  .table-scroll-top::-webkit-scrollbar{ height:10px; }
+  .table-scroll-top #tableScrollTopInner{ height:1px; }
   .table-scroll{
     overflow:auto;
     max-height:70vh;
@@ -255,6 +262,14 @@
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
     padding:12px 16px; font-size:12.5px; color:var(--ink-soft);
     border-top:1px solid var(--line);
+  }
+  .table-foot-left{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .pagination-controls{ display:flex; align-items:center; gap:6px; }
+  .pagination-btn{ padding:5px 10px; font-size:12px; min-width:30px; }
+  .pagination-btn:disabled{ opacity:.4; cursor:not-allowed; }
+  #paginationPageInfo{ font-size:12px; color:var(--ink-soft); white-space:nowrap; padding:0 2px; }
+  .table-foot .role-switcher-select{
+    border-color:var(--line); color:var(--ink); background:#fff; padding:5px 10px; font-size:12px;
   }
   .note{
     font-size:12.5px; color:var(--ink-soft); margin-top:10px; line-height:1.5;
@@ -392,16 +407,31 @@
       <input id="searchInput" type="text" placeholder="Поиск по ФИО...">
     </div>
     <div class="toolbar-right">
+      <button class="ghost-btn" id="clearAllFiltersBtn">Сбросить фильтры</button>
       <button class="ghost-btn" id="columnVisibilityBtn">Настроить отображение столбцов</button>
     </div>
   </div>
 
   <div class="table-wrap">
-    <div class="table-scroll">
+    <div class="table-scroll-top" id="tableScrollTop"><div id="tableScrollTopInner"></div></div>
+    <div class="table-scroll" id="tableScroll">
       <table id="mainTable"></table>
     </div>
     <div class="table-foot">
-      <span id="rowCount">Показано 10 из 10 строк</span>
+      <div class="table-foot-left">
+        <span id="rowCount">Показано 10 из 10 строк</span>
+        <div class="pagination-controls">
+          <button class="ghost-btn pagination-btn" id="paginationPrev">←</button>
+          <span id="paginationPageInfo">Стр. 1 из 1</span>
+          <button class="ghost-btn pagination-btn" id="paginationNext">→</button>
+          <select id="pageSizeSelect" class="role-switcher-select">
+            <option value="100">100 на странице</option>
+            <option value="500">500 на странице</option>
+            <option value="1000">1000 на странице</option>
+            <option value="10000">10000 на странице</option>
+          </select>
+        </div>
+      </div>
       <span>Столбцов видно: <b id="visibleColCount"></b></span>
     </div>
   </div>
@@ -485,6 +515,11 @@ let hiddenColumns = new Set(); // столбцы, скрытые пользов�
 // активные фильтры по столбцам: colKey -> Set выбранных значений
 let columnFilters = {};
 let openFilterCol = null;
+
+// пагинация — чтобы не рендерить в DOM тысячи строк разом
+let currentPage = 1;
+let pageSize = 100;
+let lastTotalPages = 1;
 
 function applyState(data){
   reserveRows = data.reserveRows;
@@ -620,7 +655,7 @@ function renderTable(){
   COLUMNS.forEach(col => {
     const cls = col.key === 'fio' ? ' class="col-fio"' : '';
     const filterBtn = col.key === 'fio' ? '' :
-      `<button class="filter-btn${(columnFilters[col.key] && columnFilters[col.key].size > 0) ? ' active' : ''}" data-filter-col="${col.key}" title="Фильтр по столбцу">
+      `<button class="filter-btn${isFilterActive(columnFilters[col.key]) ? ' active' : ''}" data-filter-col="${col.key}" title="Фильтр по столбцу">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M4 5h16l-6.5 7.5V19l-3 1.5v-8z"/></svg>
       </button>`;
     labelCells.push(`<th${cls} data-col="${col.key}"><span class="th-row"><span class="th-text">${col.label}</span>${filterBtn}</span></th>`);
@@ -631,9 +666,19 @@ function renderTable(){
     <tr class="label-row">${labelCells.join('')}</tr>
   </thead>`;
 
-  // body rows
+  // body rows — только текущая страница отфильтрованных строк, а не весь reserveRows разом
+  // (иначе при тысячах сотрудников рендер тысяч <tr> подвесит вкладку браузера)
+  const filtered = getFilteredRows();
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageRows = filtered.slice(startIdx, startIdx + pageSize);
+
   let bodyRows = [];
-  reserveRows.forEach((row, idx) => {
+  pageRows.forEach((row, i) => {
+    const idx = startIdx + i;
     let cells = [`<td class="col-rownum" data-col="__rownum">${idx + 1}</td>`];
     COLUMNS.forEach(col => {
       const value = row.values[col.key];
@@ -700,7 +745,8 @@ function renderTable(){
 
   table.innerHTML = thead + `<tbody>${bodyRows.join('')}</tbody>`;
   closeFilterPopover();
-  applyRowFilters();
+  updateRowCountAndPagination(totalRows, totalPages, startIdx, pageRows.length);
+  syncTopScrollbarWidth();
 }
 
 /* синхронизация ввода пользователя с моделью данных, чтобы значения не терялись при перерисовке */
@@ -713,13 +759,20 @@ function updateLocalCellValue(el){
 
 async function saveCell(rowId, col, value){
   try{
-    applyState(await mutate(`/api/reserve/${encodeURIComponent(rowId)}`, {
+    // PATCH /api/reserve/:id теперь возвращает только изменённую строку, а не всё состояние —
+    // правка ячейки не имеет побочных эффектов на другие строки, гонять по сети весь реестр
+    // ради одного поля незачем (особенно заметно на больших объёмах)
+    const result = await mutate(`/api/reserve/${encodeURIComponent(rowId)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ col, value }),
-    }));
+    });
+    if (result && result.row){
+      const idx = reserveRows.findIndex(r => r.id === rowId);
+      if (idx !== -1) reserveRows[idx] = result.row;
+    }
   } catch(err){
-    // запрос не прошёл — перерисуем таблицу из последнего известного состояния сервера
+    // запрос не прошёл — перерисуем таблицу из последнего известного состояния
   }
   renderTable();
   applyColumnVisibility();
@@ -787,46 +840,110 @@ function filterValueMatches(filter, rawValue){
   return true;
 }
 
-function applyRowFilters(){
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  let visibleCount = 0;
-  reserveRows.forEach(row => {
-    let visible = true;
-    if (q && !(row.values.fio || '').toLowerCase().includes(q)) visible = false;
+/** Подходит ли строка под текущий поиск по ФИО и все активные фильтры столбцов —
+ *  единая точка правды, используется и при рендере страницы, и при подсчёте totalRows. */
+function rowMatchesFilters(row, q){
+  if (q && !(row.values.fio || '').toLowerCase().includes(q)) return false;
 
-    if (visible){
-      // обычные фильтры (не devRecords) — проверяем как раньше, независимо друг от друга
-      const devFilterEntries = []; // { col, filter } — фильтры по связке "Потенциальная должность / Обучение / Дата HARD"
-      for (const colKey in columnFilters){
-        const filter = columnFilters[colKey];
-        if (!isFilterActive(filter)) continue;
-        const col = COLUMNS.find(c => c.key === colKey);
-        if (col && col.type === 'devRecords'){
-          devFilterEntries.push({ col, filter });
-        } else {
-          const val = (row.values[colKey] || '').toString();
-          if (!filterValueMatches(filter, val)){ visible = false; break; }
-        }
-      }
-
-      // фильтры по devRecords-столбцам относятся к общему списку должностей сотрудника
-      // (row.values.devTracks) — чтобы "Потенциальная должность = Начальник отдела" и
-      // "Дата HARD = <диапазон>" не засчитывались по РАЗНЫМ должностям одного сотрудника,
-      // ищем хотя бы одну ЗАПИСЬ, которая удовлетворяет ВСЕМ активным условиям сразу
-      if (visible && devFilterEntries.length > 0){
-        const tracks = row.values.devTracks || [];
-        const oneRecordMatchesAll = tracks.some(t =>
-          devFilterEntries.every(({ col, filter }) => filterValueMatches(filter, (t[col.recordField] || '').toString()))
-        );
-        if (!oneRecordMatchesAll) visible = false;
-      }
+  // обычные фильтры (не devRecords) — проверяем как раньше, независимо друг от друга
+  const devFilterEntries = []; // { col, filter } — фильтры по связке "Потенциальная должность / Обучение / Дата HARD"
+  for (const colKey in columnFilters){
+    const filter = columnFilters[colKey];
+    if (!isFilterActive(filter)) continue;
+    const col = COLUMNS.find(c => c.key === colKey);
+    if (col && col.type === 'devRecords'){
+      devFilterEntries.push({ col, filter });
+    } else {
+      const val = (row.values[colKey] || '').toString();
+      if (!filterValueMatches(filter, val)) return false;
     }
+  }
 
-    const tr = document.querySelector(`tr[data-row="${row.id}"]`);
-    if (tr) tr.style.display = visible ? '' : 'none';
-    if (visible) visibleCount++;
+  // фильтры по devRecords-столбцам относятся к общему списку должностей сотрудника
+  // (row.values.devTracks) — чтобы "Потенциальная должность = Начальник отдела" и
+  // "Дата HARD = <диапазон>" не засчитывались по РАЗНЫМ должностям одного сотрудника,
+  // ищем хотя бы одну ЗАПИСЬ, которая удовлетворяет ВСЕМ активным условиям сразу
+  if (devFilterEntries.length > 0){
+    const tracks = row.values.devTracks || [];
+    const oneRecordMatchesAll = tracks.some(t =>
+      devFilterEntries.every(({ col, filter }) => filterValueMatches(filter, (t[col.recordField] || '').toString()))
+    );
+    if (!oneRecordMatchesAll) return false;
+  }
+
+  return true;
+}
+
+/** Полный отфильтрованный список (без учёта пагинации) — используется и для рендера
+ *  текущей страницы, и для подсчёта totalRows/totalPages. */
+function getFilteredRows(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  return reserveRows.filter(row => rowMatchesFilters(row, q));
+}
+
+/** Сбрасывает страницу на первую и перерисовывает — вызывается только там, где реально
+ *  изменился набор фильтров/поиск (иначе, например, редактирование ячейки на 5-й странице
+ *  отбрасывало бы пользователя обратно на первую). */
+function applyRowFilters(){
+  currentPage = 1;
+  renderTable();
+  applyColumnVisibility();
+}
+
+function updateRowCountAndPagination(totalRows, totalPages){
+  lastTotalPages = totalPages;
+  const rangeStart = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(currentPage * pageSize, totalRows);
+  let text = `Показано ${rangeStart}–${rangeEnd} из ${totalRows} строк`;
+  if (totalRows !== reserveRows.length) text += ` (отфильтровано из ${reserveRows.length})`;
+  document.getElementById('rowCount').textContent = text;
+  document.getElementById('paginationPageInfo').textContent = `Стр. ${currentPage} из ${totalPages}`;
+  document.getElementById('paginationPrev').disabled = currentPage <= 1;
+  document.getElementById('paginationNext').disabled = currentPage >= totalPages;
+}
+
+/** Верхняя полоса прокрутки — просто пустой div такой же "виртуальной" ширины, как сама
+ *  таблица, чтобы у нижнего скролла таблицы появился видимый двойник сверху и не приходилось
+ *  листать вниз, чтобы до него добраться. */
+function syncTopScrollbarWidth(){
+  const table = document.getElementById('mainTable');
+  const inner = document.getElementById('tableScrollTopInner');
+  if (table && inner) inner.style.width = table.scrollWidth + 'px';
+}
+function setupTopScrollSync(){
+  const top = document.getElementById('tableScrollTop');
+  const body = document.getElementById('tableScroll');
+  let syncing = false;
+  top.addEventListener('scroll', () => {
+    if (syncing) return;
+    syncing = true; body.scrollLeft = top.scrollLeft; syncing = false;
   });
-  document.getElementById('rowCount').textContent = `Показано ${visibleCount} из ${reserveRows.length} строк`;
+  body.addEventListener('scroll', () => {
+    if (syncing) return;
+    syncing = true; top.scrollLeft = body.scrollLeft; syncing = false;
+  });
+}
+
+function setupPagination(){
+  document.getElementById('pageSizeSelect').value = String(pageSize);
+  document.getElementById('pageSizeSelect').addEventListener('change', e => {
+    pageSize = parseInt(e.target.value, 10) || 100;
+    currentPage = 1;
+    renderTable();
+    applyColumnVisibility();
+  });
+  document.getElementById('paginationPrev').addEventListener('click', () => {
+    if (currentPage <= 1) return;
+    currentPage--;
+    renderTable();
+    applyColumnVisibility();
+  });
+  document.getElementById('paginationNext').addEventListener('click', () => {
+    if (currentPage >= lastTotalPages) return;
+    currentPage++;
+    renderTable();
+    applyColumnVisibility();
+  });
 }
 
 /* ===================== ДОБАВЛЕНИЕ / УДАЛЕНИЕ СОТРУДНИКОВ ===================== */
@@ -1078,6 +1195,19 @@ function setupDevTracksPopover(){
 }
 
 function setupFilterPopover(){
+  document.getElementById('clearAllFiltersBtn').addEventListener('click', () => {
+    columnFilters = {};
+    document.querySelectorAll('[data-filter-col]').forEach(btn => btn.classList.remove('active'));
+    if (openFilterCol){
+      const col = COLUMNS.find(c => c.key === openFilterCol);
+      if (col){
+        if (isDateFilterColumn(col)) renderDateRangeFilter(col);
+        else renderFilterOptions(col, document.getElementById('filterPopoverSearch').value);
+      }
+    }
+    applyRowFilters();
+  });
+
   document.getElementById('mainTable').addEventListener('click', e => {
     const btn = e.target.closest('[data-filter-col]');
     if (!btn) return;
@@ -1292,6 +1422,8 @@ async function init(){
   setupColumnVisibilityPopover();
   setupDevTracksPopover();
   setupRoleSwitcher();
+  setupPagination();
+  setupTopScrollSync();
 }
 
 init();

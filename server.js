@@ -20,7 +20,8 @@ app.patch('/api/reserve/:id', (req, res) => {
   const { col, value } = req.body || {};
   if (typeof col !== 'string') return res.status(400).json({ error: 'Не передано поле col' });
   try {
-    res.json(db.updateCell(req.params.id, col, value ?? ''));
+    const row = db.updateCell(req.params.id, col, value ?? '');
+    res.json({ row });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
