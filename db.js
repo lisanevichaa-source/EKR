@@ -3,7 +3,7 @@ const path = require('path');
 const columnsModule = require('./columns');
 const {
   COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
-  sanitizePermissions, blankPermissions, seedRoles,
+  sanitizePermissions, blankPermissions, seedRoles, blankActions, sanitizeActions,
   DEMO_DEV_TRACKS, DEV_TRACKS_VARIANTS, parseLegacyDevTracks,
 } = columnsModule;
 // Защита от рассинхрона версий файлов при ручном деплое (если columns.js вдруг окажется
@@ -261,6 +261,12 @@ function load(){
         const before = JSON.stringify(role.permissions);
         role.permissions = sanitizePermissions(role.permissions);
         if (JSON.stringify(role.permissions) !== before) migrated = true;
+
+        // права на действия (добавить/удалить сотрудника) — новая возможность, в старых
+        // сохранённых ролях её ещё нет вовсе, добавляем как "всё запрещено" по умолчанию
+        const beforeActions = JSON.stringify(role.actions);
+        role.actions = sanitizeActions(role.actions);
+        if (JSON.stringify(role.actions) !== beforeActions) migrated = true;
       });
 
       console.log(`[db] Загружено из ${DATA_FILE}: ${state.reserveRows.length} в резерве, ${state.employeePool.length} в общем списке, ${state.roles.length} ролей`);
@@ -377,6 +383,7 @@ function createRole(name, positions){
     name: cleanName,
     positions: Array.isArray(positions) ? positions.filter(Boolean) : [],
     permissions: blankPermissions(),
+    actions: blankActions(),
   };
   state.roles.push(role);
   persist();
@@ -394,12 +401,14 @@ function updateRole(roleId, name, positions){
   return getState();
 }
 
-function updateRolePermissions(roleId, permissions){
+function updateRolePermissions(roleId, permissions, actions){
   const role = state.roles.find(r => r.id === roleId);
   if (!role) throw new Error('Роль не найдена');
-  // sanitizePermissions сама принудительно выставит edit:false для нередактируемых полей,
-  // даже если с клиента пришло что-то другое — это защита не только для UI, но и для API.
+  // sanitizePermissions/sanitizeActions сами принудительно приведут данные к безопасному
+  // виду (например, edit:false для нередактируемых полей), даже если с клиента пришло
+  // что-то другое — это защита не только для UI, но и для API.
   role.permissions = sanitizePermissions(permissions);
+  role.actions = sanitizeActions(actions);
   persist();
   return getState();
 }
