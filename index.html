@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Электронный кадровый резерв — демо</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* ---------- HERO ---------- */
+  .hero{
+    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
+    padding:28px 32px 40px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:radial-gradient(600px 300px at 85% -10%, rgba(255,255,255,0.10), transparent 60%);
+    pointer-events:none;
+  }
+  .breadcrumb{
+    color:rgba(255,255,255,0.55);
+    font-size:12.5px;
+    letter-spacing:.02em;
+    margin-bottom:14px;
+  }
+  .hero-top{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:24px;
+    flex-wrap:wrap;
+    margin-bottom:24px;
+  }
+  .hero-title h1{
+    color:#fff; margin:0 0 6px; font-size:26px; font-weight:700; letter-spacing:-0.01em;
+  }
+  .hero-title p{
+    color:rgba(255,255,255,0.68); margin:0; font-size:14px; max-width:560px; line-height:1.5;
+  }
+
+  .demo-badge{
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.25);
+    color:#fff;
+    font-size:12px;
+    padding:7px 12px;
+    border-radius:999px;
+    white-space:nowrap;
+    backdrop-filter:blur(4px);
+  }
+
+  .widgets{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:16px;
+  }
+  @media (max-width:980px){ .widgets{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:640px){ .widgets{grid-template-columns:1fr;} }
+
+  .card{
+    background:var(--card);
+    border-radius:var(--radius-lg);
+    padding:18px 20px;
+    box-shadow:0 10px 30px rgba(15,15,40,0.18);
+  }
+  .card-label{
+    font-size:13.5px; color:var(--ink); font-weight:500; margin-bottom:10px;
+  }
+  .card-row{ display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .big-num{ font-size:30px; font-weight:800; letter-spacing:-0.01em; }
+  .sub-num{ font-size:24px; font-weight:800; }
+
+  /* donut */
+  .donut{
+    --pct:10;
+    width:56px;height:56px;border-radius:50%;
+    background:conic-gradient(var(--gold) calc(var(--pct)*1%), #e3e4ea 0);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .donut span{
+    width:40px;height:40px;border-radius:50%;background:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;color:var(--ink);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.04);
+  }
+
+  .quad{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:10px; text-align:center;
+  }
+  .quad div .q-num{ font-size:22px; font-weight:800; }
+  .quad div .q-num.zero{ color:var(--red); }
+  .quad div .q-label{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.25; }
+
+  .bars{ display:flex; flex-direction:column; gap:8px; }
+  .bar-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-soft);}
+  .bar-track{ flex:1; height:7px; border-radius:999px; background:#eef0f4; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:999px; }
+  .bar-val{ width:34px; text-align:right; font-weight:700; color:var(--ink); font-size:12px;}
+
+  .progress-track{ height:10px; border-radius:999px; background:#eef0f4; overflow:hidden; margin-top:10px;}
+  .progress-fill{ height:100%; border-radius:999px; background:linear-gradient(90deg,#4f46e5,#7c73f0); }
+  .progress-foot{ display:flex; justify-content:space-between; margin-top:8px; font-size:12px; color:var(--ink-soft);}
+
+  .trend{
+    display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700;
+    color:var(--green); background:#e9f7ef; padding:3px 8px; border-radius:999px;
+  }
+
+  /* ---------- MAIN CONTENT ---------- */
+  .content{ padding:24px 32px 60px; }
+  .section-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;}
+  .section-head h2{ font-size:18px; margin:0; }
+  .section-head p{ margin:2px 0 0; color:var(--ink-soft); font-size:13px; }
+
+  .toolbar{
+    background:var(--card);
+    border-radius:var(--radius-md);
+    padding:14px 16px;
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    margin-bottom:14px;
+    box-shadow:0 1px 3px rgba(15,15,40,0.05);
+  }
+  .search{
+    display:flex; align-items:center; gap:8px;
+    border:1px solid var(--line); border-radius:999px; padding:8px 14px;
+    min-width:220px; flex:0 0 auto;
+  }
+  .search input{
+    border:none; outline:none; font-size:13.5px; width:180px; background:transparent; color:var(--ink);
+  }
+  .search svg{ flex-shrink:0; opacity:.5; }
+
+  .divider-v{ width:1px; height:22px; background:var(--line); margin:0 4px; }
+
+  .toolbar-right{ margin-left:auto; display:flex; gap:8px; align-items:center;}
+
+  /* table */
+  .table-wrap{
+    background:var(--card);
+    border-radius:var(--radius-md);
+    box-shadow:0 1px 3px rgba(15,15,40,0.05);
+    overflow:hidden;
+  }
+  .table-scroll-top{
+    overflow-x:auto; overflow-y:hidden;
+    height:18px;
+    background:var(--auto-bg);
+    border-bottom:1px solid var(--line);
+  }
+  .table-scroll-top::-webkit-scrollbar{ height:14px; }
+  .table-scroll-top::-webkit-scrollbar-track{ background:var(--auto-bg); }
+  .table-scroll-top::-webkit-scrollbar-thumb{ background:#c7cae8; border-radius:999px; border:3px solid var(--auto-bg); }
+  .table-scroll-top::-webkit-scrollbar-thumb:hover{ background:var(--accent); }
+  .table-scroll-top #tableScrollTopInner{ height:1px; }
+  .table-scroll{
+    overflow:auto;
+    max-height:70vh;
+  }
+  table{ border-collapse:separate; border-spacing:0; font-size:13px; width:max-content; min-width:100%; }
+  thead{
+    position:sticky; top:0; z-index:4;
+  }
+  thead th{
+    background:#fafafe;
+    border-bottom:1px solid var(--line);
+    border-right:1px solid var(--line);
+    text-align:left;
+    padding:10px 12px;
+    font-weight:600;
+    color:var(--ink);
+    white-space:nowrap;
+  }
+  thead tr.group-row th{
+    background:#f3f3fb;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--ink-soft);
+    font-weight:700;
+    padding:6px 12px;
+    border-bottom:none;
+  }
+
+  /* Мягкая цветовая разметка подразделов — только лёгкий тон в самой шапке группы
+     и тонкая полоска-акцент под названиями столбцов, чтобы не перегружать интерфейс. */
+  thead tr.group-row th[data-colgroup="personal"]{ background:#eef3fc; }
+  thead tr.group-row th[data-colgroup="workData"]{ background:#eef8f1; }
+  thead tr.group-row th[data-colgroup="potential"]{ background:#f5f0fb; }
+  thead tr.group-row th[data-colgroup="development"]{ background:#fdf5ea; }
+  thead tr.label-row th[data-colgroup="personal"]{ box-shadow:inset 0 -2px 0 #c9d9f5; }
+  thead tr.label-row th[data-colgroup="workData"]{ box-shadow:inset 0 -2px 0 #c3e8cd; }
+  thead tr.label-row th[data-colgroup="potential"]{ box-shadow:inset 0 -2px 0 #dccdf0; }
+  thead tr.label-row th[data-colgroup="development"]{ box-shadow:inset 0 -2px 0 #f2ddb0; }
+
+  .th-row{ display:flex; align-items:center; gap:5px; }
+  .th-text{ overflow:hidden; text-overflow:ellipsis; }
+  .filter-btn{
+    position:relative;
+    border:none; background:transparent; cursor:pointer;
+    padding:3px; margin:0; border-radius:5px;
+    color:#b7bacb; display:inline-flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .filter-btn:hover{ color:var(--accent); background:var(--accent-soft); }
+  .filter-btn.active{ color:var(--accent); }
+  .filter-btn.active::after{
+    content:''; position:absolute; top:1px; right:1px;
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent); border:1.5px solid #fafafe;
+  }
+
+  tbody td{
+    border-bottom:1px solid var(--line);
+    border-right:1px solid var(--line);
+    padding:6px 8px;
+    vertical-align:middle;
+  }
+  tbody tr:hover td{ background:#fbfbff; }
+  tbody tr:nth-child(even) td{ background:#fcfcfe; }
+  tbody tr:nth-child(even):hover td{ background:#f7f7fd; }
+
+  col.hidden, th.hidden, td.hidden{ display:none; }
+
+  .col-rownum, .col-fio{
+    position:sticky; z-index:2; background:#fff;
+  }
+  .col-rownum{ left:0; width:44px; text-align:center; color:var(--ink-soft); font-weight:600;}
+  .col-fio{ left:44px; min-width:200px; font-weight:600; }
+  thead .col-rownum, thead .col-fio{ z-index:4; }
+  tbody tr:nth-child(even) .col-rownum, tbody tr:nth-child(even) .col-fio{ background:#fcfcfe; }
+  tbody tr:hover .col-rownum, tbody tr:hover .col-fio{ background:#fbfbff; }
+
+  .cell-auto{
+    background:var(--auto-bg);
+    color:var(--ink);
+    padding:7px 10px;
+    border-radius:var(--radius-sm);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:220px;
+  }
+  .cell-empty{
+    color:#c3c6d4;
+    font-style:italic;
+    padding-left:10px;
+  }
+  input.cell-input, select.cell-input{
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+    padding:7px 9px;
+    font-size:13px;
+    font-family:inherit;
+    color:var(--ink);
+    background:#fff;
+    min-width:130px;
+    max-width:220px;
+    outline:none;
+  }
+  select.cell-input{ border-color:#cfd3f5; }
+  input.cell-input:focus, select.cell-input:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  input[type="date"].cell-input{ border-color:#bfe3cf; min-width:150px; }
+
+  .col-actions{ width:52px; text-align:center; }
+  .row-remove-btn{
+    width:28px; height:28px; border-radius:50%;
+    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+    font-size:14px; line-height:1; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .row-remove-btn:hover{ background:#fdeeef; border-color:#f3c3ca; color:var(--red); }
+
+  .table-foot{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    padding:12px 16px; font-size:12.5px; color:var(--ink-soft);
+    border-top:1px solid var(--line);
+  }
+  .table-foot-left{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .pagination-controls{ display:flex; align-items:center; gap:6px; }
+  .pagination-btn{ padding:5px 10px; font-size:12px; min-width:30px; }
+  .pagination-btn:disabled{ opacity:.4; cursor:not-allowed; }
+  #paginationPageInfo{ font-size:12px; color:var(--ink-soft); white-space:nowrap; padding:0 2px; }
+  .table-foot .role-switcher-select{
+    border-color:var(--line); color:var(--ink); background:#fff; padding:5px 10px; font-size:12px;
+  }
+  .note{
+    font-size:12.5px; color:var(--ink-soft); margin-top:10px; line-height:1.5;
+  }
+  .note b{ color:var(--ink); }
+
+  @media (max-width:700px){
+    .hero{ padding:20px 16px 28px; }
+    .content{ padding:18px 14px 40px; }
+  }
+
+  /* ---------- FILTER POPOVER ---------- */
+  .filter-popover{
+    display:none;
+    position:fixed; z-index:70;
+    width:320px; max-height:340px;
+    background:#fff; border-radius:var(--radius-md);
+    border:1px solid var(--line);
+    box-shadow:0 18px 50px rgba(15,15,40,0.28);
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .filter-popover.open{ display:flex; }
+  .filter-popover-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 12px; border-bottom:1px solid var(--line);
+    font-size:13px; font-weight:600; color:var(--ink);
+  }
+  .filter-popover-search{ padding:8px 10px; border-bottom:1px solid var(--line); }
+  .filter-popover-search input{
+    width:100%; border:1px solid var(--line); border-radius:8px;
+    padding:6px 9px; font-size:12.5px; outline:none; font-family:inherit; color:var(--ink);
+  }
+  .filter-popover-search input:focus{ border-color:var(--accent); }
+  .filter-popover-list{ overflow-y:auto; padding:6px 4px; flex:1; }
+  .filter-option{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 8px; border-radius:6px; font-size:12.5px; cursor:pointer;
+  }
+  .filter-option:hover{ background:var(--auto-bg); }
+  .filter-option input{ accent-color:var(--accent); width:14px; height:14px; flex-shrink:0; }
+  .filter-option span{ white-space:normal; line-height:1.3; }
+  .filter-empty{ text-align:center; color:var(--ink-soft); font-size:12px; padding:24px 10px; }
+
+  /* ---------- DATE RANGE FILTER (для всех столбцов-дат) ---------- */
+  .date-range-filter{ padding:12px; }
+  .date-range-quick{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 9px; border:1px solid var(--line); border-radius:var(--radius-sm);
+    font-size:12.5px; color:var(--ink); cursor:pointer; margin-bottom:12px;
+  }
+  .date-range-quick:hover{ border-color:#c7cae8; background:var(--auto-bg); }
+  .date-range-quick input{ accent-color:var(--accent); width:14px; height:14px; }
+  .date-range-fields{ display:flex; flex-direction:column; gap:8px; }
+  .date-range-field label{ display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
+  .date-range-field input{
+    width:100%; border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:7px 9px; font-size:12.5px; font-family:inherit; color:var(--ink); outline:none;
+  }
+  .date-range-field input:focus{ border-color:var(--accent); }
+  .date-range-hint{ font-size:11px; color:var(--ink-soft); margin-top:10px; line-height:1.4; }
+  .colvis-group-label{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-soft); font-weight:700; padding:8px 8px 4px 10px;
+    border-left:3px solid transparent; margin-left:-2px;
+  }
+  .colvis-group-label[data-colgroup="personal"]{ border-left-color:#a9c3ee; }
+  .colvis-group-label[data-colgroup="workData"]{ border-left-color:#9fd6b0; }
+  .colvis-group-label[data-colgroup="potential"]{ border-left-color:#c6a8e3; }
+  .colvis-group-label[data-colgroup="development"]{ border-left-color:#e8bf72; }
+  .filter-popover-foot{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px; border-top:1px solid var(--line);
+  }
+  .filter-popover-foot-btns{ display:flex; gap:8px; }
+  .filter-popover-foot .ghost-btn{ padding:5px 11px; font-size:12px; }
+  .filter-popover-count{ display:block; font-size:11.5px; color:var(--ink-soft); padding:0 12px 8px; }
+
+  /* ---------- DEV RECORDS (несколько потенциальных должностей у одного сотрудника) ---------- */
+  .dev-records-btn{
+    border:1px solid var(--line); background:var(--auto-bg); color:var(--ink);
+    font-size:12.5px; padding:7px 10px; border-radius:var(--radius-sm);
+    cursor:pointer; text-align:left; width:100%;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    max-width:220px; font-family:inherit;
+  }
+  .dev-records-btn:hover{ border-color:#c7cae8; background:var(--accent-soft); }
+  .dev-tracks-popover{ width:440px; }
+  .dev-tracks-table-wrap{ padding:6px 12px 14px; overflow-x:auto; }
+  .dev-tracks-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .dev-tracks-table th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-soft); font-weight:700; padding:6px 8px; border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  .dev-tracks-table td{ padding:8px; border-bottom:1px solid var(--line); color:var(--ink); }
+  .dev-tracks-table tr:last-child td{ border-bottom:none; }
+
+  /* ---------- ROLE SWITCHER (в шапке, тёмный фон) ---------- */
+  .hero-top-right{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .role-view-as{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .role-view-as-label{ font-size:12.5px; color:rgba(255,255,255,0.65); white-space:nowrap; }
+  .role-switcher-select{
+    border:1px solid rgba(255,255,255,0.25); border-radius:999px;
+    padding:7px 12px; font-size:12.5px; font-family:inherit; color:#fff;
+    background:rgba(255,255,255,0.1); cursor:pointer; max-width:220px;
+  }
+  .role-switcher-select:focus{ outline:none; border-color:rgba(255,255,255,0.55); }
+  .role-switcher-select option{ color:var(--ink); background:#fff; }
+
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-top">
+    <div class="hero-title">
+      <h1>Электронный кадровый резерв</h1>
+    </div>
+    <div class="hero-top-right">
+      <div class="role-view-as">
+        <span class="role-view-as-label">Смотреть как:</span>
+        <select id="roleSwitcher" class="role-switcher-select">
+          <option value="">Без ограничений (полный доступ)</option>
+        </select>
+      </div>
+      <div class="save-status" id="saveStatus"><span class="save-dot"></span><span class="save-status-text">Загрузка…</span></div>
+    </div>
+  </div>
+
+  <div class="widgets" id="widgets"></div>
+</div>
+
+<div class="content">
+
+  <div class="toolbar">
+    <button class="primary-btn" id="addEmployeeBtn">+ Добавить сотрудника</button>
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" placeholder="Поиск по ФИО...">
+    </div>
+    <div class="toolbar-right">
+      <button class="ghost-btn" id="clearAllFiltersBtn">Сбросить фильтры</button>
+      <button class="ghost-btn" id="columnVisibilityBtn">Настроить отображение столбцов</button>
+      <button class="ghost-btn" id="exportReportBtn">Выгрузить отчёт</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-scroll-top" id="tableScrollTop"><div id="tableScrollTopInner"></div></div>
+    <div class="table-scroll" id="tableScroll">
+      <table id="mainTable"></table>
+    </div>
+    <div class="table-foot">
+      <div class="table-foot-left">
+        <span id="rowCount">Показано 10 из 10 строк</span>
+        <div class="pagination-controls">
+          <button class="ghost-btn pagination-btn" id="paginationPrev">←</button>
+          <span id="paginationPageInfo">Стр. 1 из 1</span>
+          <button class="ghost-btn pagination-btn" id="paginationNext">→</button>
+          <select id="pageSizeSelect" class="role-switcher-select">
+            <option value="100">100 на странице</option>
+            <option value="500">500 на странице</option>
+            <option value="1000">1000 на странице</option>
+            <option value="10000">10000 на странице</option>
+          </select>
+        </div>
+      </div>
+      <span>Столбцов видно: <b id="visibleColCount"></b></span>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="addModalOverlay">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>Добавить сотрудника в резерв</h3>
+      <button class="modal-close" id="modalCloseBtn">✕</button>
+    </div>
+    <div class="modal-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="poolSearchInput" type="text" placeholder="Поиск по ФИО, магазину, городу...">
+    </div>
+    <div class="modal-list" id="poolList"></div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="modalDoneBtn">Готово</button>
+    </div>
+  </div>
+</div>
+
+<div class="filter-popover" id="filterPopover">
+  <div class="filter-popover-head">
+    <span id="filterPopoverTitle">Фильтр</span>
+    <button class="modal-close" id="filterPopoverClose">✕</button>
+  </div>
+  <div class="filter-popover-search" id="filterPopoverSearchWrap">
+    <input id="filterPopoverSearch" type="text" placeholder="Поиск значения...">
+  </div>
+  <div class="filter-popover-list" id="filterPopoverList"></div>
+  <span class="filter-popover-count" id="filterPopoverSelCount"></span>
+  <div class="filter-popover-foot">
+    <button class="ghost-btn" id="filterPopoverClear">Сбросить</button>
+    <button class="primary-btn" id="filterPopoverApply">Применить</button>
+  </div>
+</div>
+
+<div class="filter-popover" id="columnVisibilityPopover">
+  <div class="filter-popover-head">
+    <span>Отображение столбцов</span>
+    <button class="modal-close" id="columnVisibilityClose">✕</button>
+  </div>
+  <div class="filter-popover-search">
+    <input id="columnVisibilitySearch" type="text" placeholder="Поиск столбца...">
+  </div>
+  <div class="filter-popover-list" id="columnVisibilityList"></div>
+  <div class="filter-popover-foot">
+    <div class="filter-popover-foot-btns">
+      <button class="ghost-btn" id="columnVisibilityShowAll">Показать все</button>
+      <button class="ghost-btn" id="columnVisibilityHideAll">Снять все</button>
+    </div>
+    <span class="filter-popover-count" id="columnVisibilitySelCount"></span>
+  </div>
+</div>
+
+<div class="filter-popover dev-tracks-popover" id="devTracksPopover">
+  <div class="filter-popover-head">
+    <span id="devTracksPopoverTitle">Развитие сотрудника</span>
+    <button class="modal-close" id="devTracksPopoverClose">✕</button>
+  </div>
+  <div class="dev-tracks-table-wrap">
+    <table class="dev-tracks-table" id="devTracksTable"></table>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="common.js"></script>
+<script>
+/* ===================== СОСТОЯНИЕ (загружается и сохраняется через API) ===================== */
+let GROUPS = [];
+let COLUMNS = [];
+let POSITIONS = [];
+let ACTIONS = [];
+let reserveRows = [];
+let EMPLOYEE_POOL = [];
+let ROLES = [];
+
+let currentRoleId = ''; // '' = без ограничений (полный доступ), иначе id роли из ROLES
+
+let hiddenColumns = new Set(); // столбцы, скрытые пользователем через "Настроить отображение столбцов" (по умолчанию пусто — показаны все)
+
+// активные фильтры по столбцам: colKey -> Set выбранных значений
+let columnFilters = {};
+let openFilterCol = null;
+let filterDraft = null; // черновик текущего попапа: Set (список значений) или {onlyFilled,from,to} (диапазон дат) — применяется только по кнопке "Применить"
+
+// пагинация — чтобы не рендерить в DOM тысячи строк разом
+let currentPage = 1;
+let pageSize = 100;
+let lastTotalPages = 1;
+
+function applyState(data){
+  reserveRows = data.reserveRows;
+  EMPLOYEE_POOL = data.employeePool;
+  ROLES = data.roles || [];
+}
+
+async function loadMetaAndState(){
+  const meta = await fetchMeta();
+  const st = await fetchState();
+  GROUPS = meta.groups;
+  COLUMNS = meta.columns;
+  POSITIONS = meta.positions || [];
+  ACTIONS = meta.actions || [];
+  applyState(st);
+}
+
+/* ===================== ВИДЖЕТЫ ===================== */
+function renderWidgets(){
+  const el = document.getElementById('widgets');
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-label">Сотрудников в КР</div>
+      <div class="card-row">
+        <div class="big-num">110 772</div>
+        <div class="donut" style="--pct:10"><span>10%</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Средний срок пребывания в КР</div>
+      <div class="sub-num">45 дней</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">КР по должностям</div>
+      <div class="quad">
+        <div><div class="q-num">1</div><div class="q-label">Директор магазина</div></div>
+        <div><div class="q-num">1</div><div class="q-label">Начальник отдела</div></div>
+        <div><div class="q-num zero">0</div><div class="q-label">Старший кассир</div></div>
+        <div><div class="q-num zero">0</div><div class="q-label">Заведующий складом</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Готовность к релокации</div>
+      <div class="bars">
+        <div class="bar-row"><span style="width:74px">Готовы</span><div class="bar-track"><div class="bar-fill" style="width:62%;background:#1f8a52"></div></div><span class="bar-val">62%</span></div>
+        <div class="bar-row"><span style="width:74px">Не готовы</span><div class="bar-track"><div class="bar-fill" style="width:28%;background:#c81e3a"></div></div><span class="bar-val">28%</span></div>
+        <div class="bar-row"><span style="width:74px">Ожидание</span><div class="bar-track"><div class="bar-fill" style="width:10%;background:#b5790e"></div></div><span class="bar-val">10%</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">ИПР оформлено</div>
+      <div class="card-row"><div class="big-num">78%</div><span class="trend">▲ 4%</span></div>
+      <div class="progress-track"><div class="progress-fill" style="width:78%"></div></div>
+      <div class="progress-foot"><span>план 90%</span><span>к концу квартала</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Открытые позиции под резерв</div>
+      <div class="card-row"><div class="big-num">24</div><span class="trend">▲ 3 за месяц</span></div>
+    </div>
+  `;
+}
+
+/* ===================== ТАБЛИЦА ===================== */
+/* ===================== РОЛИ И ПРАВА ДОСТУПА ===================== */
+/** Эффективные права на поле с учётом выбранной "роли просмотра" в реестре.
+ *  Без выбранной роли — полный доступ (как в обычном режиме). */
+function getEffectivePermission(colKey){
+  if (!currentRoleId) return { view: true, edit: true };
+  const role = ROLES.find(r => r.id === currentRoleId);
+  if (!role) return { view: true, edit: true };
+  return role.permissions[colKey] || { view: false, edit: false };
+}
+
+/** Эффективное право на действие (добавить/удалить сотрудника), не привязанное к полю.
+ *  Без выбранной роли — полный доступ, как и для полей. */
+function getEffectiveActionPermission(actionKey){
+  if (!currentRoleId) return true;
+  const role = ROLES.find(r => r.id === currentRoleId);
+  if (!role) return true;
+  return !!(role.actions && role.actions[actionKey]);
+}
+
+/** Показывает/скрывает кнопку "Добавить сотрудника" и кнопки удаления строк
+ *  в зависимости от прав текущей выбранной роли на эти действия. */
+function applyActionPermissions(){
+  const canAdd = getEffectiveActionPermission('canAddEmployee');
+  const addBtn = document.getElementById('addEmployeeBtn');
+  if (addBtn) addBtn.style.display = canAdd ? '' : 'none';
+
+  const canRemove = getEffectiveActionPermission('canRemoveEmployee');
+  document.querySelectorAll('.row-remove-btn').forEach(btn => {
+    btn.style.display = canRemove ? '' : 'none';
+  });
+}
+
+function applyColumnVisibility(){
+  COLUMNS.forEach(col => {
+    const roleAllowsView = getEffectivePermission(col.key).view;
+    const userWantsVisible = !hiddenColumns.has(col.key);
+    const visible = roleAllowsView && userWantsVisible;
+    document.querySelectorAll(`[data-col="${col.key}"]`).forEach(cell => {
+      cell.classList.toggle('hidden', !visible);
+    });
+  });
+  const visibleCount = COLUMNS.filter(c =>
+    getEffectivePermission(c.key).view && !hiddenColumns.has(c.key)
+  ).length;
+  document.getElementById('visibleColCount').textContent = `${visibleCount} из ${COLUMNS.length}`;
+  applyActionPermissions();
+}
+
+/* ===================== ВЫГРУЗКА ОТЧЁТА (Excel) ===================== */
+/** Столбцы, которые реально видны сейчас — то же самое условие, что использует таблица
+ *  для отрисовки (право роли на просмотр + столбец не спрятан через "Настроить отображение
+ *  столбцов"). Отчёт выгружает именно их, в том же порядке, что и на экране. */
+function getExportableColumns(){
+  return COLUMNS.filter(col => getEffectivePermission(col.key).view && !hiddenColumns.has(col.key));
+}
+
+/** Значение ячейки для отчёта — то же самое, что видно на экране, но развёрнуто в чистый
+ *  текст (без кнопок/попапов): для devRecords-столбцов через точку с запятой перечисляются
+ *  ВСЕ должности сотрудника (а не только сводка "+N"), отсортированные по убыванию прогресса —
+ *  так же, как показывает попап-расшифровка. */
+function formatCellForExport(col, row){
+  const value = row.values[col.key];
+
+  if (col.type === 'devRecords'){
+    const tracks = sortDevTracksByProgress(row.values.devTracks || []);
+    if (tracks.length === 0) return '—';
+    return tracks.map(t => {
+      if (col.recordField === 'hardDate') return t.hardDate ? formatIsoToRu(t.hardDate) : '—';
+      if (col.recordField === 'program'){
+        const pct = (t.percent !== '' && t.percent !== null && t.percent !== undefined) ? ` (${t.percent}%)` : '';
+        return `${t.program || '—'}${pct}`;
+      }
+      return t[col.recordField] || '—';
+    }).join('; ');
+  }
+
+  if (col.type === 'date') return value ? formatIsoToRu(value) : '';
+  // autoDate/select/free/auto/autoEditable/empty — уже хранятся в читаемом виде как есть
+  return value === undefined || value === null ? '' : String(value);
+}
+
+/** Ширина столбца в отчёте — по факту самой длинной строки в нём (заголовок + все
+ *  выгруженные значения), а не одинаковая для всех. Верхняя граница — чтобы одно
+ *  аномально длинное значение не растянуло колонку на пол-экрана; нижняя — чтобы
+ *  короткие столбцы вроде "Статус" не превращались в нечитаемую узкую полоску. */
+function computeExportColWidths(headers, rows){
+  return headers.map((header, colIdx) => {
+    let maxLen = String(header || '').length;
+    rows.forEach(row => {
+      const len = String(row[colIdx] ?? '').length;
+      if (len > maxLen) maxLen = len;
+    });
+    maxLen = Math.min(maxLen, 60);
+    return { wch: Math.max(maxLen + 2, 8) };
+  });
+}
+
+function exportReport(){
+  const cols = getExportableColumns();
+  const rows = getFilteredRows(); // те же строки, что сейчас проходят поиск + все активные фильтры
+
+  const headers = cols.map(c => c.label);
+  const aoa = [headers];
+  rows.forEach(row => {
+    aoa.push(cols.map(col => formatCellForExport(col, row)));
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = computeExportColWidths(headers, aoa.slice(1));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Кадровый резерв');
+
+  const today = new Date();
+  const dateTag = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  XLSX.writeFile(wb, `Кадровый_резерв_${dateTag}.xlsx`);
+}
+
+function setupExportButton(){
+  document.getElementById('exportReportBtn').addEventListener('click', exportReport);
+}
+
+/** Сортирует записи развития по убыванию процента прохождения — впереди должна быть
+ *  связка с наибольшим прогрессом (и в сводке ячейки, и в попапе-расшифровке). */
+function sortDevTracksByProgress(tracks){
+  return [...tracks].sort((a, b) => (Number(b.percent) || 0) - (Number(a.percent) || 0));
+}
+
+/** Краткая сводка для ячейки devRecords: значение по нужному атрибуту записи с наибольшим
+ *  прогрессом + "+N", если должностей у сотрудника несколько. Если задан summaryField —
+ *  в ячейке показывается именно он (например, "89%"), а не то, по чему фильтруем (recordField).
+ *  Полную расшифровку показывает попап по клику. */
+function formatDevTrackSummary(col, tracks){
+  const sorted = sortDevTracksByProgress(tracks);
+  const top = sorted[0];
+  const field = col.summaryField || col.recordField;
+  let text;
+  if (field === 'hardDate'){
+    text = top.hardDate ? formatIsoToRu(top.hardDate) : '—';
+  } else if (field === 'percent'){
+    text = (top.percent !== '' && top.percent !== null && top.percent !== undefined) ? `${top.percent}%` : '—';
+  } else {
+    text = top[field] || '—';
+  }
+  if (tracks.length > 1 && col.showCount) text += ` +${tracks.length - 1}`;
+  return text;
+}
+
+/** Строит HTML содержимого одной ячейки — переиспользуется и полной перерисовкой таблицы,
+ *  и точечным обновлением одной ячейки после сохранения (см. updateCellDom), чтобы не
+ *  дублировать логику типов полей в двух местах. */
+function buildCellInnerHtml(col, row){
+  const value = row.values[col.key];
+  const perm = getEffectivePermission(col.key);
+  const canEdit = perm.edit && isEditableType(col.type);
+  let inner = '';
+  switch(col.type){
+    case 'auto':
+    case 'autoDate':
+      inner = `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+      break;
+    case 'select':
+      inner = canEdit
+        ? `<select class="cell-input" data-row="${row.id}" data-col="${col.key}">` +
+            col.options.map(o => `<option ${o === value ? 'selected' : ''}>${o}</option>`).join('') +
+          `</select>`
+        : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+      break;
+    case 'autoEditable':
+      if (col.options){
+        // автополе-снимок, но редактируется выбором из списка, а не свободным текстом
+        inner = canEdit
+          ? `<select class="cell-input" data-row="${row.id}" data-col="${col.key}">` +
+              col.options.map(o => `<option ${o === value ? 'selected' : ''}>${o}</option>`).join('') +
+            `</select>`
+          : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+      } else {
+        inner = canEdit
+          ? `<input class="cell-input" type="text" data-row="${row.id}" data-col="${col.key}" value="${value === '—' ? '' : value}" placeholder="—">`
+          : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+      }
+      break;
+    case 'devRecords':
+      {
+        const tracks = row.values.devTracks || [];
+        if (tracks.length === 0){
+          inner = `<div class="cell-auto">—</div>`;
+        } else {
+          const summary = formatDevTrackSummary(col, tracks);
+          inner = `<button type="button" class="dev-records-btn" data-devrow="${row.id}" title="Показать все должности">${escapeHtml(summary)}</button>`;
+        }
+      }
+      break;
+    case 'free':
+      inner = canEdit
+        ? `<input class="cell-input" type="text" data-row="${row.id}" data-col="${col.key}" value="${value === '—' ? '' : value}" placeholder="—">`
+        : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+      break;
+    case 'date':
+      inner = canEdit
+        ? `<input class="cell-input" type="date" data-row="${row.id}" data-col="${col.key}" value="${value}">`
+        : `<div class="cell-auto">${value ? formatIsoToRu(value) : '—'}</div>`;
+      break;
+    case 'empty':
+      inner = `<div class="cell-empty">—</div>`;
+      break;
+  }
+  return inner;
+}
+
+/** Точечно обновляет DOM ровно одной ячейки, без перерисовки всей страницы — используется
+ *  после сохранения одной ячейки. Полная перерисовка (renderTable) при 1000 строк на
+ *  странице означает пересборку ~31 000 ячеек ради одного изменённого значения — именно
+ *  это и вызывало ощутимые задержки при большом размере страницы пагинации. */
+function updateCellDom(rowId, colKey){
+  const row = reserveRows.find(r => r.id === rowId);
+  const col = COLUMNS.find(c => c.key === colKey);
+  if (!row || !col) return false;
+  const td = document.querySelector(`tr[data-row="${rowId}"] td[data-col="${colKey}"]`);
+  if (!td) return false; // строки нет на текущей странице — например, поменяли страницу, пока летел запрос
+  td.innerHTML = buildCellInnerHtml(col, row);
+  return true;
+}
+
+function renderTable(){
+  const table = document.getElementById('mainTable');
+
+  // group header row (spans)
+  let groupCells = [`<th class="col-rownum" rowspan="2">#</th>`];
+  GROUPS.forEach(g => {
+    const cols = COLUMNS.filter(c => c.group === g.key);
+    if (cols.length === 0) return;
+    groupCells.push(`<th colspan="${cols.length}" data-colgroup="${g.key}">${g.label}</th>`);
+  });
+  groupCells.push(`<th class="col-actions" rowspan="2"></th>`);
+
+  // label header row
+  let labelCells = [];
+  COLUMNS.forEach(col => {
+    const cls = col.key === 'fio' ? ' class="col-fio"' : '';
+    const filterBtn = col.key === 'fio' ? '' :
+      `<button class="filter-btn${isFilterActive(columnFilters[col.key]) ? ' active' : ''}" data-filter-col="${col.key}" title="Фильтр по столбцу">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M4 5h16l-6.5 7.5V19l-3 1.5v-8z"/></svg>
+      </button>`;
+    labelCells.push(`<th${cls} data-col="${col.key}" data-colgroup="${col.group}"><span class="th-row"><span class="th-text">${col.label}</span>${filterBtn}</span></th>`);
+  });
+
+  let thead = `<thead>
+    <tr class="group-row">${groupCells.join('')}</tr>
+    <tr class="label-row">${labelCells.join('')}</tr>
+  </thead>`;
+
+  // body rows — только текущая страница отфильтрованных строк, а не весь reserveRows разом
+  // (иначе при тысячах сотрудников рендер тысяч <tr> подвесит вкладку браузера)
+  const filtered = getFilteredRows();
+  const totalRows = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+  const startIdx = (currentPage - 1) * pageSize;
+  const pageRows = filtered.slice(startIdx, startIdx + pageSize);
+
+  let bodyRows = [];
+  pageRows.forEach((row, i) => {
+    const idx = startIdx + i;
+    let cells = [`<td class="col-rownum" data-col="__rownum">${idx + 1}</td>`];
+    COLUMNS.forEach(col => {
+      const fioClass = col.key === 'fio' ? ' col-fio' : '';
+      const inner = buildCellInnerHtml(col, row);
+      cells.push(`<td class="${fioClass}" data-col="${col.key}">${inner}</td>`);
+    });
+    cells.push(`<td class="col-actions"><button class="row-remove-btn" data-remove-row="${row.id}" title="Убрать из резерва">✕</button></td>`);
+    bodyRows.push(`<tr data-row="${row.id}">${cells.join('')}</tr>`);
+  });
+
+  table.innerHTML = thead + `<tbody>${bodyRows.join('')}</tbody>`;
+  closeFilterPopover();
+  updateRowCountAndPagination(totalRows, totalPages, startIdx, pageRows.length);
+  syncTopScrollbarWidth();
+}
+
+/* синхронизация ввода пользователя с моделью данных, чтобы значения не терялись при перерисовке */
+const cellSaveTimers = {};
+
+function updateLocalCellValue(el){
+  const row = reserveRows.find(r => r.id === el.dataset.row);
+  if (row) row.values[el.dataset.col] = el.value;
+}
+
+async function saveCell(rowId, col, value){
+  let success = false;
+  try{
+    // PATCH /api/reserve/:id теперь возвращает только изменённую строку, а не всё состояние —
+    // правка ячейки не имеет побочных эффектов на другие строки, гонять по сети весь реестр
+    // ради одного поля незачем (особенно заметно на больших объёмах)
+    const result = await mutate(`/api/reserve/${encodeURIComponent(rowId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ col, value }),
+    });
+    if (result && result.row){
+      const idx = reserveRows.findIndex(r => r.id === rowId);
+      if (idx !== -1) reserveRows[idx] = result.row;
+    }
+    success = true;
+  } catch(err){
+    // запрос не прошёл — ниже перерисуем таблицу из последнего известного состояния,
+    // чтобы визуально откатить то, что пользователь успел ввести
+  }
+
+  if (success && !isFilterActive(columnFilters[col])){
+    // точечное обновление одной ячейки — полная перерисовка всей страницы (table.innerHTML
+    // заново) при большом размере страницы пагинации (например, 1000 строк × 31 столбец)
+    // ощутимо дороже, чем нужно ради одного изменившегося поля, и именно она давала
+    // заметные задержки при большом page size
+    updateCellDom(rowId, col);
+  } else {
+    // ошибка запроса, либо по этому столбцу сейчас активен фильтр (новое значение могло
+    // вывести строку из-под условий фильтра или, наоборот, ввести под них) — в обоих
+    // случаях нужна полная перерисовка
+    renderTable();
+  }
+  applyColumnVisibility();
+}
+
+function scheduleCellSave(rowId, col, value){
+  const key = rowId + ':' + col;
+  clearTimeout(cellSaveTimers[key]);
+  cellSaveTimers[key] = setTimeout(() => saveCell(rowId, col, value), 600);
+}
+
+function setupTableInputSync(){
+  const table = document.getElementById('mainTable');
+
+  // текстовые поля — сохраняем с задержкой, пока пользователь печатает
+  table.addEventListener('input', e => {
+    const el = e.target;
+    if (!el.dataset.row || !el.dataset.col) return;
+    if (el.tagName === 'INPUT' && el.type === 'text'){
+      updateLocalCellValue(el);
+      scheduleCellSave(el.dataset.row, el.dataset.col, el.value);
+    }
+  });
+
+  // списки и даты — сохраняем сразу по выбору значения
+  table.addEventListener('change', e => {
+    const el = e.target;
+    if (!el.dataset.row || !el.dataset.col) return;
+    if (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type === 'date')){
+      updateLocalCellValue(el);
+      const key = el.dataset.row + ':' + el.dataset.col;
+      clearTimeout(cellSaveTimers[key]);
+      saveCell(el.dataset.row, el.dataset.col, el.value);
+    }
+  });
+
+  table.addEventListener('click', e => {
+    const removeBtn = e.target.closest('[data-remove-row]');
+    if (removeBtn){ removeFromReserveRow(removeBtn.dataset.removeRow); return; }
+    const devBtn = e.target.closest('.dev-records-btn');
+    if (devBtn){ openDevTracksPopover(devBtn.dataset.devrow, devBtn); return; }
+  });
+}
+
+/** Столбцы, где значение — дата: у них вместо списка чекбоксов показываем диапазон "с/по"
+ *  плюс быстрый переключатель "Только заполненные" — кликать по каждой из сотен дат нереально. */
+function isDateFilterColumn(col){
+  return col.type === 'date' || col.type === 'autoDate' || (col.type === 'devRecords' && col.recordField === 'hardDate');
+}
+
+/** Активен ли фильтр столбца — работает и для Set (список значений), и для объекта-диапазона дат. */
+function isFilterActive(filter){
+  if (!filter) return false;
+  if (filter instanceof Set) return filter.size > 0;
+  return !!(filter.onlyFilled || filter.from || filter.to);
+}
+
+/** Подходит ли конкретное сырое значение под фильтр столбца — единая точка для Set и диапазона дат. */
+function filterValueMatches(filter, rawValue){
+  if (filter instanceof Set) return filter.has(rawValue);
+  // диапазон дат: пустая дата никогда не проходит активный фильтр диапазона/"только заполненные"
+  if (rawValue === '') return false;
+  if (filter.from && rawValue < filter.from) return false;
+  if (filter.to && rawValue > filter.to) return false;
+  return true;
+}
+
+/** Подходит ли строка под текущий поиск по ФИО и все активные фильтры столбцов —
+ *  единая точка правды, используется и при рендере страницы, и при подсчёте totalRows. */
+function rowMatchesFilters(row, q){
+  if (q && !(row.values.fio || '').toLowerCase().includes(q)) return false;
+
+  // обычные фильтры (не devRecords) — проверяем как раньше, независимо друг от друга
+  const devFilterEntries = []; // { col, filter } — фильтры по связке "Потенциальная должность / Обучение / Дата HARD"
+  for (const colKey in columnFilters){
+    const filter = columnFilters[colKey];
+    if (!isFilterActive(filter)) continue;
+    const col = COLUMNS.find(c => c.key === colKey);
+    if (col && col.type === 'devRecords'){
+      devFilterEntries.push({ col, filter });
+    } else {
+      const val = (row.values[colKey] || '').toString();
+      if (!filterValueMatches(filter, val)) return false;
+    }
+  }
+
+  // фильтры по devRecords-столбцам относятся к общему списку должностей сотрудника
+  // (row.values.devTracks) — чтобы "Потенциальная должность = Начальник отдела" и
+  // "Дата HARD = <диапазон>" не засчитывались по РАЗНЫМ должностям одного сотрудника,
+  // ищем хотя бы одну ЗАПИСЬ, которая удовлетворяет ВСЕМ активным условиям сразу
+  if (devFilterEntries.length > 0){
+    const tracks = row.values.devTracks || [];
+    const oneRecordMatchesAll = tracks.some(t =>
+      devFilterEntries.every(({ col, filter }) => filterValueMatches(filter, (t[col.recordField] || '').toString()))
+    );
+    if (!oneRecordMatchesAll) return false;
+  }
+
+  return true;
+}
+
+/** Полный отфильтрованный список (без учёта пагинации) — используется и для рендера
+ *  текущей страницы, и для подсчёта totalRows/totalPages. */
+function getFilteredRows(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  return reserveRows.filter(row => rowMatchesFilters(row, q));
+}
+
+/** Сбрасывает страницу на первую и перерисовывает — вызывается только там, где реально
+ *  изменился набор фильтров/поиск (иначе, например, редактирование ячейки на 5-й странице
+ *  отбрасывало бы пользователя обратно на первую). */
+function applyRowFilters(){
+  currentPage = 1;
+  renderTable();
+  applyColumnVisibility();
+}
+
+function updateRowCountAndPagination(totalRows, totalPages){
+  lastTotalPages = totalPages;
+  const rangeStart = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(currentPage * pageSize, totalRows);
+  let text = `Показано ${rangeStart}–${rangeEnd} из ${totalRows} строк`;
+  if (totalRows !== reserveRows.length) text += ` (отфильтровано из ${reserveRows.length})`;
+  document.getElementById('rowCount').textContent = text;
+  document.getElementById('paginationPageInfo').textContent = `Стр. ${currentPage} из ${totalPages}`;
+  document.getElementById('paginationPrev').disabled = currentPage <= 1;
+  document.getElementById('paginationNext').disabled = currentPage >= totalPages;
+}
+
+/** Верхняя полоса прокрутки — просто пустой div такой же "виртуальной" ширины, как сама
+ *  таблица, чтобы у нижнего скролла таблицы появился видимый двойник сверху и не приходилось
+ *  листать вниз, чтобы до него добраться. */
+function syncTopScrollbarWidth(){
+  const table = document.getElementById('mainTable');
+  const inner = document.getElementById('tableScrollTopInner');
+  if (!table || !inner) return;
+  inner.style.width = table.scrollWidth + 'px';
+  // подстраховка: иногда браузер досчитывает реальную ширину таблицы только после
+  // следующего кадра отрисовки (особенно на очень широких таблицах/много столбцов)
+  requestAnimationFrame(() => { inner.style.width = table.scrollWidth + 'px'; });
+}
+function setupTopScrollSync(){
+  const top = document.getElementById('tableScrollTop');
+  const body = document.getElementById('tableScroll');
+  let syncing = false;
+  top.addEventListener('scroll', () => {
+    if (syncing) return;
+    syncing = true; body.scrollLeft = top.scrollLeft; syncing = false;
+  });
+  body.addEventListener('scroll', () => {
+    if (syncing) return;
+    syncing = true; top.scrollLeft = body.scrollLeft; syncing = false;
+  });
+  window.addEventListener('resize', syncTopScrollbarWidth);
+}
+
+function setupPagination(){
+  document.getElementById('pageSizeSelect').value = String(pageSize);
+  document.getElementById('pageSizeSelect').addEventListener('change', e => {
+    pageSize = parseInt(e.target.value, 10) || 100;
+    currentPage = 1;
+    renderTable();
+    applyColumnVisibility();
+  });
+  document.getElementById('paginationPrev').addEventListener('click', () => {
+    if (currentPage <= 1) return;
+    currentPage--;
+    renderTable();
+    applyColumnVisibility();
+  });
+  document.getElementById('paginationNext').addEventListener('click', () => {
+    if (currentPage >= lastTotalPages) return;
+    currentPage++;
+    renderTable();
+    applyColumnVisibility();
+  });
+}
+
+/* ===================== ДОБАВЛЕНИЕ / УДАЛЕНИЕ СОТРУДНИКОВ ===================== */
+async function removeFromReserveRow(rowId){
+  const row = reserveRows.find(r => r.id === rowId);
+  if (!row) return;
+  const ok = confirm(`Убрать «${row.values.fio}» из кадрового резерва и вернуть в общий список сотрудников?`);
+  if (!ok) return;
+
+  try{
+    applyState(await mutate(`/api/reserve/${encodeURIComponent(rowId)}`, { method: 'DELETE' }));
+  } catch(err){
+    return;
+  }
+  renderTable();
+  applyColumnVisibility();
+  renderPoolList(document.getElementById('poolSearchInput').value);
+}
+
+async function addToReserveFromPool(poolId){
+  try{
+    applyState(await mutate('/api/reserve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ poolId }),
+    }));
+  } catch(err){
+    return;
+  }
+  renderTable();
+  applyColumnVisibility();
+  renderPoolList(document.getElementById('poolSearchInput').value);
+}
+
+function renderPoolList(filter=''){
+  const list = document.getElementById('poolList');
+  const q = filter.trim().toLowerCase();
+  const items = EMPLOYEE_POOL.filter(p =>
+    !q || p.fio.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || p.shop.includes(q)
+  );
+
+  if (items.length === 0){
+    list.innerHTML = `<div class="modal-empty">${EMPLOYEE_POOL.length === 0 ? 'В общем списке больше нет сотрудников — все уже в резерве.' : 'Никого не найдено.'}</div>`;
+    return;
+  }
+
+  list.innerHTML = items.map(p => `
+    <div class="pool-item">
+      <div>
+        <div class="pool-item-name">${p.fio}</div>
+        <div class="pool-item-sub">${p.curPos} · ${p.city} · магазин ${p.shop}</div>
+      </div>
+      <button class="pool-add-btn" data-add-id="${p.id}">Добавить</button>
+    </div>
+  `).join('');
+}
+
+function setupAddModal(){
+  const overlay = document.getElementById('addModalOverlay');
+  const openBtn = document.getElementById('addEmployeeBtn');
+  const closeBtn = document.getElementById('modalCloseBtn');
+  const doneBtn = document.getElementById('modalDoneBtn');
+  const searchInput = document.getElementById('poolSearchInput');
+  const list = document.getElementById('poolList');
+
+  const open = () => { overlay.classList.add('open'); searchInput.value=''; renderPoolList(); searchInput.focus(); };
+  const close = () => overlay.classList.remove('open');
+
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+  doneBtn.addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  searchInput.addEventListener('input', () => renderPoolList(searchInput.value));
+
+  list.addEventListener('click', e => {
+    const btn = e.target.closest('[data-add-id]');
+    if (!btn) return;
+    addToReserveFromPool(btn.dataset.addId);
+  });
+}
+
+/* ===================== ПОИСК ===================== */
+function setupSearch(){
+  const input = document.getElementById('searchInput');
+  let searchTimer = null;
+  input.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyRowFilters, 300);
+  });
+}
+
+/* ===================== ФИЛЬТРЫ ПО СТОЛБЦАМ ===================== */
+function getColumnValueUniverse(col){
+  if (col.type === 'select' || (col.type === 'autoEditable' && col.options)) return col.options.slice();
+  if (col.type === 'devRecords'){
+    const set = new Set();
+    reserveRows.forEach(r => {
+      (r.values.devTracks || []).forEach(t => set.add((t[col.recordField] || '').toString().trim()));
+    });
+    return Array.from(set).sort((a,b) => a.localeCompare(b,'ru'));
+  }
+  const set = new Set();
+  reserveRows.forEach(r => set.add((r.values[col.key] || '').toString().trim()));
+  return Array.from(set).sort((a,b) => a.localeCompare(b,'ru'));
+}
+function valueLabel(col, v){
+  if (v === '') return '(не заполнено)';
+  if (col.type === 'date' || col.type === 'autoDate') return formatIsoToRu(v);
+  if (col.type === 'devRecords' && col.recordField === 'hardDate') return formatIsoToRu(v);
+  return v;
+}
+function renderFilterOptions(col, searchQ){
+  const universe = getColumnValueUniverse(col);
+  const q = (searchQ || '').trim().toLowerCase();
+  const selected = filterDraft instanceof Set ? filterDraft : new Set();
+  const filtered = universe.filter(v => !q || valueLabel(col, v).toLowerCase().includes(q));
+  const list = document.getElementById('filterPopoverList');
+  list.innerHTML = filtered.length === 0
+    ? `<div class="filter-empty">Ничего не найдено</div>`
+    : filtered.map(v => `
+        <label class="filter-option">
+          <input type="checkbox" data-filter-value value="${escapeHtml(v)}" ${selected.has(v) ? 'checked' : ''}>
+          <span>${escapeHtml(valueLabel(col, v))}</span>
+        </label>
+      `).join('');
+  updateFilterSelCount();
+}
+
+/** UI для столбцов-дат: быстрый переключатель "только заполненные" + диапазон "с/по".
+ *  Вместо списка из сотен отдельных дат — то, что реально нужно при масштабе в тысячи сотрудников. */
+function renderDateRangeFilter(col){
+  const filter = (filterDraft && !(filterDraft instanceof Set)) ? filterDraft : { onlyFilled:false, from:'', to:'' };
+  const list = document.getElementById('filterPopoverList');
+  list.innerHTML = `
+    <div class="date-range-filter">
+      <label class="date-range-quick">
+        <input type="checkbox" id="dateRangeOnlyFilled" ${filter.onlyFilled ? 'checked' : ''}>
+        <span>Только заполненные (без учёта конкретной даты)</span>
+      </label>
+      <div class="date-range-fields">
+        <div class="date-range-field">
+          <label for="dateRangeFrom">С</label>
+          <input type="date" id="dateRangeFrom" value="${filter.from || ''}">
+        </div>
+        <div class="date-range-field">
+          <label for="dateRangeTo">По</label>
+          <input type="date" id="dateRangeTo" value="${filter.to || ''}">
+        </div>
+      </div>
+      <div class="date-range-hint">Оставьте оба поля пустыми, чтобы не ограничивать период — тогда переключатель выше покажет все заполненные даты. Значения читаются только по кнопке «Применить».</div>
+    </div>
+  `;
+  updateFilterSelCount();
+}
+
+function updateFilterSelCount(){
+  const el = document.getElementById('filterPopoverSelCount');
+  if (filterDraft instanceof Set){
+    el.textContent = filterDraft.size > 0 ? `Выбрано: ${filterDraft.size}` : 'Показаны все';
+  } else if (filterDraft && (filterDraft.onlyFilled || filterDraft.from || filterDraft.to)){
+    const parts = [];
+    if (filterDraft.from) parts.push('с ' + formatIsoToRu(filterDraft.from));
+    if (filterDraft.to) parts.push('по ' + formatIsoToRu(filterDraft.to));
+    el.textContent = parts.length ? parts.join(' ') : 'Только заполненные';
+  } else {
+    el.textContent = 'Показаны все';
+  }
+}
+function updateFilterButtonState(colKey){
+  const active = isFilterActive(columnFilters[colKey]);
+  document.querySelectorAll(`[data-filter-col="${colKey}"]`).forEach(btn => btn.classList.toggle('active', active));
+}
+function openFilterPopover(colKey, btnEl){
+  const col = COLUMNS.find(c => c.key === colKey);
+  if (!col) return;
+  closeColumnVisibilityPopover();
+  closeDevTracksPopover();
+  openFilterCol = colKey;
+  document.getElementById('filterPopoverTitle').textContent = col.label;
+
+  const isDateRange = isDateFilterColumn(col);
+  document.getElementById('filterPopoverSearchWrap').style.display = isDateRange ? 'none' : '';
+  document.getElementById('filterPopoverSearch').value = '';
+
+  // черновик заводим от уже применённого фильтра (если был) — чтобы попап открывался
+  // с текущим состоянием, а не пустым, но саму таблицу это никак не трогает, пока не
+  // нажали "Применить"
+  const existing = columnFilters[colKey];
+  if (isDateRange){
+    filterDraft = (existing && !(existing instanceof Set)) ? { ...existing } : { onlyFilled:false, from:'', to:'' };
+    renderDateRangeFilter(col);
+  } else {
+    filterDraft = existing instanceof Set ? new Set(existing) : new Set();
+    renderFilterOptions(col, '');
+  }
+
+  const popover = document.getElementById('filterPopover');
+  popover.classList.add('open');
+  const rect = btnEl.getBoundingClientRect();
+  const popW = 320, popH = popover.offsetHeight || 300;
+  let left = Math.min(rect.left, window.innerWidth - popW - 12);
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
+  popover.style.left = Math.max(12, left) + 'px';
+  popover.style.top = top + 'px';
+  if (!isDateRange) document.getElementById('filterPopoverSearch').focus();
+}
+function closeFilterPopover(){
+  document.getElementById('filterPopover').classList.remove('open');
+  openFilterCol = null;
+  filterDraft = null;
+}
+
+/* ===================== ПОПАП-РАСШИФРОВКА "РАЗВИТИЕ СОТРУДНИКА" ===================== */
+function openDevTracksPopover(rowId, btnEl){
+  const row = reserveRows.find(r => r.id === rowId);
+  if (!row) return;
+  const tracks = row.values.devTracks || [];
+
+  document.getElementById('devTracksPopoverTitle').textContent = 'Развитие — ' + (row.values.fio || '');
+  const rowsHtml = sortDevTracksByProgress(tracks).map(t => `
+    <tr>
+      <td>${escapeHtml(t.position || '—')}</td>
+      <td>${escapeHtml(t.program || '—')}</td>
+      <td>${t.percent !== '' && t.percent !== null && t.percent !== undefined ? t.percent + '%' : '—'}</td>
+      <td>${t.hardDate ? formatIsoToRu(t.hardDate) : '—'}</td>
+    </tr>
+  `).join('');
+  document.getElementById('devTracksTable').innerHTML = `
+    <thead><tr><th>Должность</th><th>Программа</th><th>%</th><th>Дата HARD</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  `;
+
+  closeFilterPopover();
+  closeColumnVisibilityPopover();
+  const popover = document.getElementById('devTracksPopover');
+  popover.classList.add('open');
+  const rect = btnEl.getBoundingClientRect();
+  const popW = 440, popH = popover.offsetHeight || 220;
+  let left = Math.min(rect.left, window.innerWidth - popW - 12);
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
+  popover.style.left = Math.max(12, left) + 'px';
+  popover.style.top = top + 'px';
+}
+function closeDevTracksPopover(){
+  document.getElementById('devTracksPopover').classList.remove('open');
+}
+function setupDevTracksPopover(){
+  document.getElementById('devTracksPopoverClose').addEventListener('click', closeDevTracksPopover);
+  document.addEventListener('click', e => {
+    const popover = document.getElementById('devTracksPopover');
+    if (!popover.classList.contains('open')) return;
+    if (popover.contains(e.target) || e.target.closest('.dev-records-btn')) return;
+    closeDevTracksPopover();
+  });
+}
+
+function setupFilterPopover(){
+  document.getElementById('clearAllFiltersBtn').addEventListener('click', () => {
+    columnFilters = {};
+    document.querySelectorAll('[data-filter-col]').forEach(btn => btn.classList.remove('active'));
+    if (openFilterCol){
+      const col = COLUMNS.find(c => c.key === openFilterCol);
+      if (col){
+        if (isDateFilterColumn(col)){
+          filterDraft = { onlyFilled:false, from:'', to:'' };
+          renderDateRangeFilter(col);
+        } else {
+          filterDraft = new Set();
+          renderFilterOptions(col, document.getElementById('filterPopoverSearch').value);
+        }
+      }
+    }
+    applyRowFilters();
+  });
+
+  document.getElementById('mainTable').addEventListener('click', e => {
+    const btn = e.target.closest('[data-filter-col]');
+    if (!btn) return;
+    e.stopPropagation();
+    if (openFilterCol === btn.dataset.filterCol){ closeFilterPopover(); return; }
+    openFilterPopover(btn.dataset.filterCol, btn);
+  });
+
+  document.getElementById('filterPopoverClose').addEventListener('click', closeFilterPopover);
+
+  // "Сбросить" — снимает фильтр сразу (это однозначное действие, не требует подтверждения),
+  // но саму таблицу применяет как обычно через applyRowFilters
+  document.getElementById('filterPopoverClear').addEventListener('click', () => {
+    if (!openFilterCol) return;
+    delete columnFilters[openFilterCol];
+    const col = COLUMNS.find(c => c.key === openFilterCol);
+    if (isDateFilterColumn(col)){
+      filterDraft = { onlyFilled:false, from:'', to:'' };
+      renderDateRangeFilter(col);
+    } else {
+      filterDraft = new Set();
+      renderFilterOptions(col, document.getElementById('filterPopoverSearch').value);
+    }
+    updateFilterButtonState(openFilterCol);
+    applyRowFilters();
+  });
+
+  // "Применить" — единственное место, где черновик реально попадает в columnFilters
+  // и таблица перерисовывается. Ни чекбоксы, ни поля дат сами по себе таблицу не трогают.
+  document.getElementById('filterPopoverApply').addEventListener('click', () => {
+    if (!openFilterCol) return;
+    const col = COLUMNS.find(c => c.key === openFilterCol);
+    if (!col) return;
+
+    if (isDateFilterColumn(col)){
+      const onlyFilled = document.getElementById('dateRangeOnlyFilled').checked;
+      const from = document.getElementById('dateRangeFrom').value;
+      const to = document.getElementById('dateRangeTo').value;
+      if (onlyFilled || from || to){
+        columnFilters[openFilterCol] = { onlyFilled, from, to };
+      } else {
+        delete columnFilters[openFilterCol];
+      }
+    } else {
+      if (filterDraft instanceof Set && filterDraft.size > 0){
+        columnFilters[openFilterCol] = new Set(filterDraft);
+      } else {
+        delete columnFilters[openFilterCol];
+      }
+    }
+
+    updateFilterButtonState(openFilterCol);
+    applyRowFilters();
+    closeFilterPopover();
+  });
+
+  document.getElementById('filterPopoverSearch').addEventListener('input', e => {
+    const col = COLUMNS.find(c => c.key === openFilterCol);
+    if (col && !isDateFilterColumn(col)) renderFilterOptions(col, e.target.value);
+  });
+
+  // чекбоксы из списка значений — меняют только черновик и живой счётчик, таблицу
+  // не трогают до нажатия "Применить"
+  document.getElementById('filterPopoverList').addEventListener('change', e => {
+    if (!openFilterCol) return;
+    const cb = e.target.closest('[data-filter-value]');
+    if (!cb) return;
+    if (!(filterDraft instanceof Set)) filterDraft = new Set();
+    if (cb.checked) filterDraft.add(cb.value); else filterDraft.delete(cb.value);
+    updateFilterSelCount();
+    // диапазон дат сюда не попадает вовсе: <input type="date"> в некоторых браузерах
+    // шлёт change ещё во время ввода отдельных сегментов (день/месяц/год) — значения
+    // читаются только по клику на "Применить", напрямую из полей
+  });
+
+  document.addEventListener('click', e => {
+    const popover = document.getElementById('filterPopover');
+    if (!popover.classList.contains('open')) return;
+    if (popover.contains(e.target) || e.target.closest('[data-filter-col]')) return;
+    closeFilterPopover();
+  });
+}
+
+/* ===================== НАСТРОЙКА ОТОБРАЖЕНИЯ СТОЛБЦОВ ===================== */
+function renderColumnVisibilityList(searchQ){
+  const q = (searchQ || '').trim().toLowerCase();
+  const list = document.getElementById('columnVisibilityList');
+  let html = '';
+  GROUPS.forEach(g => {
+    const cols = COLUMNS.filter(c =>
+      c.group === g.key &&
+      getEffectivePermission(c.key).view &&
+      (!q || c.label.toLowerCase().includes(q))
+    );
+    if (cols.length === 0) return;
+    html += `<div class="colvis-group-label" data-colgroup="${g.key}">${escapeHtml(g.label)}</div>`;
+    cols.forEach(col => {
+      const checked = !hiddenColumns.has(col.key);
+      html += `
+        <label class="filter-option">
+          <input type="checkbox" data-colvis="${col.key}" ${checked ? 'checked' : ''}>
+          <span>${escapeHtml(col.label)}</span>
+        </label>
+      `;
+    });
+  });
+  list.innerHTML = html || `<div class="filter-empty">Ничего не найдено</div>`;
+  updateColumnVisibilityCount();
+}
+
+function updateColumnVisibilityCount(){
+  const permitted = COLUMNS.filter(c => getEffectivePermission(c.key).view);
+  const shown = permitted.filter(c => !hiddenColumns.has(c.key)).length;
+  document.getElementById('columnVisibilitySelCount').textContent = `Показано: ${shown} из ${permitted.length}`;
+}
+
+function openColumnVisibilityPopover(){
+  const popover = document.getElementById('columnVisibilityPopover');
+  closeFilterPopover();
+  closeDevTracksPopover();
+  document.getElementById('columnVisibilitySearch').value = '';
+  renderColumnVisibilityList('');
+  popover.classList.add('open');
+
+  const btn = document.getElementById('columnVisibilityBtn');
+  const rect = btn.getBoundingClientRect();
+  const popW = 320, popH = popover.offsetHeight || 320;
+  let left = Math.min(rect.right - popW, window.innerWidth - popW - 12);
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
+  popover.style.left = Math.max(12, left) + 'px';
+  popover.style.top = top + 'px';
+  document.getElementById('columnVisibilitySearch').focus();
+}
+function closeColumnVisibilityPopover(){
+  document.getElementById('columnVisibilityPopover').classList.remove('open');
+}
+
+function setupColumnVisibilityPopover(){
+  document.getElementById('columnVisibilityBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    const popover = document.getElementById('columnVisibilityPopover');
+    if (popover.classList.contains('open')){ closeColumnVisibilityPopover(); return; }
+    closeFilterPopover();
+    openColumnVisibilityPopover();
+  });
+  document.getElementById('columnVisibilityClose').addEventListener('click', closeColumnVisibilityPopover);
+
+  document.getElementById('columnVisibilitySearch').addEventListener('input', e => {
+    renderColumnVisibilityList(e.target.value);
+  });
+
+  document.getElementById('columnVisibilityList').addEventListener('change', e => {
+    const cb = e.target.closest('[data-colvis]');
+    if (!cb) return;
+    if (cb.checked) hiddenColumns.delete(cb.dataset.colvis); else hiddenColumns.add(cb.dataset.colvis);
+    updateColumnVisibilityCount();
+    applyColumnVisibility();
+  });
+
+  document.getElementById('columnVisibilityShowAll').addEventListener('click', () => {
+    hiddenColumns.clear();
+    renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
+    applyColumnVisibility();
+  });
+
+  document.getElementById('columnVisibilityHideAll').addEventListener('click', () => {
+    hiddenColumns = new Set(COLUMNS.map(c => c.key));
+    renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
+    applyColumnVisibility();
+  });
+
+  document.addEventListener('click', e => {
+    const popover = document.getElementById('columnVisibilityPopover');
+    if (!popover.classList.contains('open')) return;
+    if (popover.contains(e.target) || e.target.closest('#columnVisibilityBtn')) return;
+    closeColumnVisibilityPopover();
+  });
+}
+
+/* ===================== ПЕРЕКЛЮЧАТЕЛЬ РОЛИ В РЕЕСТРЕ ===================== */
+function renderRoleSwitcherOptions(){
+  const sel = document.getElementById('roleSwitcher');
+  const prevValue = sel.value;
+  sel.innerHTML = '<option value="">Без ограничений (полный доступ)</option>' +
+    ROLES.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
+  sel.value = ROLES.some(r => r.id === prevValue) ? prevValue : '';
+  currentRoleId = sel.value;
+}
+
+function setupRoleSwitcher(){
+  document.getElementById('roleSwitcher').addEventListener('change', e => {
+    currentRoleId = e.target.value;
+    renderTable();
+    applyColumnVisibility();
+    if (document.getElementById('columnVisibilityPopover').classList.contains('open')){
+      renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
+    }
+  });
+}
+
+
+/* ===================== ИНИЦИАЛИЗАЦИЯ ===================== */
+async function init(){
+  setSaveStatus('saving', 'Загрузка данных…');
+  try{
+    await loadMetaAndState();
+  } catch(err){
+    console.error(err);
+    setSaveStatus('error', 'Нет связи с сервером');
+    document.querySelector('.content').insertAdjacentHTML('afterbegin',
+      `<div class="card" style="margin-bottom:16px;border:1px solid #f3c3ca;color:#c81e3a;">
+        Не удалось загрузить данные с сервера (${escapeHtml(err.message)}). Проверьте, что сервер запущен (npm start), и обновите страницу.
+      </div>`);
+    return;
+  }
+  setSaveStatus('ok', 'Данные загружены');
+
+  renderWidgets();
+  renderRoleSwitcherOptions();
+  renderTable();
+  applyColumnVisibility();
+  setupSearch();
+  setupTableInputSync();
+  setupAddModal();
+  setupFilterPopover();
+  setupColumnVisibilityPopover();
+  setupDevTracksPopover();
+  setupRoleSwitcher();
+  setupPagination();
+  setupTopScrollSync();
+  setupExportButton();
+}
+
+init();
+</script>
+
+</body>
+</html>
