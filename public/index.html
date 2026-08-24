@@ -181,6 +181,17 @@
   }
   thead tr.label-row th{ top:29px; }
 
+  /* Мягкая цветовая разметка подразделов — только лёгкий тон в самой шапке группы
+     и тонкая полоска-акцент под названиями столбцов, чтобы не перегружать интерфейс. */
+  thead tr.group-row th[data-colgroup="personal"]{ background:#eef3fc; }
+  thead tr.group-row th[data-colgroup="workData"]{ background:#eef8f1; }
+  thead tr.group-row th[data-colgroup="potential"]{ background:#f5f0fb; }
+  thead tr.group-row th[data-colgroup="development"]{ background:#fdf5ea; }
+  thead tr.label-row th[data-colgroup="personal"]{ box-shadow:inset 0 -2px 0 #c9d9f5; }
+  thead tr.label-row th[data-colgroup="workData"]{ box-shadow:inset 0 -2px 0 #c3e8cd; }
+  thead tr.label-row th[data-colgroup="potential"]{ box-shadow:inset 0 -2px 0 #dccdf0; }
+  thead tr.label-row th[data-colgroup="development"]{ box-shadow:inset 0 -2px 0 #f2ddb0; }
+
   .th-row{ display:flex; align-items:center; gap:5px; }
   .th-text{ overflow:hidden; text-overflow:ellipsis; }
   .filter-btn{
@@ -337,8 +348,13 @@
   .date-range-hint{ font-size:11px; color:var(--ink-soft); margin-top:10px; line-height:1.4; }
   .colvis-group-label{
     font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
-    color:var(--ink-soft); font-weight:700; padding:8px 8px 4px;
+    color:var(--ink-soft); font-weight:700; padding:8px 8px 4px 10px;
+    border-left:3px solid transparent; margin-left:-2px;
   }
+  .colvis-group-label[data-colgroup="personal"]{ border-left-color:#a9c3ee; }
+  .colvis-group-label[data-colgroup="workData"]{ border-left-color:#9fd6b0; }
+  .colvis-group-label[data-colgroup="potential"]{ border-left-color:#c6a8e3; }
+  .colvis-group-label[data-colgroup="development"]{ border-left-color:#e8bf72; }
   .filter-popover-foot{
     display:flex; align-items:center; justify-content:space-between;
     padding:8px 12px; border-top:1px solid var(--line);
@@ -664,7 +680,7 @@ function renderTable(){
       `<button class="filter-btn${isFilterActive(columnFilters[col.key]) ? ' active' : ''}" data-filter-col="${col.key}" title="Фильтр по столбцу">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M4 5h16l-6.5 7.5V19l-3 1.5v-8z"/></svg>
       </button>`;
-    labelCells.push(`<th${cls} data-col="${col.key}"><span class="th-row"><span class="th-text">${col.label}</span>${filterBtn}</span></th>`);
+    labelCells.push(`<th${cls} data-col="${col.key}" data-colgroup="${col.group}"><span class="th-row"><span class="th-text">${col.label}</span>${filterBtn}</span></th>`);
   });
 
   let thead = `<thead>
@@ -1328,7 +1344,7 @@ function renderColumnVisibilityList(searchQ){
       (!q || c.label.toLowerCase().includes(q))
     );
     if (cols.length === 0) return;
-    html += `<div class="colvis-group-label">${escapeHtml(g.label)}</div>`;
+    html += `<div class="colvis-group-label" data-colgroup="${g.key}">${escapeHtml(g.label)}</div>`;
     cols.forEach(col => {
       const checked = !hiddenColumns.has(col.key);
       html += `

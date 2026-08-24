@@ -83,6 +83,10 @@
     background:#f3f3fb; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
     color:var(--ink-soft); font-weight:700; padding:6px 12px;
   }
+  .perm-group-row[data-colgroup="personal"]{ background:#eef3fc; }
+  .perm-group-row[data-colgroup="workData"]{ background:#eef8f1; }
+  .perm-group-row[data-colgroup="potential"]{ background:#f5f0fb; }
+  .perm-group-row[data-colgroup="development"]{ background:#fdf5ea; }
   .perm-head-row{
     display:grid; grid-template-columns:1fr 70px 90px;
     padding:8px 12px; font-size:11px; font-weight:700; color:var(--ink-soft);
@@ -298,7 +302,7 @@ function renderPermTable(){
   GROUPS.forEach(g => {
     const cols = COLUMNS.filter(c => c.group === g.key);
     if (cols.length === 0) return;
-    html += `<div class="perm-group-row">${escapeHtml(g.label)}</div>`;
+    html += `<div class="perm-group-row" data-colgroup="${g.key}">${escapeHtml(g.label)}</div>`;
     cols.forEach(col => {
       const perm = permDraft[col.key] || { view: false, edit: false };
       const lockedEdit = !isEditableType(col.type);
