@@ -197,30 +197,6 @@ const POSITIONS = [
 // намеренно НЕ входит — такие поля заполняются автоматически, но роль с правом edit может их менять.
 const NON_EDITABLE_TYPES = ['auto', 'autoDate', 'devRecords', 'empty'];
 
-// Действия в реестре, не привязанные к конкретному полю — доступ к ним тоже настраивается
-// по ролям, отдельно от видимости/редактирования столбцов.
-const ACTIONS = [
-  { key:'canAddEmployee',    label:'Добавление сотрудника в резерв' },
-  { key:'canRemoveEmployee', label:'Удаление сотрудника из резерва' },
-];
-
-// Права на действия "по умолчанию" для новой роли — чистый лист, всё запрещено
-// (та же логика, что и blankPermissions для полей).
-function blankActions(){
-  const actions = {};
-  ACTIONS.forEach(a => { actions[a.key] = false; });
-  return actions;
-}
-
-// Приводит присланные права на действия к текущему списку ACTIONS — отбрасывает
-// устаревшие ключи, достраивает недостающие как false. Используется и при создании,
-// и при обновлении роли, и при миграции уже сохранённых ролей.
-function sanitizeActions(rawActions){
-  const actions = blankActions();
-  ACTIONS.forEach(a => { actions[a.key] = !!(rawActions && rawActions[a.key]); });
-  return actions;
-}
-
 function isColumnEverEditable(colKey){
   const col = COLUMNS.find(c => c.key === colKey);
   return !!col && !NON_EDITABLE_TYPES.includes(col.type);
@@ -251,11 +227,9 @@ function seedRoles(){
   ['fio','status','curPos','potPos','krStatus','krDate','region','depart','city','shop',
    'hardDate','soft','softDate','managerFio','relocReady','reloc',
    'assignment','assignDate','ipr'].forEach(k => { managerPerms[k].view = true; });
-  const managerActions = sanitizeActions({ canAddEmployee: true, canRemoveEmployee: false });
 
   const employeePerms = blankPermissions();
   ['fio','curPos','potPos','krStatus','krDate','relocReady','status'].forEach(k => { employeePerms[k].view = true; });
-  const employeeActions = sanitizeActions({ canAddEmployee: false, canRemoveEmployee: false });
 
   return [
     {
@@ -263,14 +237,12 @@ function seedRoles(){
       name: 'Руководитель',
       positions: ['Директор магазина', 'Директор отделения (ДО)'],
       permissions: sanitizePermissions(managerPerms),
-      actions: managerActions,
     },
     {
       id: 'role_employee',
       name: 'Сотрудник',
       positions: ['Сотрудник'],
       permissions: sanitizePermissions(employeePerms),
-      actions: employeeActions,
     },
   ];
 }
@@ -301,6 +273,5 @@ function parseLegacyDevTracks(potPosStr, trainingStr, hardDateStr){
 module.exports = {
   GROUPS, COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
   POSITIONS, isColumnEverEditable, blankPermissions, sanitizePermissions, seedRoles,
-  ACTIONS, blankActions, sanitizeActions,
   DEV_TRACKS_KEY, DEMO_DEV_TRACKS, DEV_TRACKS_VARIANTS, parseLegacyDevTracks,
 };

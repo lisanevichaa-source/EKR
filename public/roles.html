@@ -87,17 +87,6 @@
   .perm-group-row[data-colgroup="workData"]{ background:#eef8f1; }
   .perm-group-row[data-colgroup="potential"]{ background:#f5f0fb; }
   .perm-group-row[data-colgroup="development"]{ background:#fdf5ea; }
-  .perm-actions-section{
-    padding:12px 16px; border-bottom:1px solid var(--line); background:#fbfbfe;
-  }
-  .perm-actions-title{
-    font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
-    color:var(--ink-soft); font-weight:700; margin-bottom:8px;
-  }
-  .perm-action-row{
-    display:flex; align-items:center; gap:9px; padding:5px 0; font-size:13px; color:var(--ink);
-  }
-  .perm-action-row input{ accent-color:var(--accent); width:15px; height:15px; }
   .perm-head-row{
     display:grid; grid-template-columns:1fr 70px 90px;
     padding:8px 12px; font-size:11px; font-weight:700; color:var(--ink-soft);
@@ -153,10 +142,6 @@
       <h3 id="permModalTitle">Видимость полей</h3>
       <button class="modal-close" id="permModalClose">✕</button>
     </div>
-    <div class="perm-actions-section">
-      <div class="perm-actions-title">Действия</div>
-      <div id="permActionsBody"></div>
-    </div>
     <div class="perm-table-wrap">
       <div class="perm-head-row">
         <span>Поле</span>
@@ -178,13 +163,11 @@
 let GROUPS = [];
 let COLUMNS = [];
 let POSITIONS = [];
-let ACTIONS = [];
 let ROLES = [];
 
 let editingRoleId = null;     // роль, которую редактируем в модалке названия/должностей (null = создание)
 let permEditingRoleId = null; // роль, для которой открыт редактор видимости полей
-let permDraft = {};           // локальный черновик прав на поля до нажатия "Сохранить"
-let permActionsDraft = {};    // локальный черновик прав на действия (добавить/удалить сотрудника)
+let permDraft = {};           // локальный черновик прав до нажатия "Сохранить"
 
 function applyState(data){
   ROLES = data.roles || [];
@@ -196,7 +179,6 @@ async function loadMetaAndState(){
   GROUPS = meta.groups;
   COLUMNS = meta.columns;
   POSITIONS = meta.positions || [];
-  ACTIONS = meta.actions || [];
   applyState(st);
 }
 
@@ -213,21 +195,16 @@ function renderRolesList(){
       : `<span class="role-card-empty-positions">Должности не выбраны</span>`;
     const viewCount = COLUMNS.filter(c => role.permissions[c.key] && role.permissions[c.key].view).length;
     const editCount = COLUMNS.filter(c => role.permissions[c.key] && role.permissions[c.key].edit).length;
-    const actionsOn = ACTIONS.filter(a => role.actions && role.actions[a.key]);
-    const actionsSummary = actionsOn.length
-      ? actionsOn.map(a => a.label.split(' ')[0]).join(', ')
-      : 'нет разрешённых действий';
     return `
       <div class="role-card" data-role-id="${role.id}">
         <div class="role-card-main">
           <div class="role-card-name">${escapeHtml(role.name)}</div>
           <div class="role-card-positions">${posHtml}</div>
           <div class="role-card-summary">Видит ${viewCount} из ${COLUMNS.length} полей, может редактировать ${editCount}</div>
-          <div class="role-card-summary">Действия: ${escapeHtml(actionsSummary)}</div>
         </div>
         <div class="role-card-actions">
           <button class="ghost-btn" data-edit-role="${role.id}">Изменить</button>
-          <button class="ghost-btn" data-perm-role="${role.id}">Настроить видимость и действия</button>
+          <button class="ghost-btn" data-perm-role="${role.id}">Настроить видимость полей</button>
           <button class="danger-btn" data-delete-role="${role.id}">Удалить</button>
         </div>
       </div>
@@ -319,15 +296,6 @@ function setupRoleEditModal(){
 }
 
 /* ---------- Модалка "Видимость полей" ---------- */
-function renderPermActions(){
-  const body = document.getElementById('permActionsBody');
-  body.innerHTML = ACTIONS.map(a => `
-    <label class="perm-action-row">
-      <input type="checkbox" data-perm-action="${a.key}" ${permActionsDraft[a.key] ? 'checked' : ''}>
-      <span>${escapeHtml(a.label)}</span>
-    </label>
-  `).join('');
-}
 function renderPermTable(){
   const body = document.getElementById('permTableBody');
   let html = '';
@@ -357,12 +325,7 @@ function openPermModal(roleId){
   COLUMNS.forEach(col => {
     permDraft[col.key] = { ...(role.permissions[col.key] || { view: false, edit: false }) };
   });
-  permActionsDraft = {};
-  ACTIONS.forEach(a => {
-    permActionsDraft[a.key] = !!(role.actions && role.actions[a.key]);
-  });
   document.getElementById('permModalTitle').textContent = 'Видимость полей — ' + role.name;
-  renderPermActions();
   renderPermTable();
   document.getElementById('permModalOverlay').classList.add('open');
 }
@@ -375,12 +338,6 @@ function setupPermModal(){
   document.getElementById('permCancelBtn').addEventListener('click', closePermModal);
   document.getElementById('permModalOverlay').addEventListener('click', e => {
     if (e.target.id === 'permModalOverlay') closePermModal();
-  });
-
-  document.getElementById('permActionsBody').addEventListener('change', e => {
-    const cb = e.target.closest('[data-perm-action]');
-    if (!cb) return;
-    permActionsDraft[cb.dataset.permAction] = cb.checked;
   });
 
   document.getElementById('permTableBody').addEventListener('change', e => {
@@ -402,7 +359,7 @@ function setupPermModal(){
     try{
       applyState(await mutate(`/api/roles/${encodeURIComponent(permEditingRoleId)}/permissions`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ permissions: permDraft, actions: permActionsDraft }),
+        body: JSON.stringify({ permissions: permDraft }),
       }));
     } catch(err){
       return;

@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { GROUPS, COLUMNS, POSITIONS, ACTIONS } = require('./columns');
+const { GROUPS, COLUMNS, POSITIONS } = require('./columns');
 const db = require('./db');
 
 const app = express();
@@ -9,7 +9,7 @@ app.use(express.json());
 // --- API ---
 
 app.get('/api/meta', (req, res) => {
-  res.json({ groups: GROUPS, columns: COLUMNS, positions: POSITIONS, actions: ACTIONS });
+  res.json({ groups: GROUPS, columns: COLUMNS, positions: POSITIONS });
 });
 
 app.get('/api/state', (req, res) => {
@@ -66,9 +66,9 @@ app.patch('/api/roles/:id', (req, res) => {
 });
 
 app.patch('/api/roles/:id/permissions', (req, res) => {
-  const { permissions, actions } = req.body || {};
+  const { permissions } = req.body || {};
   try {
-    res.json(db.updateRolePermissions(req.params.id, permissions || {}, actions || {}));
+    res.json(db.updateRolePermissions(req.params.id, permissions || {}));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
