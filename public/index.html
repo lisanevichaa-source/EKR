@@ -157,8 +157,10 @@
     max-height:70vh;
   }
   table{ border-collapse:separate; border-spacing:0; font-size:13px; width:max-content; min-width:100%; }
+  thead{
+    position:sticky; top:0; z-index:4;
+  }
   thead th{
-    position:sticky; top:0; z-index:3;
     background:#fafafe;
     border-bottom:1px solid var(--line);
     border-right:1px solid var(--line);
@@ -169,7 +171,6 @@
     white-space:nowrap;
   }
   thead tr.group-row th{
-    top:0;
     background:#f3f3fb;
     font-size:10.5px;
     text-transform:uppercase;
@@ -179,7 +180,6 @@
     padding:6px 12px;
     border-bottom:none;
   }
-  thead tr.label-row th{ top:29px; }
 
   /* Мягкая цветовая разметка подразделов — только лёгкий тон в самой шапке группы
      и тонкая полоска-акцент под названиями столбцов, чтобы не перегружать интерфейс. */
