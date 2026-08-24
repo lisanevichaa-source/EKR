@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const Database = require('better-sqlite3');
 const columnsModule = require('./columns');
 const {
   COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
@@ -17,7 +18,10 @@ if (!columnsModule.DEV_TRACKS_KEY){
 // DATA_DIR можно переопределить переменной окружения — на Railway это будет
 // точка монтирования постоянного Volume (например, /data), локально — папка ./data.
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'db.json');
+const DB_FILE = path.join(DATA_DIR, 'db.sqlite');
+// Старый формат хранения (плоский JSON) — держим путь только для одноразовой миграции
+// уже накопленных на сервере данных при первом запуске новой версии.
+const LEGACY_JSON_FILE = path.join(DATA_DIR, 'db.json');
 
 // Сколько строк создавать при первом запуске (создании новой базы с нуля).
 // По умолчанию 10 — это куратированное демо (как было). Если поставить больше 10 —
@@ -161,25 +165,9 @@ function seedState(){
   };
 }
 
-let state;
-
-function ensureDir(){
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-function persist(){
-  ensureDir();
-  // запись во временный файл + переименование — чтобы не словить битый JSON при падении процесса.
-  // Без отступов (не null,2) — на 5000+ строк это ощутимо быстрее и компактнее на диске,
-  // а редактировать db.json глазами всё равно не предполагается.
-  const tmpFile = DATA_FILE + '.tmp';
-  fs.writeFileSync(tmpFile, JSON.stringify(state), 'utf-8');
-  fs.renameSync(tmpFile, DATA_FILE);
-}
-
 /** Дополняет values строки недостающими (новыми) полями разумными значениями по умолчанию
  *  и убирает значения для полей, которых больше нет в текущей схеме COLUMNS. Нужно, чтобы
- *  старые файлы базы (с прошлой версией набора столбцов) не ломали рендер после обновления схемы. */
+ *  старые строки (с прошлой версией набора столбцов) не ломали рендер после обновления схемы. */
 function reshapeRowValues(values){
   const next = {};
   COLUMNS.forEach(col => {
@@ -214,74 +202,201 @@ function reshapeRowValues(values){
   return next;
 }
 
+function ensureDir(){
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+ensureDir();
+
+/* ===================== SQLITE: СХЕМА И ПОДГОТОВЛЕННЫЕ ЗАПРОСЫ ===================== */
+// Хранилище устроено просто: одна строка сотрудника — одна строка в таблице reserve_rows,
+// все её поля (включая devTracks) — единым JSON в столбце values_json. Это не "настоящая"
+// нормализованная схема с 31 отдельной колонкой (такую пришлось бы вручную мигрировать при
+// каждом изменении набора столбцов в columns.js) — но она даёт главное: правка одной ячейки
+// теперь означает UPDATE ровно одной строки по первичному ключу, а не перезапись всего файла
+// целиком, как было раньше с плоским db.json. Цена такой правки больше не растёт вместе
+// с общим числом сотрудников.
+const sqlite = new Database(DB_FILE);
+sqlite.pragma('journal_mode = WAL');
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS reserve_rows (
+    id TEXT PRIMARY KEY,
+    values_json TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS employee_pool (
+    id TEXT PRIMARY KEY,
+    data_json TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS roles (
+    id TEXT PRIMARY KEY,
+    data_json TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+`);
+
+const stmt = {
+  selectRows: sqlite.prepare('SELECT id, values_json FROM reserve_rows'),
+  insertRow: sqlite.prepare('INSERT INTO reserve_rows (id, values_json) VALUES (?, ?)'),
+  updateRow: sqlite.prepare('UPDATE reserve_rows SET values_json = ? WHERE id = ?'),
+  deleteRow: sqlite.prepare('DELETE FROM reserve_rows WHERE id = ?'),
+  countRows: sqlite.prepare('SELECT COUNT(*) AS c FROM reserve_rows'),
+
+  selectPool: sqlite.prepare('SELECT id, data_json FROM employee_pool'),
+  insertPool: sqlite.prepare('INSERT INTO employee_pool (id, data_json) VALUES (?, ?)'),
+  deletePool: sqlite.prepare('DELETE FROM employee_pool WHERE id = ?'),
+
+  selectRoles: sqlite.prepare('SELECT id, data_json FROM roles'),
+  insertRole: sqlite.prepare('INSERT INTO roles (id, data_json) VALUES (?, ?)'),
+  updateRoleRow: sqlite.prepare('UPDATE roles SET data_json = ? WHERE id = ?'),
+  deleteRoleRow: sqlite.prepare('DELETE FROM roles WHERE id = ?'),
+
+  getMeta: sqlite.prepare('SELECT value FROM meta WHERE key = ?'),
+  setMeta: sqlite.prepare(`
+    INSERT INTO meta (key, value) VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `),
+};
+
+function roleToJson(role){
+  return JSON.stringify({
+    name: role.name, positions: role.positions, permissions: role.permissions, actions: role.actions,
+  });
+}
+
+/** Единоразово вставляет весь state в пустые SQLite-таблицы — используется и при первом
+ *  запуске "с нуля", и при переносе уже накопленных данных из старого db.json. */
+function bulkInsertState(freshState){
+  const tx = sqlite.transaction(() => {
+    freshState.reserveRows.forEach(r => stmt.insertRow.run(r.id, JSON.stringify(r.values)));
+    freshState.employeePool.forEach(p => stmt.insertPool.run(p.id, JSON.stringify(p)));
+    freshState.roles.forEach(r => stmt.insertRole.run(r.id, roleToJson(r)));
+    stmt.setMeta.run('rowIdCounter', String(freshState.rowIdCounter));
+    stmt.setMeta.run('roleIdCounter', String(freshState.roleIdCounter));
+  });
+  tx();
+}
+
+function loadStateFromSqlite(){
+  const reserveRows = stmt.selectRows.all().map(r => ({ id: r.id, values: JSON.parse(r.values_json) }));
+  const employeePool = stmt.selectPool.all().map(r => JSON.parse(r.data_json));
+  const roles = stmt.selectRoles.all().map(r => {
+    const data = JSON.parse(r.data_json);
+    return { id: r.id, name: data.name, positions: data.positions, permissions: data.permissions, actions: data.actions };
+  });
+  const rowIdCounterRow = stmt.getMeta.get('rowIdCounter');
+  const roleIdCounterRow = stmt.getMeta.get('roleIdCounter');
+  return {
+    reserveRows,
+    employeePool,
+    roles,
+    rowIdCounter: rowIdCounterRow ? parseInt(rowIdCounterRow.value, 10) : reserveRows.length,
+    roleIdCounter: roleIdCounterRow ? parseInt(roleIdCounterRow.value, 10) : 100,
+  };
+}
+
+/** Читает и приводит к актуальному виду старый плоский db.json — переиспользует ровно ту же
+ *  логику миграции, что раньше жила в load() (снятие раздела "уволенные", приведение схемы
+ *  столбцов, санитайзинг прав ролей). Используется только один раз, при переезде на SQLite. */
+function loadAndMigrateLegacyJson(){
+  const legacyState = JSON.parse(fs.readFileSync(LEGACY_JSON_FILE, 'utf-8'));
+
+  if (!Array.isArray(legacyState.roles)){
+    legacyState.roles = seedRoles();
+    legacyState.roleIdCounter = legacyState.roleIdCounter || 100;
+  }
+
+  // логика "уволенных сотрудников" убрана из продукта — если в старом файле остались
+  // строки в dismissedRows, возвращаем их в общий резерв, чтобы не потерять данные
+  if (Array.isArray(legacyState.dismissedRows) && legacyState.dismissedRows.length > 0){
+    legacyState.dismissedRows.forEach(row => {
+      delete row.dismissedAt;
+      delete row.lastActiveStatus;
+      legacyState.reserveRows.push(row);
+    });
+    console.log(`[db] Раздел "уволенные" убран — ${legacyState.dismissedRows.length} строк(и) возвращены в резерв`);
+  }
+  delete legacyState.dismissedRows;
+  legacyState.reserveRows.forEach(row => { delete row.lastActiveStatus; delete row.dismissedAt; });
+
+  // схема столбцов могла обновиться (добавились/пропали поля) — приводим к актуальному набору
+  legacyState.reserveRows.forEach(row => { row.values = reshapeRowValues(row.values); });
+
+  // права ролей — тоже приводим к актуальному набору столбцов и действий
+  legacyState.roles.forEach(role => {
+    role.permissions = sanitizePermissions(role.permissions);
+    role.actions = sanitizeActions(role.actions);
+  });
+
+  if (!Array.isArray(legacyState.employeePool)) legacyState.employeePool = [];
+  if (typeof legacyState.rowIdCounter !== 'number') legacyState.rowIdCounter = legacyState.reserveRows.length;
+  if (typeof legacyState.roleIdCounter !== 'number') legacyState.roleIdCounter = 100;
+
+  return legacyState;
+}
+
+let state;
+
 function load(){
   try{
-    ensureDir();
-    if (fs.existsSync(DATA_FILE)){
-      state = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-      let migrated = false;
+    const existingRowCount = stmt.countRows.get().c;
 
-      if (!Array.isArray(state.roles)){
-        state.roles = seedRoles();
-        state.roleIdCounter = state.roleIdCounter || 100;
-        migrated = true;
+    if (existingRowCount === 0){
+      // SQLite ещё пустой — либо переносим данные из старого db.json (если он есть
+      // на диске с прошлой версии), либо сеем демо-данные с нуля
+      if (fs.existsSync(LEGACY_JSON_FILE)){
+        console.log('[db] Обнаружен старый db.json — переношу данные в SQLite (один раз)...');
+        state = loadAndMigrateLegacyJson();
+        bulkInsertState(state);
+        const backupPath = LEGACY_JSON_FILE + '.migrated.bak';
+        try { fs.renameSync(LEGACY_JSON_FILE, backupPath); } catch (e){ /* не критично, если не удалось переименовать */ }
+        console.log(`[db] Миграция в SQLite завершена: ${state.reserveRows.length} строк резерва, ${state.employeePool.length} в общем списке, ${state.roles.length} ролей. Старый файл сохранён как ${path.basename(backupPath)}`);
+        return;
       }
-
-      // логика "уволенных сотрудников" убрана из продукта — если в старом файле базы
-      // остались строки в dismissedRows, возвращаем их в общий резерв, чтобы не потерять данные
-      if (Array.isArray(state.dismissedRows) && state.dismissedRows.length > 0){
-        state.dismissedRows.forEach(row => {
-          delete row.dismissedAt;
-          delete row.lastActiveStatus;
-          state.reserveRows.push(row);
-        });
-        console.log(`[db] Раздел "уволенные" убран — ${state.dismissedRows.length} строк(и) возвращены в резерв`);
-        migrated = true;
-      }
-      delete state.dismissedRows;
-      state.reserveRows.forEach(row => { delete row.lastActiveStatus; delete row.dismissedAt; });
-
-      // схема столбцов могла обновиться (добавились/пропали поля) — приводим уже сохранённые
-      // строки к актуальному набору ключей, ничего не сохранённого ранее не теряя
-      let schemaChanged = false;
-      state.reserveRows.forEach(row => {
-        const beforeKeys = Object.keys(row.values).sort().join(',');
-        row.values = reshapeRowValues(row.values);
-        const afterKeys = Object.keys(row.values).sort().join(',');
-        if (beforeKeys !== afterKeys) schemaChanged = true;
-      });
-      if (schemaChanged){
-        console.log('[db] Схема столбцов обновлена — строки резерва приведены к актуальному набору полей');
-        migrated = true;
-      }
-
-      // права ролей — тоже приводим к актуальному набору столбцов (sanitizePermissions
-      // сама уберёт несуществующие ключи и добавит недостающие как view:false/edit:false)
-      state.roles.forEach(role => {
-        const before = JSON.stringify(role.permissions);
-        role.permissions = sanitizePermissions(role.permissions);
-        if (JSON.stringify(role.permissions) !== before) migrated = true;
-
-        // права на действия (добавить/удалить сотрудника) — новая возможность, в старых
-        // сохранённых ролях её ещё нет вовсе, добавляем как "всё запрещено" по умолчанию
-        const beforeActions = JSON.stringify(role.actions);
-        role.actions = sanitizeActions(role.actions);
-        if (JSON.stringify(role.actions) !== beforeActions) migrated = true;
-      });
-
-      console.log(`[db] Загружено из ${DATA_FILE}: ${state.reserveRows.length} в резерве, ${state.employeePool.length} в общем списке, ${state.roles.length} ролей`);
-      if (migrated){
-        persist();
-      }
-    } else {
       state = seedState();
-      persist();
-      console.log(`[db] Файл не найден, создана новая база с демо-данными: ${DATA_FILE}`);
+      bulkInsertState(state);
+      console.log(`[db] База не найдена, создана новая с демо-данными: ${DB_FILE}`);
+      return;
     }
+
+    // обычная загрузка из уже существующей SQLite-базы
+    state = loadStateFromSqlite();
+
+    // схема столбцов могла обновиться — приводим уже сохранённые строки к актуальному
+    // набору ключей, точечно перезаписывая в SQLite только те строки, что реально изменились
+    let reshapedCount = 0;
+    state.reserveRows.forEach(row => {
+      const beforeKeys = Object.keys(row.values).sort().join(',');
+      const reshaped = reshapeRowValues(row.values);
+      const afterKeys = Object.keys(reshaped).sort().join(',');
+      row.values = reshaped;
+      if (beforeKeys !== afterKeys){
+        stmt.updateRow.run(JSON.stringify(row.values), row.id);
+        reshapedCount++;
+      }
+    });
+    if (reshapedCount > 0){
+      console.log(`[db] Схема столбцов обновлена — ${reshapedCount} строк(и) резерва приведены к актуальному набору полей`);
+    }
+
+    // права ролей — аналогично, точечно перезаписываем только изменившиеся роли
+    state.roles.forEach(role => {
+      const before = JSON.stringify({ permissions: role.permissions, actions: role.actions });
+      role.permissions = sanitizePermissions(role.permissions);
+      role.actions = sanitizeActions(role.actions);
+      const after = JSON.stringify({ permissions: role.permissions, actions: role.actions });
+      if (before !== after){
+        stmt.updateRoleRow.run(roleToJson(role), role.id);
+      }
+    });
+
+    console.log(`[db] Загружено из ${DB_FILE}: ${state.reserveRows.length} в резерве, ${state.employeePool.length} в общем списке, ${state.roles.length} ролей`);
   } catch (err){
     console.error('[db] Не удалось прочитать базу, создаю новую взамен повреждённой:', err.message);
+    sqlite.exec('DELETE FROM reserve_rows; DELETE FROM employee_pool; DELETE FROM roles; DELETE FROM meta;');
     state = seedState();
-    persist();
+    bulkInsertState(state);
   }
 }
 
@@ -300,10 +415,9 @@ function findColumn(key){
 }
 
 /** Обновить значение одной ячейки. Возвращает только изменённую строку, а не всё состояние
- *  целиком — правка одной ячейки не имеет побочных эффектов на другие строки (в отличие
- *  от старой механики автоувольнения, которую убрали), так что гонять по сети и заново
- *  сериализовывать весь реестр ради одного изменённого поля незачем — особенно заметно
- *  на больших объёмах (тысячи строк). */
+ *  целиком — правка одной ячейки не имеет побочных эффектов на другие строки. В SQLite это
+ *  теперь ещё и означает UPDATE ровно одной строки таблицы reserve_rows по id, а не
+ *  перезапись всего файла базы — стоимость правки больше не растёт вместе с числом строк. */
 function updateCell(rowId, col, value){
   const row = state.reserveRows.find(r => r.id === rowId);
   if (!row) throw new Error('Строка резервиста не найдена');
@@ -315,8 +429,7 @@ function updateCell(rowId, col, value){
   }
 
   row.values[col] = value;
-
-  persist();
+  stmt.updateRow.run(JSON.stringify(row.values), rowId);
   return row;
 }
 
@@ -353,7 +466,13 @@ function addToReserve(poolId){
   const newRow = { id: 'row' + state.rowIdCounter, values };
   state.reserveRows.push(newRow);
 
-  persist();
+  const tx = sqlite.transaction(() => {
+    stmt.insertRow.run(newRow.id, JSON.stringify(newRow.values));
+    stmt.deletePool.run(poolId);
+    stmt.setMeta.run('rowIdCounter', String(state.rowIdCounter));
+  });
+  tx();
+
   return getState();
 }
 
@@ -368,7 +487,12 @@ function removeFromReserve(rowId){
   state.employeePool.push(poolEntry);
   state.employeePool.sort((a, b) => a.fio.localeCompare(b.fio, 'ru'));
 
-  persist();
+  const tx = sqlite.transaction(() => {
+    stmt.deleteRow.run(rowId);
+    stmt.insertPool.run(poolEntry.id, JSON.stringify(poolEntry));
+  });
+  tx();
+
   return getState();
 }
 
@@ -386,7 +510,13 @@ function createRole(name, positions){
     actions: blankActions(),
   };
   state.roles.push(role);
-  persist();
+
+  const tx = sqlite.transaction(() => {
+    stmt.insertRole.run(role.id, roleToJson(role));
+    stmt.setMeta.run('roleIdCounter', String(state.roleIdCounter));
+  });
+  tx();
+
   return getState();
 }
 
@@ -397,7 +527,8 @@ function updateRole(roleId, name, positions){
   if (!cleanName) throw new Error('Название роли не может быть пустым');
   role.name = cleanName;
   role.positions = Array.isArray(positions) ? positions.filter(Boolean) : [];
-  persist();
+
+  stmt.updateRoleRow.run(roleToJson(role), roleId);
   return getState();
 }
 
@@ -409,7 +540,8 @@ function updateRolePermissions(roleId, permissions, actions){
   // что-то другое — это защита не только для UI, но и для API.
   role.permissions = sanitizePermissions(permissions);
   role.actions = sanitizeActions(actions);
-  persist();
+
+  stmt.updateRoleRow.run(roleToJson(role), roleId);
   return getState();
 }
 
@@ -417,7 +549,8 @@ function deleteRole(roleId){
   const idx = state.roles.findIndex(r => r.id === roleId);
   if (idx === -1) throw new Error('Роль не найдена');
   state.roles.splice(idx, 1);
-  persist();
+
+  stmt.deleteRoleRow.run(roleId);
   return getState();
 }
 
@@ -430,5 +563,5 @@ module.exports = {
   updateRole,
   updateRolePermissions,
   deleteRole,
-  DATA_FILE,
+  DATA_FILE: DB_FILE,
 };
