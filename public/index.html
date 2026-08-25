@@ -48,6 +48,22 @@
     backdrop-filter:blur(4px);
   }
 
+  .widgets-toolbar{
+    display:flex; align-items:center; justify-content:flex-end; gap:12px;
+    margin-bottom:10px;
+  }
+  .widgets-updated{ font-size:12px; color:rgba(255,255,255,0.6); }
+  .widgets-refresh-btn{
+    display:inline-flex; align-items:center; gap:7px;
+    border:1px solid rgba(255,255,255,0.25); border-radius:999px;
+    padding:7px 14px; font-size:12.5px; font-family:inherit; font-weight:600;
+    color:#fff; background:rgba(255,255,255,0.1); cursor:pointer;
+    transition:background .15s ease;
+  }
+  .widgets-refresh-btn:hover{ background:rgba(255,255,255,0.18); }
+  .widgets-refresh-btn:active svg{ animation:spin .5s linear; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
   .widgets{
     display:grid;
     grid-template-columns:repeat(3, 1fr);
@@ -55,6 +71,8 @@
   }
   @media (max-width:980px){ .widgets{grid-template-columns:repeat(2,1fr);} }
   @media (max-width:640px){ .widgets{grid-template-columns:1fr;} }
+  .card-span-2{ grid-column:span 2; }
+  @media (max-width:640px){ .card-span-2{ grid-column:span 1; } }
 
   .card{
     background:var(--card);
@@ -68,43 +86,36 @@
   .card-row{ display:flex; align-items:center; justify-content:space-between; gap:12px;}
   .big-num{ font-size:30px; font-weight:800; letter-spacing:-0.01em; }
   .sub-num{ font-size:24px; font-weight:800; }
+  .card-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:6px; line-height:1.4; }
 
-  /* donut */
-  .donut{
-    --pct:10;
-    width:56px;height:56px;border-radius:50%;
-    background:conic-gradient(var(--gold) calc(var(--pct)*1%), #e3e4ea 0);
-    display:flex;align-items:center;justify-content:center;
-    flex-shrink:0;
+  /* КР по должностям — список "должность / количество", а не фиксированная сетка из 4,
+     потому что реальный набор должностей теперь произвольный (берётся из данных) */
+  .position-list{ display:flex; flex-direction:column; gap:8px; }
+  .position-row{ display:flex; align-items:center; gap:10px; }
+  .position-row .p-label{ flex:1; font-size:12.5px; color:var(--ink-soft); }
+  .position-row .p-track{ flex:1.4; height:7px; border-radius:999px; background:#eef0f4; overflow:hidden; }
+  .position-row .p-fill{ height:100%; border-radius:999px; background:var(--accent); }
+  .position-row .p-num{ width:26px; text-align:right; font-weight:700; color:var(--ink); font-size:12.5px; }
+  .position-empty{ font-size:12.5px; color:var(--ink-soft); }
+
+  /* История назначений — простой столбчатый график на 12 месяцев, без внешних библиотек */
+  .fy-chart{ display:flex; align-items:flex-end; gap:6px; height:110px; margin-top:4px; }
+  .fy-bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:4px; }
+  .fy-bar-val{ font-size:10.5px; color:var(--ink-soft); font-weight:700; min-height:13px; }
+  .fy-bar{ width:100%; max-width:22px; border-radius:4px 4px 0 0; background:var(--accent); min-height:2px; }
+  .fy-bar.zero{ background:#e3e4ea; }
+  .fy-bar-month{ font-size:10px; color:var(--ink-soft); }
+
+  /* Вакансии — карточка-ссылка на внешний портал */
+  .vacancies-card{ display:flex; flex-direction:column; height:100%; }
+  .vacancies-card p{ font-size:12.5px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5; flex:1; }
+  .vacancies-link-btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    background:var(--accent); color:#fff; text-decoration:none;
+    border-radius:999px; padding:9px 16px; font-size:12.5px; font-weight:600;
+    transition:background .15s ease;
   }
-  .donut span{
-    width:40px;height:40px;border-radius:50%;background:#fff;
-    display:flex;align-items:center;justify-content:center;
-    font-size:12px;font-weight:700;color:var(--ink);
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,0.04);
-  }
-
-  .quad{
-    display:grid; grid-template-columns:repeat(4,1fr); gap:10px; text-align:center;
-  }
-  .quad div .q-num{ font-size:22px; font-weight:800; }
-  .quad div .q-num.zero{ color:var(--red); }
-  .quad div .q-label{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; line-height:1.25; }
-
-  .bars{ display:flex; flex-direction:column; gap:8px; }
-  .bar-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-soft);}
-  .bar-track{ flex:1; height:7px; border-radius:999px; background:#eef0f4; overflow:hidden; }
-  .bar-fill{ height:100%; border-radius:999px; }
-  .bar-val{ width:34px; text-align:right; font-weight:700; color:var(--ink); font-size:12px;}
-
-  .progress-track{ height:10px; border-radius:999px; background:#eef0f4; overflow:hidden; margin-top:10px;}
-  .progress-fill{ height:100%; border-radius:999px; background:linear-gradient(90deg,#4f46e5,#7c73f0); }
-  .progress-foot{ display:flex; justify-content:space-between; margin-top:8px; font-size:12px; color:var(--ink-soft);}
-
-  .trend{
-    display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700;
-    color:var(--green); background:#e9f7ef; padding:3px 8px; border-radius:999px;
-  }
+  .vacancies-link-btn:hover{ background:#4338ca; }
 
   /* ---------- MAIN CONTENT ---------- */
   .content{ padding:24px 32px 60px; }
@@ -415,6 +426,13 @@
     </div>
   </div>
 
+  <div class="widgets-toolbar">
+    <span class="widgets-updated" id="widgetsUpdatedAt"></span>
+    <button class="widgets-refresh-btn" id="refreshWidgetsBtn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+      Обновить виджеты
+    </button>
+  </div>
   <div class="widgets" id="widgets"></div>
 </div>
 
@@ -563,53 +581,158 @@ async function loadMetaAndState(){
 }
 
 /* ===================== ВИДЖЕТЫ ===================== */
-function renderWidgets(){
+/** Правильное склонение слова "день" по числу. */
+function pluralDays(n){
+  const abs = Math.abs(n) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return 'дней';
+  if (last === 1) return 'день';
+  if (last >= 2 && last <= 4) return 'дня';
+  return 'дней';
+}
+
+/** Считает все метрики дашборда по переданному набору строк (уже отфильтрованному —
+ *  виджеты всегда показывают то, что попадает под текущие фильтры). Никаких обращений
+ *  к серверу — вся нужная информация уже загружена на клиенте. */
+function computeWidgetData(rows){
+  const total = rows.length;
+
+  // Средний срок пребывания в КР — среднее число дней между "Дата зачисления КР" (krDate)
+  // и "Дата назначения" (assignDate), только по строкам, где оба поля реально заполнены
+  let daysSum = 0, daysCount = 0;
+  rows.forEach(r => {
+    const kr = r.values.krDate, assign = r.values.assignDate;
+    if (kr && assign){
+      const diffDays = Math.round((new Date(assign) - new Date(kr)) / (1000 * 60 * 60 * 24));
+      daysSum += diffDays;
+      daysCount++;
+    }
+  });
+  const avgDays = daysCount > 0 ? Math.round(daysSum / daysCount) : null;
+
+  // КР по должностям — считаем по КАЖДОЙ записи в "Потенциальная должность" (devTracks),
+  // а не по одному значению на сотрудника: один человек может развиваться сразу на
+  // несколько должностей, и каждая такая запись учитывается отдельно
+  const positionCounts = {};
+  rows.forEach(r => {
+    (r.values.devTracks || []).forEach(t => {
+      if (!t.position) return;
+      positionCounts[t.position] = (positionCounts[t.position] || 0) + 1;
+    });
+  });
+  const positionList = Object.entries(positionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => ({ label, count }));
+
+  // История назначений за финансовый год (сентябрь — август). Финансовый год определяется
+  // от текущей даты: если сейчас сентябрь или позже — год начался в этом сентябре,
+  // иначе — в прошлом.
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth(); // 0 = январь ... 8 = сентябрь
+  const fyStartYear = curMonth >= 8 ? curYear : curYear - 1;
+  const monthNames = ['Сен', 'Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг'];
+  const monthCounts = new Array(12).fill(0);
+  rows.forEach(r => {
+    const assign = r.values.assignDate;
+    if (!assign) return;
+    const d = new Date(assign);
+    if (isNaN(d.getTime())) return;
+    const y = d.getFullYear(), m = d.getMonth();
+    let idx = -1;
+    if (m >= 8 && y === fyStartYear) idx = m - 8;
+    else if (m < 8 && y === fyStartYear + 1) idx = m + 4;
+    if (idx >= 0 && idx < 12) monthCounts[idx]++;
+  });
+
+  return {
+    total,
+    avgDays,
+    positionList,
+    monthNames,
+    monthCounts,
+    fyLabel: `Сен ${fyStartYear} — Авг ${fyStartYear + 1} (FY${String(fyStartYear + 1).slice(-2)})`,
+  };
+}
+
+function renderWidgets(rows){
+  const data = computeWidgetData(rows);
   const el = document.getElementById('widgets');
+
+  let positionsHtml;
+  if (data.positionList.length === 0){
+    positionsHtml = `<div class="position-empty">Пока никто не выбрал потенциальную должность</div>`;
+  } else {
+    const maxCount = data.positionList[0].count;
+    positionsHtml = data.positionList.slice(0, 6).map(p => `
+      <div class="position-row">
+        <span class="p-label">${escapeHtml(p.label)}</span>
+        <div class="p-track"><div class="p-fill" style="width:${Math.round(p.count / maxCount * 100)}%"></div></div>
+        <span class="p-num">${p.count}</span>
+      </div>
+    `).join('');
+  }
+
+  const maxMonth = Math.max(1, ...data.monthCounts);
+  const chartHtml = data.monthNames.map((name, i) => {
+    const count = data.monthCounts[i];
+    const heightPct = count > 0 ? Math.max(Math.round(count / maxMonth * 100), 4) : 2;
+    return `
+      <div class="fy-bar-col">
+        <span class="fy-bar-val">${count > 0 ? count : ''}</span>
+        <div class="fy-bar${count === 0 ? ' zero' : ''}" style="height:${heightPct}%" title="${name}: ${count}"></div>
+        <span class="fy-bar-month">${name}</span>
+      </div>
+    `;
+  }).join('');
+
   el.innerHTML = `
     <div class="card">
       <div class="card-label">Сотрудников в КР</div>
-      <div class="card-row">
-        <div class="big-num">110 772</div>
-        <div class="donut" style="--pct:10"><span>10%</span></div>
-      </div>
+      <div class="big-num">${data.total.toLocaleString('ru-RU')}</div>
     </div>
 
     <div class="card">
       <div class="card-label">Средний срок пребывания в КР</div>
-      <div class="sub-num">45 дней</div>
+      <div class="sub-num">${data.avgDays !== null ? data.avgDays + ' ' + pluralDays(data.avgDays) : '—'}</div>
+      <div class="card-hint">между датой зачисления в КР и датой назначения</div>
     </div>
 
     <div class="card">
       <div class="card-label">КР по должностям</div>
-      <div class="quad">
-        <div><div class="q-num">1</div><div class="q-label">Директор магазина</div></div>
-        <div><div class="q-num">1</div><div class="q-label">Начальник отдела</div></div>
-        <div><div class="q-num zero">0</div><div class="q-label">Старший кассир</div></div>
-        <div><div class="q-num zero">0</div><div class="q-label">Заведующий складом</div></div>
-      </div>
+      <div class="position-list">${positionsHtml}</div>
     </div>
 
-    <div class="card">
-      <div class="card-label">Готовность к релокации</div>
-      <div class="bars">
-        <div class="bar-row"><span style="width:74px">Готовы</span><div class="bar-track"><div class="bar-fill" style="width:62%;background:#1f8a52"></div></div><span class="bar-val">62%</span></div>
-        <div class="bar-row"><span style="width:74px">Не готовы</span><div class="bar-track"><div class="bar-fill" style="width:28%;background:#c81e3a"></div></div><span class="bar-val">28%</span></div>
-        <div class="bar-row"><span style="width:74px">Ожидание</span><div class="bar-track"><div class="bar-fill" style="width:10%;background:#b5790e"></div></div><span class="bar-val">10%</span></div>
-      </div>
+    <div class="card card-span-2">
+      <div class="card-label">История назначений — ${data.fyLabel}</div>
+      <div class="fy-chart">${chartHtml}</div>
     </div>
 
-    <div class="card">
-      <div class="card-label">ИПР оформлено</div>
-      <div class="card-row"><div class="big-num">78%</div><span class="trend">▲ 4%</span></div>
-      <div class="progress-track"><div class="progress-fill" style="width:78%"></div></div>
-      <div class="progress-foot"><span>план 90%</span><span>к концу квартала</span></div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Открытые позиции под резерв</div>
-      <div class="card-row"><div class="big-num">24</div><span class="trend">▲ 3 за месяц</span></div>
+    <div class="card vacancies-card">
+      <div class="card-label">Вакансии</div>
+      <p>Актуальные открытые позиции для развития по кадровому резерву — на портале обучения.</p>
+      <a class="vacancies-link-btn" href="https://sm-training.localcorp.net/career_tracks" target="_blank" rel="noopener">Перейти к вакансиям →</a>
     </div>
   `;
+}
+
+function updateWidgetsTimestamp(){
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('widgetsUpdatedAt').textContent = `Обновлено: ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+/** Пересчитывает виджеты по текущим отфильтрованным данным — вызывается один раз при
+ *  загрузке страницы и дальше только по кнопке "Обновить виджеты", намеренно не на
+ *  каждое изменение в таблице (правку ячейки, смену страницы и т.п.), чтобы не гонять
+ *  этот пересчёт лишний раз. */
+function refreshWidgets(){
+  renderWidgets(getFilteredRows());
+  updateWidgetsTimestamp();
+}
+
+function setupWidgetsRefresh(){
+  document.getElementById('refreshWidgetsBtn').addEventListener('click', refreshWidgets);
 }
 
 /* ===================== ТАБЛИЦА ===================== */
@@ -654,6 +777,24 @@ function applyColumnVisibility(){
       cell.classList.toggle('hidden', !visible);
     });
   });
+
+  // Заголовки самих ГРУПП столбцов ("Персональные данные" и т.п.) — отдельная сущность
+  // от заголовков отдельных столбцов, applyColumnVisibility их до сих пор не трогала.
+  // Если в группе не осталось ни одного видимого столбца — прячем заголовок группы целиком
+  // (иначе он "нависает" над пустым местом), а если видна только часть — подгоняем colspan
+  // под фактическое число видимых столбцов, а не под общее число столбцов в группе.
+  GROUPS.forEach(g => {
+    const cols = COLUMNS.filter(c => c.group === g.key);
+    const visibleInGroup = cols.filter(c =>
+      getEffectivePermission(c.key).view && !hiddenColumns.has(c.key)
+    ).length;
+    const groupTh = document.querySelector(`thead tr.group-row th[data-colgroup="${g.key}"]`);
+    if (groupTh){
+      groupTh.classList.toggle('hidden', visibleInGroup === 0);
+      if (visibleInGroup > 0) groupTh.setAttribute('colspan', visibleInGroup);
+    }
+  });
+
   const visibleCount = COLUMNS.filter(c =>
     getEffectivePermission(c.key).view && !hiddenColumns.has(c.key)
   ).length;
@@ -1605,7 +1746,8 @@ async function init(){
   }
   setSaveStatus('ok', 'Данные загружены');
 
-  renderWidgets();
+  renderWidgets(getFilteredRows());
+  updateWidgetsTimestamp();
   renderRoleSwitcherOptions();
   renderTable();
   applyColumnVisibility();
@@ -1619,6 +1761,7 @@ async function init(){
   setupPagination();
   setupTopScrollSync();
   setupExportButton();
+  setupWidgetsRefresh();
 }
 
 init();
