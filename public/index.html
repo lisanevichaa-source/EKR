@@ -8,19 +8,13 @@
 <style>
   /* ---------- HERO ---------- */
   .hero{
-    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
-    padding:28px 32px 40px;
+    background:#fff;
+    border-bottom:1px solid var(--line);
+    padding:20px 32px 24px;
     position:relative;
-    overflow:hidden;
-  }
-  .hero::after{
-    content:"";
-    position:absolute; inset:0;
-    background:radial-gradient(600px 300px at 85% -10%, rgba(255,255,255,0.10), transparent 60%);
-    pointer-events:none;
   }
   .breadcrumb{
-    color:rgba(255,255,255,0.55);
+    color:var(--ink-soft);
     font-size:12.5px;
     letter-spacing:.02em;
     margin-bottom:14px;
@@ -28,39 +22,38 @@
   .hero-top{
     display:flex; align-items:flex-start; justify-content:space-between; gap:24px;
     flex-wrap:wrap;
-    margin-bottom:24px;
+    margin-bottom:20px;
   }
   .hero-title h1{
-    color:#fff; margin:0 0 6px; font-size:26px; font-weight:700; letter-spacing:-0.01em;
+    color:var(--ink); margin:0 0 6px; font-size:24px; font-weight:700; letter-spacing:-0.01em;
   }
   .hero-title p{
-    color:rgba(255,255,255,0.68); margin:0; font-size:14px; max-width:560px; line-height:1.5;
+    color:var(--ink-soft); margin:0; font-size:14px; max-width:560px; line-height:1.5;
   }
 
   .demo-badge{
-    background:rgba(255,255,255,0.12);
-    border:1px solid rgba(255,255,255,0.25);
-    color:#fff;
+    background:var(--auto-bg);
+    border:1px solid var(--line);
+    color:var(--ink-soft);
     font-size:12px;
     padding:7px 12px;
     border-radius:999px;
     white-space:nowrap;
-    backdrop-filter:blur(4px);
   }
 
   .widgets-toolbar{
     display:flex; align-items:center; justify-content:flex-end; gap:12px;
     margin-bottom:10px;
   }
-  .widgets-updated{ font-size:12px; color:rgba(255,255,255,0.6); }
+  .widgets-updated{ font-size:12px; color:var(--ink-soft); }
   .widgets-refresh-btn{
     display:inline-flex; align-items:center; gap:7px;
-    border:1px solid rgba(255,255,255,0.25); border-radius:999px;
+    border:1px solid var(--line); border-radius:999px;
     padding:7px 14px; font-size:12.5px; font-family:inherit; font-weight:600;
-    color:#fff; background:rgba(255,255,255,0.1); cursor:pointer;
+    color:var(--ink); background:#fff; cursor:pointer;
     transition:background .15s ease;
   }
-  .widgets-refresh-btn:hover{ background:rgba(255,255,255,0.18); }
+  .widgets-refresh-btn:hover{ background:var(--auto-bg); }
   .widgets-refresh-btn:active svg{ animation:spin .5s linear; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
@@ -76,9 +69,9 @@
 
   .card{
     background:var(--card);
-    border-radius:var(--radius-lg);
+    border:1px solid var(--line);
+    border-radius:var(--radius-md);
     padding:18px 20px;
-    box-shadow:0 10px 30px rgba(15,15,40,0.18);
   }
   .card-label{
     font-size:13.5px; color:var(--ink); font-weight:500; margin-bottom:10px;
@@ -115,7 +108,7 @@
     border-radius:999px; padding:9px 16px; font-size:12.5px; font-weight:600;
     transition:background .15s ease;
   }
-  .vacancies-link-btn:hover{ background:#4338ca; }
+  .vacancies-link-btn:hover{ background:#122a52; }
 
   /* ---------- MAIN CONTENT ---------- */
   .content{ padding:24px 32px 60px; }
@@ -125,11 +118,11 @@
 
   .toolbar{
     background:var(--card);
+    border:1px solid var(--line);
     border-radius:var(--radius-md);
     padding:14px 16px;
     display:flex; flex-wrap:wrap; align-items:center; gap:10px;
     margin-bottom:14px;
-    box-shadow:0 1px 3px rgba(15,15,40,0.05);
   }
   .search{
     display:flex; align-items:center; gap:8px;
@@ -148,8 +141,8 @@
   /* table */
   .table-wrap{
     background:var(--card);
-    border-radius:var(--radius-md);
-    box-shadow:0 1px 3px rgba(15,15,40,0.05);
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
     overflow:hidden;
   }
   .table-scroll-top{
@@ -160,7 +153,7 @@
   }
   .table-scroll-top::-webkit-scrollbar{ height:14px; }
   .table-scroll-top::-webkit-scrollbar-track{ background:var(--auto-bg); }
-  .table-scroll-top::-webkit-scrollbar-thumb{ background:#c7cae8; border-radius:999px; border:3px solid var(--auto-bg); }
+  .table-scroll-top::-webkit-scrollbar-thumb{ background:#c7c9d1; border-radius:999px; border:3px solid var(--auto-bg); }
   .table-scroll-top::-webkit-scrollbar-thumb:hover{ background:var(--accent); }
   .table-scroll-top #tableScrollTopInner{ height:1px; }
   .table-scroll{
@@ -172,9 +165,8 @@
     position:sticky; top:0; z-index:4;
   }
   thead th{
-    background:#fafafe;
+    background:var(--table-head-bg);
     border-bottom:1px solid var(--line);
-    border-right:1px solid var(--line);
     text-align:left;
     padding:10px 12px;
     font-weight:600;
@@ -182,7 +174,7 @@
     white-space:nowrap;
   }
   thead tr.group-row th{
-    background:#f3f3fb;
+    background:#eaebee;
     font-size:10.5px;
     text-transform:uppercase;
     letter-spacing:.04em;
@@ -209,7 +201,7 @@
     position:relative;
     border:none; background:transparent; cursor:pointer;
     padding:3px; margin:0; border-radius:5px;
-    color:#b7bacb; display:inline-flex; align-items:center; justify-content:center;
+    color:#9a9ea9; display:inline-flex; align-items:center; justify-content:center;
     flex-shrink:0;
   }
   .filter-btn:hover{ color:var(--accent); background:var(--accent-soft); }
@@ -217,18 +209,17 @@
   .filter-btn.active::after{
     content:''; position:absolute; top:1px; right:1px;
     width:6px; height:6px; border-radius:50%;
-    background:var(--accent); border:1.5px solid #fafafe;
+    background:var(--accent); border:1.5px solid var(--table-head-bg);
   }
 
   tbody td{
     border-bottom:1px solid var(--line);
-    border-right:1px solid var(--line);
     padding:6px 8px;
     vertical-align:middle;
   }
-  tbody tr:hover td{ background:#fbfbff; }
-  tbody tr:nth-child(even) td{ background:#fcfcfe; }
-  tbody tr:nth-child(even):hover td{ background:#f7f7fd; }
+  tbody tr:hover td{ background:#f6f7f9; }
+  tbody tr:nth-child(even) td{ background:#fafafb; }
+  tbody tr:nth-child(even):hover td{ background:#f3f4f6; }
 
   col.hidden, th.hidden, td.hidden{ display:none; }
 
@@ -238,8 +229,8 @@
   .col-rownum{ left:0; width:44px; text-align:center; color:var(--ink-soft); font-weight:600;}
   .col-fio{ left:44px; min-width:200px; font-weight:600; }
   thead .col-rownum, thead .col-fio{ z-index:4; }
-  tbody tr:nth-child(even) .col-rownum, tbody tr:nth-child(even) .col-fio{ background:#fcfcfe; }
-  tbody tr:hover .col-rownum, tbody tr:hover .col-fio{ background:#fbfbff; }
+  tbody tr:nth-child(even) .col-rownum, tbody tr:nth-child(even) .col-fio{ background:#fafafb; }
+  tbody tr:hover .col-rownum, tbody tr:hover .col-fio{ background:#f6f7f9; }
 
   .cell-auto{
     background:var(--auto-bg);
@@ -347,7 +338,7 @@
     padding:8px 9px; border:1px solid var(--line); border-radius:var(--radius-sm);
     font-size:12.5px; color:var(--ink); cursor:pointer; margin-bottom:12px;
   }
-  .date-range-quick:hover{ border-color:#c7cae8; background:var(--auto-bg); }
+  .date-range-quick:hover{ border-color:#b9c2d4; background:var(--auto-bg); }
   .date-range-quick input{ accent-color:var(--accent); width:14px; height:14px; }
   .date-range-fields{ display:flex; flex-direction:column; gap:8px; }
   .date-range-field label{ display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
@@ -382,7 +373,7 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     max-width:220px; font-family:inherit;
   }
-  .dev-records-btn:hover{ border-color:#c7cae8; background:var(--accent-soft); }
+  .dev-records-btn:hover{ border-color:#b9c2d4; background:var(--accent-soft); }
   .dev-tracks-popover{ width:440px; }
   .dev-tracks-table-wrap{ padding:6px 12px 14px; overflow-x:auto; }
   .dev-tracks-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
@@ -394,16 +385,16 @@
   .dev-tracks-table td{ padding:8px; border-bottom:1px solid var(--line); color:var(--ink); }
   .dev-tracks-table tr:last-child td{ border-bottom:none; }
 
-  /* ---------- ROLE SWITCHER (в шапке, тёмный фон) ---------- */
+  /* ---------- ROLE SWITCHER (в шапке, светлый фон) ---------- */
   .hero-top-right{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .role-view-as{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
-  .role-view-as-label{ font-size:12.5px; color:rgba(255,255,255,0.65); white-space:nowrap; }
+  .role-view-as-label{ font-size:12.5px; color:var(--ink-soft); white-space:nowrap; }
   .role-switcher-select{
-    border:1px solid rgba(255,255,255,0.25); border-radius:999px;
-    padding:7px 12px; font-size:12.5px; font-family:inherit; color:#fff;
-    background:rgba(255,255,255,0.1); cursor:pointer; max-width:220px;
+    border:1px solid var(--line); border-radius:999px;
+    padding:7px 12px; font-size:12.5px; font-family:inherit; color:var(--ink);
+    background:#fff; cursor:pointer; max-width:220px;
   }
-  .role-switcher-select:focus{ outline:none; border-color:rgba(255,255,255,0.55); }
+  .role-switcher-select:focus{ outline:none; border-color:var(--accent); }
   .role-switcher-select option{ color:var(--ink); background:#fff; }
 
 </style>
