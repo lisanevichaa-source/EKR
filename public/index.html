@@ -8,13 +8,19 @@
 <style>
   /* ---------- HERO ---------- */
   .hero{
-    background:#fff;
-    border-bottom:1px solid var(--line);
-    padding:20px 32px 24px;
+    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
+    padding:28px 32px 40px;
     position:relative;
+    overflow:hidden;
+  }
+  .hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:radial-gradient(600px 300px at 85% -10%, rgba(255,255,255,0.10), transparent 60%);
+    pointer-events:none;
   }
   .breadcrumb{
-    color:var(--ink-soft);
+    color:rgba(255,255,255,0.55);
     font-size:12.5px;
     letter-spacing:.02em;
     margin-bottom:14px;
@@ -22,46 +28,46 @@
   .hero-top{
     display:flex; align-items:flex-start; justify-content:space-between; gap:24px;
     flex-wrap:wrap;
-    margin-bottom:20px;
+    margin-bottom:24px;
   }
   .hero-title h1{
-    color:var(--ink); margin:0 0 6px; font-size:24px; font-weight:700; letter-spacing:-0.01em;
+    color:#fff; margin:0 0 6px; font-size:26px; font-weight:700; letter-spacing:-0.01em;
   }
   .hero-title p{
-    color:var(--ink-soft); margin:0; font-size:14px; max-width:560px; line-height:1.5;
+    color:rgba(255,255,255,0.68); margin:0; font-size:14px; max-width:560px; line-height:1.5;
   }
 
   .demo-badge{
-    background:var(--auto-bg);
-    border:1px solid var(--line);
-    color:var(--ink-soft);
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.25);
+    color:#fff;
     font-size:12px;
     padding:7px 12px;
     border-radius:999px;
     white-space:nowrap;
+    backdrop-filter:blur(4px);
   }
 
   .widgets-toolbar{
     display:flex; align-items:center; justify-content:flex-end; gap:12px;
     margin-bottom:10px;
   }
-  .widgets-updated{ font-size:12px; color:var(--ink-soft); }
+  .widgets-updated{ font-size:12px; color:rgba(255,255,255,0.6); }
   .widgets-refresh-btn{
     display:inline-flex; align-items:center; gap:7px;
-    border:1px solid var(--line); border-radius:999px;
+    border:1px solid rgba(255,255,255,0.25); border-radius:999px;
     padding:7px 14px; font-size:12.5px; font-family:inherit; font-weight:600;
-    color:var(--ink); background:#fff; cursor:pointer;
+    color:#fff; background:rgba(255,255,255,0.1); cursor:pointer;
     transition:background .15s ease;
   }
-  .widgets-refresh-btn:hover{ background:var(--auto-bg); }
+  .widgets-refresh-btn:hover{ background:rgba(255,255,255,0.18); }
   .widgets-refresh-btn:active svg{ animation:spin .5s linear; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
   .widgets{
     display:grid;
     grid-template-columns:repeat(3, 1fr);
-    align-items:start;
-    gap:12px;
+    gap:16px;
   }
   @media (max-width:980px){ .widgets{grid-template-columns:repeat(2,1fr);} }
   @media (max-width:640px){ .widgets{grid-template-columns:1fr;} }
@@ -70,53 +76,46 @@
 
   .card{
     background:var(--card);
-    border:1px solid var(--line);
-    border-radius:var(--radius-md);
-    padding:14px 16px;
+    border-radius:var(--radius-lg);
+    padding:18px 20px;
+    box-shadow:0 10px 30px rgba(15,15,40,0.18);
   }
   .card-label{
-    font-size:12.5px; color:var(--ink); font-weight:500; margin-bottom:6px;
+    font-size:13.5px; color:var(--ink); font-weight:500; margin-bottom:10px;
   }
-  .card-label-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
-  .card-label-row .card-label{ margin-bottom:0; }
-  .fy-select{
-    border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--ink);
-    font-size:11.5px; font-weight:600; padding:3px 9px; font-family:inherit; cursor:pointer;
-  }
-  .fy-select:focus{ outline:none; border-color:var(--accent); }
   .card-row{ display:flex; align-items:center; justify-content:space-between; gap:12px;}
-  .big-num{ font-size:24px; font-weight:800; letter-spacing:-0.01em; }
-  .sub-num{ font-size:19px; font-weight:800; }
-  .card-hint{ font-size:11px; color:var(--ink-soft); margin-top:4px; line-height:1.4; }
+  .big-num{ font-size:30px; font-weight:800; letter-spacing:-0.01em; }
+  .sub-num{ font-size:24px; font-weight:800; }
+  .card-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:6px; line-height:1.4; }
 
   /* КР по должностям — список "должность / количество", а не фиксированная сетка из 4,
      потому что реальный набор должностей теперь произвольный (берётся из данных) */
-  .position-list{ display:flex; flex-direction:column; gap:6px; }
+  .position-list{ display:flex; flex-direction:column; gap:8px; }
   .position-row{ display:flex; align-items:center; gap:10px; }
-  .position-row .p-label{ flex:1; font-size:12px; color:var(--ink-soft); }
-  .position-row .p-track{ flex:1.4; height:6px; border-radius:999px; background:#eef0f4; overflow:hidden; }
+  .position-row .p-label{ flex:1; font-size:12.5px; color:var(--ink-soft); }
+  .position-row .p-track{ flex:1.4; height:7px; border-radius:999px; background:#eef0f4; overflow:hidden; }
   .position-row .p-fill{ height:100%; border-radius:999px; background:var(--accent); }
-  .position-row .p-num{ width:24px; text-align:right; font-weight:700; color:var(--ink); font-size:12px; }
-  .position-empty{ font-size:12px; color:var(--ink-soft); }
+  .position-row .p-num{ width:26px; text-align:right; font-weight:700; color:var(--ink); font-size:12.5px; }
+  .position-empty{ font-size:12.5px; color:var(--ink-soft); }
 
   /* История назначений — простой столбчатый график на 12 месяцев, без внешних библиотек */
-  .fy-chart{ display:flex; align-items:flex-end; gap:6px; height:76px; margin-top:2px; }
-  .fy-bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:3px; }
-  .fy-bar-val{ font-size:10px; color:var(--ink-soft); font-weight:700; min-height:12px; }
-  .fy-bar{ width:100%; max-width:20px; border-radius:3px 3px 0 0; background:var(--accent); min-height:2px; }
+  .fy-chart{ display:flex; align-items:flex-end; gap:6px; height:110px; margin-top:4px; }
+  .fy-bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:4px; }
+  .fy-bar-val{ font-size:10.5px; color:var(--ink-soft); font-weight:700; min-height:13px; }
+  .fy-bar{ width:100%; max-width:22px; border-radius:4px 4px 0 0; background:var(--accent); min-height:2px; }
   .fy-bar.zero{ background:#e3e4ea; }
-  .fy-bar-month{ font-size:9.5px; color:var(--ink-soft); }
+  .fy-bar-month{ font-size:10px; color:var(--ink-soft); }
 
   /* Вакансии — карточка-ссылка на внешний портал */
-  .vacancies-card{ display:flex; flex-direction:column; }
-  .vacancies-card p{ font-size:12px; color:var(--ink-soft); margin:0 0 12px; line-height:1.5; }
+  .vacancies-card{ display:flex; flex-direction:column; height:100%; }
+  .vacancies-card p{ font-size:12.5px; color:var(--ink-soft); margin:0 0 14px; line-height:1.5; flex:1; }
   .vacancies-link-btn{
     display:inline-flex; align-items:center; justify-content:center; gap:6px;
     background:var(--accent); color:#fff; text-decoration:none;
-    border-radius:999px; padding:8px 16px; font-size:12px; font-weight:600;
+    border-radius:999px; padding:9px 16px; font-size:12.5px; font-weight:600;
     transition:background .15s ease;
   }
-  .vacancies-link-btn:hover{ background:#122a52; }
+  .vacancies-link-btn:hover{ background:#4338ca; }
 
   /* ---------- MAIN CONTENT ---------- */
   .content{ padding:24px 32px 60px; }
@@ -126,11 +125,11 @@
 
   .toolbar{
     background:var(--card);
-    border:1px solid var(--line);
     border-radius:var(--radius-md);
     padding:14px 16px;
     display:flex; flex-wrap:wrap; align-items:center; gap:10px;
     margin-bottom:14px;
+    box-shadow:0 1px 3px rgba(15,15,40,0.05);
   }
   .search{
     display:flex; align-items:center; gap:8px;
@@ -149,8 +148,8 @@
   /* table */
   .table-wrap{
     background:var(--card);
-    border:1px solid var(--line);
-    border-radius:var(--radius-sm);
+    border-radius:var(--radius-md);
+    box-shadow:0 1px 3px rgba(15,15,40,0.05);
     overflow:hidden;
   }
   .table-scroll-top{
@@ -161,7 +160,7 @@
   }
   .table-scroll-top::-webkit-scrollbar{ height:14px; }
   .table-scroll-top::-webkit-scrollbar-track{ background:var(--auto-bg); }
-  .table-scroll-top::-webkit-scrollbar-thumb{ background:#c7c9d1; border-radius:999px; border:3px solid var(--auto-bg); }
+  .table-scroll-top::-webkit-scrollbar-thumb{ background:#c7cae8; border-radius:999px; border:3px solid var(--auto-bg); }
   .table-scroll-top::-webkit-scrollbar-thumb:hover{ background:var(--accent); }
   .table-scroll-top #tableScrollTopInner{ height:1px; }
   .table-scroll{
@@ -173,8 +172,9 @@
     position:sticky; top:0; z-index:4;
   }
   thead th{
-    background:var(--table-head-bg);
+    background:#fafafe;
     border-bottom:1px solid var(--line);
+    border-right:1px solid var(--line);
     text-align:left;
     padding:10px 12px;
     font-weight:600;
@@ -182,7 +182,7 @@
     white-space:nowrap;
   }
   thead tr.group-row th{
-    background:#eaebee;
+    background:#f3f3fb;
     font-size:10.5px;
     text-transform:uppercase;
     letter-spacing:.04em;
@@ -209,7 +209,7 @@
     position:relative;
     border:none; background:transparent; cursor:pointer;
     padding:3px; margin:0; border-radius:5px;
-    color:#9a9ea9; display:inline-flex; align-items:center; justify-content:center;
+    color:#b7bacb; display:inline-flex; align-items:center; justify-content:center;
     flex-shrink:0;
   }
   .filter-btn:hover{ color:var(--accent); background:var(--accent-soft); }
@@ -217,17 +217,18 @@
   .filter-btn.active::after{
     content:''; position:absolute; top:1px; right:1px;
     width:6px; height:6px; border-radius:50%;
-    background:var(--accent); border:1.5px solid var(--table-head-bg);
+    background:var(--accent); border:1.5px solid #fafafe;
   }
 
   tbody td{
     border-bottom:1px solid var(--line);
+    border-right:1px solid var(--line);
     padding:6px 8px;
     vertical-align:middle;
   }
-  tbody tr:hover td{ background:#f6f7f9; }
-  tbody tr:nth-child(even) td{ background:#fafafb; }
-  tbody tr:nth-child(even):hover td{ background:#f3f4f6; }
+  tbody tr:hover td{ background:#fbfbff; }
+  tbody tr:nth-child(even) td{ background:#fcfcfe; }
+  tbody tr:nth-child(even):hover td{ background:#f7f7fd; }
 
   col.hidden, th.hidden, td.hidden{ display:none; }
 
@@ -237,8 +238,8 @@
   .col-rownum{ left:0; width:44px; text-align:center; color:var(--ink-soft); font-weight:600;}
   .col-fio{ left:44px; min-width:200px; font-weight:600; }
   thead .col-rownum, thead .col-fio{ z-index:4; }
-  tbody tr:nth-child(even) .col-rownum, tbody tr:nth-child(even) .col-fio{ background:#fafafb; }
-  tbody tr:hover .col-rownum, tbody tr:hover .col-fio{ background:#f6f7f9; }
+  tbody tr:nth-child(even) .col-rownum, tbody tr:nth-child(even) .col-fio{ background:#fcfcfe; }
+  tbody tr:hover .col-rownum, tbody tr:hover .col-fio{ background:#fbfbff; }
 
   .cell-auto{
     background:var(--auto-bg);
@@ -346,7 +347,7 @@
     padding:8px 9px; border:1px solid var(--line); border-radius:var(--radius-sm);
     font-size:12.5px; color:var(--ink); cursor:pointer; margin-bottom:12px;
   }
-  .date-range-quick:hover{ border-color:#b9c2d4; background:var(--auto-bg); }
+  .date-range-quick:hover{ border-color:#c7cae8; background:var(--auto-bg); }
   .date-range-quick input{ accent-color:var(--accent); width:14px; height:14px; }
   .date-range-fields{ display:flex; flex-direction:column; gap:8px; }
   .date-range-field label{ display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px; }
@@ -381,7 +382,7 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     max-width:220px; font-family:inherit;
   }
-  .dev-records-btn:hover{ border-color:#b9c2d4; background:var(--accent-soft); }
+  .dev-records-btn:hover{ border-color:#c7cae8; background:var(--accent-soft); }
   .dev-tracks-popover{ width:440px; }
   .dev-tracks-table-wrap{ padding:6px 12px 14px; overflow-x:auto; }
   .dev-tracks-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
@@ -393,16 +394,16 @@
   .dev-tracks-table td{ padding:8px; border-bottom:1px solid var(--line); color:var(--ink); }
   .dev-tracks-table tr:last-child td{ border-bottom:none; }
 
-  /* ---------- ROLE SWITCHER (в шапке, светлый фон) ---------- */
+  /* ---------- ROLE SWITCHER (в шапке, тёмный фон) ---------- */
   .hero-top-right{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .role-view-as{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
-  .role-view-as-label{ font-size:12.5px; color:var(--ink-soft); white-space:nowrap; }
+  .role-view-as-label{ font-size:12.5px; color:rgba(255,255,255,0.65); white-space:nowrap; }
   .role-switcher-select{
-    border:1px solid var(--line); border-radius:999px;
-    padding:7px 12px; font-size:12.5px; font-family:inherit; color:var(--ink);
-    background:#fff; cursor:pointer; max-width:220px;
+    border:1px solid rgba(255,255,255,0.25); border-radius:999px;
+    padding:7px 12px; font-size:12.5px; font-family:inherit; color:#fff;
+    background:rgba(255,255,255,0.1); cursor:pointer; max-width:220px;
   }
-  .role-switcher-select:focus{ outline:none; border-color:var(--accent); }
+  .role-switcher-select:focus{ outline:none; border-color:rgba(255,255,255,0.55); }
   .role-switcher-select option{ color:var(--ink); background:#fff; }
 
 </style>
@@ -580,11 +581,6 @@ async function loadMetaAndState(){
 }
 
 /* ===================== ВИДЖЕТЫ ===================== */
-let lastWidgetsRows = [];       // строки, по которым виджеты считались в последний раз — нужны,
-                                 // чтобы смена финансового года не тянула за собой новый набор
-                                 // строк по текущим фильтрам (это дело кнопки "Обновить виджеты")
-let selectedFYEndYear = null;   // null = определять по сегодняшней дате; иначе — явный выбор пользователя
-
 /** Правильное склонение слова "день" по числу. */
 function pluralDays(n){
   const abs = Math.abs(n) % 100;
@@ -598,7 +594,7 @@ function pluralDays(n){
 /** Считает все метрики дашборда по переданному набору строк (уже отфильтрованному —
  *  виджеты всегда показывают то, что попадает под текущие фильтры). Никаких обращений
  *  к серверу — вся нужная информация уже загружена на клиенте. */
-function computeWidgetData(rows, forcedFYEndYear){
+function computeWidgetData(rows){
   const total = rows.length;
 
   // Средний срок пребывания в КР — среднее число дней между "Дата зачисления КР" (krDate)
@@ -628,34 +624,14 @@ function computeWidgetData(rows, forcedFYEndYear){
     .sort((a, b) => b[1] - a[1])
     .map(([label, count]) => ({ label, count }));
 
-  // История назначений за финансовый год (сентябрь — август). Год определяется так:
-  // если пользователь явно выбрал год в выпадающем списке — берём его; иначе — год,
-  // в который попадает сегодняшняя дата (если по нему вообще есть данные), а если и его
-  // нет — самый свежий из тех, что реально встречаются в данных.
-  const monthNames = ['Сен', 'Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг'];
-
+  // История назначений за финансовый год (сентябрь — август). Финансовый год определяется
+  // от текущей даты: если сейчас сентябрь или позже — год начался в этом сентябре,
+  // иначе — в прошлом.
   const now = new Date();
+  const curYear = now.getFullYear();
   const curMonth = now.getMonth(); // 0 = январь ... 8 = сентябрь
-  const autoFYEndYear = (curMonth >= 8 ? now.getFullYear() : now.getFullYear() - 1) + 1;
-
-  // какие финансовые года вообще встречаются в данных (по "Дата назначения") — из них
-  // строится выпадающий список в самом виджете
-  const fyEndYearsWithData = new Set();
-  rows.forEach(r => {
-    const assign = r.values.assignDate;
-    if (!assign) return;
-    const d = new Date(assign);
-    if (isNaN(d.getTime())) return;
-    const y = d.getFullYear(), m = d.getMonth();
-    fyEndYearsWithData.add(m >= 8 ? y + 1 : y);
-  });
-  const availableFYEndYears = Array.from(fyEndYearsWithData).sort((a, b) => b - a); // сначала свежие
-
-  let fyEndYear = forcedFYEndYear
-    || (availableFYEndYears.includes(autoFYEndYear) ? autoFYEndYear : availableFYEndYears[0])
-    || autoFYEndYear;
-  const fyStartYear = fyEndYear - 1;
-
+  const fyStartYear = curMonth >= 8 ? curYear : curYear - 1;
+  const monthNames = ['Сен', 'Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг'];
   const monthCounts = new Array(12).fill(0);
   rows.forEach(r => {
     const assign = r.values.assignDate;
@@ -675,15 +651,12 @@ function computeWidgetData(rows, forcedFYEndYear){
     positionList,
     monthNames,
     monthCounts,
-    fyEndYear,
-    availableFYEndYears: availableFYEndYears.length > 0 ? availableFYEndYears : [fyEndYear],
+    fyLabel: `Сен ${fyStartYear} — Авг ${fyStartYear + 1} (FY${String(fyStartYear + 1).slice(-2)})`,
   };
 }
 
-function renderWidgets(rows, forcedFYEndYear){
-  lastWidgetsRows = rows;
-  const data = computeWidgetData(rows, forcedFYEndYear);
-  selectedFYEndYear = data.fyEndYear; // фиксируем реально применённый год (после всех фолбэков)
+function renderWidgets(rows){
+  const data = computeWidgetData(rows);
   const el = document.getElementById('widgets');
 
   let positionsHtml;
@@ -713,10 +686,6 @@ function renderWidgets(rows, forcedFYEndYear){
     `;
   }).join('');
 
-  const fySelectHtml = data.availableFYEndYears.map(y =>
-    `<option value="${y}" ${y === data.fyEndYear ? 'selected' : ''}>FY${String(y).slice(-2)}</option>`
-  ).join('');
-
   el.innerHTML = `
     <div class="card">
       <div class="card-label">Сотрудников в КР</div>
@@ -735,10 +704,7 @@ function renderWidgets(rows, forcedFYEndYear){
     </div>
 
     <div class="card card-span-2">
-      <div class="card-label-row">
-        <span class="card-label">История назначений</span>
-        <select class="fy-select" id="fySelect">${fySelectHtml}</select>
-      </div>
+      <div class="card-label">История назначений — ${data.fyLabel}</div>
       <div class="fy-chart">${chartHtml}</div>
     </div>
 
@@ -748,13 +714,6 @@ function renderWidgets(rows, forcedFYEndYear){
       <a class="vacancies-link-btn" href="https://sm-training.localcorp.net/career_tracks" target="_blank" rel="noopener">Перейти к вакансиям →</a>
     </div>
   `;
-
-  // выпадающий список пересоздаётся при каждой перерисовке (innerHTML), поэтому обработчик
-  // навешиваем заново каждый раз. Смена года НЕ трогает "Обновлено: чч:мм" и не пересчитывает
-  // заново по фильтрам — это просто другой взгляд на уже посчитанные данные (lastWidgetsRows)
-  document.getElementById('fySelect').addEventListener('change', e => {
-    renderWidgets(lastWidgetsRows, parseInt(e.target.value, 10));
-  });
 }
 
 function updateWidgetsTimestamp(){
@@ -766,10 +725,9 @@ function updateWidgetsTimestamp(){
 /** Пересчитывает виджеты по текущим отфильтрованным данным — вызывается один раз при
  *  загрузке страницы и дальше только по кнопке "Обновить виджеты", намеренно не на
  *  каждое изменение в таблице (правку ячейки, смену страницы и т.п.), чтобы не гонять
- *  этот пересчёт лишний раз. Ранее выбранный в "Истории назначений" год сохраняется —
- *  обновление данных не должно молча переключать пользователя обратно на текущий год. */
+ *  этот пересчёт лишний раз. */
 function refreshWidgets(){
-  renderWidgets(getFilteredRows(), selectedFYEndYear);
+  renderWidgets(getFilteredRows());
   updateWidgetsTimestamp();
 }
 
@@ -819,24 +777,6 @@ function applyColumnVisibility(){
       cell.classList.toggle('hidden', !visible);
     });
   });
-
-  // Заголовки самих ГРУПП столбцов ("Персональные данные" и т.п.) — отдельная сущность
-  // от заголовков отдельных столбцов, applyColumnVisibility их до сих пор не трогала.
-  // Если в группе не осталось ни одного видимого столбца — прячем заголовок группы целиком
-  // (иначе он "нависает" над пустым местом), а если видна только часть — подгоняем colspan
-  // под фактическое число видимых столбцов, а не под общее число столбцов в группе.
-  GROUPS.forEach(g => {
-    const cols = COLUMNS.filter(c => c.group === g.key);
-    const visibleInGroup = cols.filter(c =>
-      getEffectivePermission(c.key).view && !hiddenColumns.has(c.key)
-    ).length;
-    const groupTh = document.querySelector(`thead tr.group-row th[data-colgroup="${g.key}"]`);
-    if (groupTh){
-      groupTh.classList.toggle('hidden', visibleInGroup === 0);
-      if (visibleInGroup > 0) groupTh.setAttribute('colspan', visibleInGroup);
-    }
-  });
-
   const visibleCount = COLUMNS.filter(c =>
     getEffectivePermission(c.key).view && !hiddenColumns.has(c.key)
   ).length;

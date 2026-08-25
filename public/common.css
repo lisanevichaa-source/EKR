@@ -10,22 +10,21 @@
     --grad-a:#1b2560;
     --grad-b:#3a1a4d;
     --grad-c:#5c1b3f;
-    --bg-page:#f5f6f8;
+    --bg-page:#f2f3f8;
     --card:#ffffff;
     --ink:#1c1e2b;
     --ink-soft:#6b7182;
-    --line:#e4e5e9;
-    --accent:#1a3a6e;
-    --accent-soft:#e9eef6;
+    --line:#e6e7ee;
+    --accent:#4f46e5;
+    --accent-soft:#eef0fd;
     --red:#c81e3a;
     --gold:#c9a227;
     --green:#1f8a52;
     --amber:#b5790e;
     --auto-bg:#f4f5f9;
-    --table-head-bg:#f1f2f4;
-    --radius-lg:12px;
-    --radius-md:10px;
-    --radius-sm:6px;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:8px;
     font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   *{box-sizing:border-box;}
@@ -42,13 +41,13 @@
     border:1px solid var(--line); background:#fff; color:var(--ink-soft);
     font-size:12.5px; padding:7px 13px; border-radius:999px; cursor:pointer;
   }
-  .ghost-btn:hover{ color:var(--ink); border-color:#b9c2d4; }
+  .ghost-btn:hover{ color:var(--ink); border-color:#c7cae8; }
   .primary-btn{
     border:1px solid var(--accent); background:var(--accent); color:#fff;
     font-size:12.5px; font-weight:600; padding:8px 15px; border-radius:999px; cursor:pointer;
     display:inline-flex; align-items:center; gap:6px;
   }
-  .primary-btn:hover{ background:#122a52; border-color:#122a52; }
+  .primary-btn:hover{ background:#4038c9; border-color:#4038c9; }
 
   /* ---------- MODAL ---------- */
   .modal-overlay{
@@ -108,16 +107,15 @@
   /* ---------- SAVE STATUS (индикатор сохранения, используется на обеих страницах) ---------- */
   .save-status{
     display:flex; align-items:center; gap:7px;
-    color:var(--ink-soft); font-size:12.5px;
-    background:var(--auto-bg);
-    border:1px solid var(--line);
+    color:rgba(255,255,255,0.6); font-size:12.5px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.16);
     padding:6px 12px; border-radius:999px;
     white-space:nowrap; flex-shrink:0;
   }
   .save-status .save-dot{
-    width:7px; height:7px; border-radius:50%; background:#1f8a52; flex-shrink:0;
+    width:7px; height:7px; border-radius:50%; background:#3fcf7f; flex-shrink:0;
   }
-  .save-status.saving{ color:#8a6d1f; }
   .save-status.saving .save-dot{ background:#e0b23a; }
-  .save-status.error{ color:#c81e3a; border-color:#f3c3ca; background:#fdeeef; }
-  .save-status.error .save-dot{ background:#c81e3a; }
+  .save-status.error{ color:#ffd7dd; border-color:rgba(255,120,140,0.4); background:rgba(255,80,100,0.14); }
+  .save-status.error .save-dot{ background:#ff6b7d; }
