@@ -15,6 +15,35 @@
   }
   .page-header h1{ color:var(--ink); margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em; }
 
+  /* ---------- TABS ---------- */
+  .page-tabs{
+    display:flex; gap:4px; padding:0 32px; background:#fff; border-bottom:1px solid var(--line);
+  }
+  .page-tab{
+    border:none; background:transparent; cursor:pointer; font-family:inherit;
+    padding:12px 16px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .page-tab:hover{ color:var(--ink); }
+  .page-tab.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  /* ---------- КАТЕГОРИИ ДОЛЖНОСТЕЙ ---------- */
+  .category-table{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius-md); overflow:hidden; }
+  .category-head-row, .category-row{
+    display:grid; grid-template-columns:1.2fr 2fr 2fr 90px;
+    gap:12px; align-items:center; padding:12px 16px;
+  }
+  .category-head-row{ font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; background:#fafafe; border-bottom:1px solid var(--line); }
+  .category-row{ border-bottom:1px solid var(--line); font-size:13px; }
+  .category-row:last-child{ border-bottom:none; }
+  .category-row .cat-name{ font-weight:600; }
+  .category-row .cat-tags{ color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .category-actions{ display:flex; gap:6px; justify-content:flex-end; }
+  .categories-empty{ padding:24px 16px; text-align:center; color:var(--ink-soft); font-size:13px; }
+  .category-modal-card{ max-width:560px; }
+
   /* ---------- ROLES PAGE ---------- */
   .roles-page-inner{ padding:28px 32px 60px; max-width:1100px; }
   .roles-page-head{
@@ -118,7 +147,12 @@
   <div class="save-status" id="saveStatus"><span class="save-dot"></span><span class="save-status-text">Загрузка…</span></div>
 </div>
 
-<div class="roles-page-inner">
+<div class="page-tabs">
+  <button class="page-tab active" data-tab="roles">Роли и доступы</button>
+  <button class="page-tab" data-tab="categories">Категории должностей</button>
+</div>
+
+<div class="roles-page-inner tab-panel active" id="tabPanelRoles">
 
   <div class="roles-page-head">
     <div>
@@ -129,6 +163,46 @@
 
   <div id="rolesList" class="roles-list"></div>
 
+</div>
+
+<div class="roles-page-inner tab-panel" id="tabPanelCategories">
+
+  <div class="roles-page-head">
+    <div>
+      <p>Определяют, какие должности сотрудник может выбрать в столбце «Потенциальная должность» — в зависимости от его «Текущей должности». Название категории видно только здесь, для внутреннего удобства — в самом реестре сотрудник видит только реальные названия должностей.</p>
+    </div>
+    <button class="primary-btn" id="addCategoryBtn">+ Добавить категорию</button>
+  </div>
+
+  <div class="category-table">
+    <div class="category-head-row">
+      <span>Название</span>
+      <span>Текущие должности</span>
+      <span>Потенциальные должности</span>
+      <span></span>
+    </div>
+    <div id="categoriesList"></div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="categoryEditModalOverlay">
+  <div class="modal-card category-modal-card">
+    <div class="modal-head">
+      <h3 id="categoryEditModalTitle">Новая категория</h3>
+      <button class="modal-close" id="categoryEditModalClose">✕</button>
+    </div>
+    <label class="field-label" for="categoryNameInput">Название (только для этого экрана, сотрудникам не видно)</label>
+    <input class="text-input" id="categoryNameInput" type="text" placeholder="Например, Продающие">
+    <label class="field-label">Текущие должности (можно выбрать несколько)</label>
+    <div class="positions-picker" id="categoryCurrentPicker"></div>
+    <label class="field-label">Потенциальные должности, доступные этой категории</label>
+    <div class="positions-picker" id="categoryPotentialPicker"></div>
+    <div class="modal-foot">
+      <button class="ghost-btn" id="categoryEditCancelBtn">Отмена</button>
+      <button class="primary-btn" id="categoryEditSaveBtn">Сохранить</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="roleEditModalOverlay">
@@ -181,14 +255,19 @@ let COLUMNS = [];
 let POSITIONS = [];
 let ACTIONS = [];
 let ROLES = [];
+let RESERVE_ROWS = [];
+let POSITION_CATEGORIES = [];
 
 let editingRoleId = null;     // роль, которую редактируем в модалке названия/должностей (null = создание)
 let permEditingRoleId = null; // роль, для которой открыт редактор видимости полей
 let permDraft = {};           // локальный черновик прав на поля до нажатия "Сохранить"
 let permActionsDraft = {};    // локальный черновик прав на действия (добавить/удалить сотрудника)
+let editingCategoryId = null; // категория, которую редактируем в модалке (null = создание)
 
 function applyState(data){
   ROLES = data.roles || [];
+  RESERVE_ROWS = data.reserveRows || [];
+  POSITION_CATEGORIES = data.positionCategories || [];
 }
 
 async function loadMetaAndState(){
@@ -319,6 +398,135 @@ function setupRoleEditModal(){
   });
 }
 
+/* ---------- Вкладки ---------- */
+function setupTabs(){
+  document.querySelectorAll('.page-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.page-tab').forEach(t => t.classList.toggle('active', t === tab));
+      const target = tab.dataset.tab;
+      document.getElementById('tabPanelRoles').classList.toggle('active', target === 'roles');
+      document.getElementById('tabPanelCategories').classList.toggle('active', target === 'categories');
+    });
+  });
+}
+
+/* ---------- Категории должностей ---------- */
+/** Список значений "Текущей должности", реально встречающихся в данных — curPos не
+ *  фиксированный справочник (это поле приходит из смежных систем), поэтому источник
+ *  вариантов — сами данные, а не какой-то отдельный каталог. */
+function getDistinctCurPosValues(){
+  const set = new Set();
+  RESERVE_ROWS.forEach(r => {
+    const v = (r.values.curPos || '').trim();
+    if (v) set.add(v);
+  });
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'));
+}
+
+function renderChipPicker(containerId, options, selected){
+  const wrap = document.getElementById(containerId);
+  if (options.length === 0){
+    wrap.innerHTML = `<span style="color:var(--ink-soft); font-size:12.5px;">Пока нет данных для выбора</span>`;
+    return;
+  }
+  wrap.innerHTML = options.map(p => `
+    <button type="button" class="position-chip-toggle${selected.includes(p) ? ' active' : ''}" data-position="${escapeHtml(p)}">${escapeHtml(p)}</button>
+  `).join('');
+}
+function getSelectedChips(containerId){
+  return Array.from(document.querySelectorAll(`#${containerId} .position-chip-toggle.active`)).map(b => b.dataset.position);
+}
+
+function renderCategoriesList(){
+  const container = document.getElementById('categoriesList');
+  if (POSITION_CATEGORIES.length === 0){
+    container.innerHTML = `<div class="categories-empty">Категорий пока нет. Нажмите «+ Добавить категорию», чтобы создать первую.</div>`;
+    return;
+  }
+  container.innerHTML = POSITION_CATEGORIES.map(cat => `
+    <div class="category-row" data-category-id="${cat.id}">
+      <span class="cat-name">${escapeHtml(cat.name)}</span>
+      <span class="cat-tags" title="${escapeHtml(cat.currentPositions.join(', '))}">${escapeHtml(cat.currentPositions.join(', ') || '—')}</span>
+      <span class="cat-tags" title="${escapeHtml(cat.potentialPositions.join(', '))}">${escapeHtml(cat.potentialPositions.join(', ') || '—')}</span>
+      <div class="category-actions">
+        <button class="ghost-btn" data-edit-category="${cat.id}" style="padding:5px 10px;font-size:12px;">Изменить</button>
+        <button class="danger-btn" data-delete-category="${cat.id}" style="padding:5px 10px;font-size:12px;">Удалить</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openCategoryEditModal(categoryId){
+  editingCategoryId = categoryId || null;
+  const category = categoryId ? POSITION_CATEGORIES.find(c => c.id === categoryId) : null;
+  document.getElementById('categoryEditModalTitle').textContent = category ? 'Изменить категорию' : 'Новая категория';
+  document.getElementById('categoryNameInput').value = category ? category.name : '';
+  renderChipPicker('categoryCurrentPicker', getDistinctCurPosValues(), category ? category.currentPositions : []);
+  renderChipPicker('categoryPotentialPicker', POSITIONS, category ? category.potentialPositions : []);
+  document.getElementById('categoryEditModalOverlay').classList.add('open');
+}
+function closeCategoryEditModal(){
+  document.getElementById('categoryEditModalOverlay').classList.remove('open');
+  editingCategoryId = null;
+}
+function setupCategoryEditModal(){
+  document.getElementById('addCategoryBtn').addEventListener('click', () => openCategoryEditModal(null));
+  document.getElementById('categoryEditModalClose').addEventListener('click', closeCategoryEditModal);
+  document.getElementById('categoryEditCancelBtn').addEventListener('click', closeCategoryEditModal);
+  document.getElementById('categoryEditModalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'categoryEditModalOverlay') closeCategoryEditModal();
+  });
+  document.getElementById('categoryCurrentPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.position-chip-toggle');
+    if (btn) btn.classList.toggle('active');
+  });
+  document.getElementById('categoryPotentialPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.position-chip-toggle');
+    if (btn) btn.classList.toggle('active');
+  });
+  document.getElementById('categoryEditSaveBtn').addEventListener('click', async () => {
+    const name = document.getElementById('categoryNameInput').value.trim();
+    if (!name){ alert('Введите название категории'); return; }
+    const currentPositions = getSelectedChips('categoryCurrentPicker');
+    const potentialPositions = getSelectedChips('categoryPotentialPicker');
+    if (currentPositions.length === 0){ alert('Выберите хотя бы одну текущую должность'); return; }
+    if (potentialPositions.length === 0){ alert('Выберите хотя бы одну потенциальную должность'); return; }
+    try{
+      if (editingCategoryId){
+        applyState(await mutate(`/api/position-categories/${encodeURIComponent(editingCategoryId)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, currentPositions, potentialPositions }),
+        }));
+      } else {
+        applyState(await mutate('/api/position-categories', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, currentPositions, potentialPositions }),
+        }));
+      }
+    } catch(err){
+      return;
+    }
+    closeCategoryEditModal();
+    renderCategoriesList();
+  });
+  document.getElementById('categoriesList').addEventListener('click', async e => {
+    const editBtn = e.target.closest('[data-edit-category]');
+    if (editBtn){ openCategoryEditModal(editBtn.dataset.editCategory); return; }
+    const delBtn = e.target.closest('[data-delete-category]');
+    if (delBtn){
+      const category = POSITION_CATEGORIES.find(c => c.id === delBtn.dataset.deleteCategory);
+      if (!category) return;
+      if (!confirm(`Удалить категорию «${category.name}»? Сотрудники, у которых уже выбрана потенциальная должность из неё, сохранят свой выбор — но заново выбрать что-то из этой категории будет нельзя.`)) return;
+      try{
+        applyState(await mutate(`/api/position-categories/${encodeURIComponent(delBtn.dataset.deleteCategory)}`, { method: 'DELETE' }));
+      } catch(err){
+        return;
+      }
+      renderCategoriesList();
+    }
+  });
+}
+
 /* ---------- Модалка "Видимость полей" ---------- */
 function renderPermActions(){
   const body = document.getElementById('permActionsBody');
@@ -434,6 +642,10 @@ async function init(){
   setupRolesPage();
   setupRoleEditModal();
   setupPermModal();
+
+  renderCategoriesList();
+  setupCategoryEditModal();
+  setupTabs();
 }
 
 init();

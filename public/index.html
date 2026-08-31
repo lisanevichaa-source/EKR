@@ -267,6 +267,7 @@
     text-overflow:ellipsis;
     max-width:220px;
   }
+  .cell-no-options{ color:var(--ink-soft); font-style:italic; }
   .cell-empty{
     color:#c3c6d4;
     font-style:italic;
@@ -571,6 +572,7 @@ let ACTIONS = [];
 let reserveRows = [];
 let EMPLOYEE_POOL = [];
 let ROLES = [];
+let positionCategories = []; // категории должностей — определяют доступные "Потенциальные должности"
 
 let currentRoleId = ''; // '' = без ограничений (полный доступ), иначе id роли из ROLES
 
@@ -586,10 +588,25 @@ let currentPage = 1;
 let pageSize = 100;
 let lastTotalPages = 1;
 
+/** Список должностей, доступных для выбора в "Потенциальная должность" сотруднику с данной
+ *  "Текущей должностью" — объединение потенциальных должностей всех категорий, куда входит
+ *  currentPosition. Дублирует одноимённую функцию из columns.js (серверный модуль, недоступен
+ *  напрямую в браузере) — логика намеренно простая, держать в двух местах не накладно. */
+function getEligiblePotentialPositions(currentPosition, categories){
+  const eligible = new Set();
+  (categories || []).forEach(cat => {
+    if (Array.isArray(cat.currentPositions) && cat.currentPositions.includes(currentPosition)){
+      (cat.potentialPositions || []).forEach(p => eligible.add(p));
+    }
+  });
+  return Array.from(eligible);
+}
+
 function applyState(data){
   reserveRows = data.reserveRows;
   EMPLOYEE_POOL = data.employeePool;
   ROLES = data.roles || [];
+  positionCategories = data.positionCategories || [];
 }
 
 async function loadMetaAndState(){
@@ -894,20 +911,21 @@ function formatCellForExport(col, row){
   const value = row.values[col.key];
 
   if (col.type === 'devRecords'){
-    const tracks = sortDevTracksByProgress(row.values.devTracks || []);
-    if (tracks.length === 0) return '—';
-    return tracks.map(t => {
-      if (col.recordField === 'hardDate') return t.hardDate ? formatIsoToRu(t.hardDate) : '—';
-      if (col.recordField === 'program'){
-        const pct = (t.percent !== '' && t.percent !== null && t.percent !== undefined) ? ` (${t.percent}%)` : '';
-        return `${t.program || '—'}${pct}`;
-      }
-      return t[col.recordField] || '—';
-    }).join('; ');
+    // Экспортируем то же самое, что видно в ячейке — запись, активную для текущей
+    // "Потенциальной должности", а не всю историю сотрудника
+    const tracks = row.values.devTracks || [];
+    const t = tracks.find(tr => tr.position === row.values.potPos);
+    if (!t) return '—';
+    if (col.recordField === 'hardDate') return t.hardDate ? formatIsoToRu(t.hardDate) : '—';
+    if (col.recordField === 'program'){
+      const pct = (t.percent !== '' && t.percent !== null && t.percent !== undefined) ? ` (${t.percent}%)` : '';
+      return `${t.program || '—'}${pct}`;
+    }
+    return t[col.recordField] || '—';
   }
 
   if (col.type === 'date') return value ? formatIsoToRu(value) : '';
-  // autoDate/select/free/auto/autoEditable/empty — уже хранятся в читаемом виде как есть
+  // autoDate/select/free/auto/autoEditable/positionSelect/empty — уже хранятся в читаемом виде как есть
   return value === undefined || value === null ? '' : String(value);
 }
 
@@ -1012,15 +1030,41 @@ function buildCellInnerHtml(col, row){
           : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
       }
       break;
+    case 'positionSelect':
+      {
+        // "Потенциальная должность" — реально редактируемое значение, но список вариантов
+        // не фиксированный, а зависит от "Текущей должности" сотрудника (см. категории
+        // должностей на странице "Роли и доступы"). Уже выбранное значение всегда остаётся
+        // в списке, даже если оно почему-то больше не входит в разрешённые — чтобы не
+        // потерять данные молча, если категории поменялись уже после выбора.
+        const eligible = getEligiblePotentialPositions(row.values.curPos, positionCategories);
+        const optionsSet = new Set(eligible);
+        if (value) optionsSet.add(value);
+        const optionsList = Array.from(optionsSet);
+        if (!canEdit){
+          inner = `<div class="cell-auto" title="${escapeHtml(value || '—')}">${escapeHtml(value || '—')}</div>`;
+        } else if (optionsList.length === 0){
+          inner = `<div class="cell-auto cell-no-options" title="Для должности «${escapeHtml(row.values.curPos || '')}» пока не настроены доступные потенциальные должности — см. страницу «Роли и доступы»">Нет доступных должностей</div>`;
+        } else {
+          inner = `<select class="cell-input" data-row="${row.id}" data-col="${col.key}" data-position-select="1">` +
+            (!value ? `<option value="" disabled selected>— выбрать —</option>` : '') +
+            optionsList.map(o => `<option ${o === value ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('') +
+          `</select>`;
+        }
+      }
+      break;
     case 'devRecords':
       {
+        // История прогресса сотрудника хранится в row.values.devTracks (может быть несколько
+        // записей — по одной на каждую должность, где был прогресс), но в ячейке всегда
+        // показываем только ту, что относится к текущей "активной" потенциальной должности
+        // (row.values.potPos) — остальные остаются в истории и станут видны, если сотрудник
+        // (через личный кабинет) или роль с правом редактирования сменят выбор в "Потенциальной
+        // должности". Попап-расшифровка больше не нужен — активная запись всегда одна.
         const tracks = row.values.devTracks || [];
-        if (tracks.length === 0){
-          inner = `<div class="cell-auto">—</div>`;
-        } else {
-          const summary = formatDevTrackSummary(col, tracks);
-          inner = `<button type="button" class="dev-records-btn" data-devrow="${row.id}" title="Показать все должности">${escapeHtml(summary)}</button>`;
-        }
+        const active = tracks.find(t => t.position === row.values.potPos);
+        const summary = active ? formatDevTrackSummary(col, [active]) : '—';
+        inner = `<div class="cell-auto" title="${escapeHtml(summary)}">${escapeHtml(summary)}</div>`;
       }
       break;
     case 'free':
@@ -1161,6 +1205,41 @@ function scheduleCellSave(rowId, col, value){
   cellSaveTimers[key] = setTimeout(() => saveCell(rowId, col, value), 600);
 }
 
+/** Смена "Потенциальной должности" — отдельная логика от обычного saveCell, потому что
+ *  на сервере это затрагивает не только сам столбец potPos, но и историю devTracks (может
+ *  понадобиться завести в ней новую запись). Обновляет локально сразу potPos и devTracks
+ *  строки, затем точечно перерисовывает три связанных ячейки (Потенциальная должность,
+ *  Обучение, Дата HARD) — Обучение и Дата HARD ведь показывают именно ту запись истории,
+ *  что теперь стала активной. */
+async function savePotentialPosition(rowId, newPosition){
+  let success = false;
+  try{
+    const result = await mutate(`/api/reserve/${encodeURIComponent(rowId)}/potential-position`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ position: newPosition }),
+    });
+    if (result && result.row){
+      const idx = reserveRows.findIndex(r => r.id === rowId);
+      if (idx !== -1) reserveRows[idx] = result.row;
+    }
+    success = true;
+  } catch(err){
+    // запрос не прошёл (например, должность оказалась недопустимой) — ниже перерисуем
+    // из последнего известного состояния, чтобы откатить визуально выбранное значение
+  }
+
+  const filterTouchesThisGroup = isFilterActive(columnFilters.potPos) || isFilterActive(columnFilters.training) || isFilterActive(columnFilters.hardDate);
+  if (success && !filterTouchesThisGroup){
+    updateCellDom(rowId, 'potPos');
+    updateCellDom(rowId, 'training');
+    updateCellDom(rowId, 'hardDate');
+  } else {
+    renderTable();
+  }
+  applyColumnVisibility();
+}
+
 function setupTableInputSync(){
   const table = document.getElementById('mainTable');
 
@@ -1178,6 +1257,14 @@ function setupTableInputSync(){
   table.addEventListener('change', e => {
     const el = e.target;
     if (!el.dataset.row || !el.dataset.col) return;
+    if (el.dataset.positionSelect){
+      // "Потенциальная должность" — своя логика сохранения (см. savePotentialPosition),
+      // локальное значение НЕ обновляем через updateLocalCellValue: там нужно поставить
+      // не просто potPos, а ещё и, возможно, новую запись в devTracks — это сделает
+      // savePotentialPosition после ответа сервера
+      savePotentialPosition(el.dataset.row, el.value);
+      return;
+    }
     if (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type === 'date')){
       updateLocalCellValue(el);
       const key = el.dataset.row + ':' + el.dataset.col;
@@ -1222,30 +1309,22 @@ function filterValueMatches(filter, rawValue){
 function rowMatchesFilters(row, q){
   if (q && !(row.values.fio || '').toLowerCase().includes(q)) return false;
 
-  // обычные фильтры (не devRecords) — проверяем как раньше, независимо друг от друга
-  const devFilterEntries = []; // { col, filter } — фильтры по связке "Потенциальная должность / Обучение / Дата HARD"
   for (const colKey in columnFilters){
     const filter = columnFilters[colKey];
     if (!isFilterActive(filter)) continue;
     const col = COLUMNS.find(c => c.key === colKey);
+    let val;
     if (col && col.type === 'devRecords'){
-      devFilterEntries.push({ col, filter });
+      // Обучение / Дата HARD — значение берём из записи истории, которая сейчас "активна"
+      // (совпадает с row.values.potPos), а не по всей истории целиком: фильтр должен
+      // отражать именно то, что сейчас реально видно в ячейке, а не прошлые должности
+      const tracks = row.values.devTracks || [];
+      const active = tracks.find(t => t.position === row.values.potPos);
+      val = active ? (active[col.recordField] || '').toString() : '';
     } else {
-      const val = (row.values[colKey] || '').toString();
-      if (!filterValueMatches(filter, val)) return false;
+      val = (row.values[colKey] || '').toString();
     }
-  }
-
-  // фильтры по devRecords-столбцам относятся к общему списку должностей сотрудника
-  // (row.values.devTracks) — чтобы "Потенциальная должность = Начальник отдела" и
-  // "Дата HARD = <диапазон>" не засчитывались по РАЗНЫМ должностям одного сотрудника,
-  // ищем хотя бы одну ЗАПИСЬ, которая удовлетворяет ВСЕМ активным условиям сразу
-  if (devFilterEntries.length > 0){
-    const tracks = row.values.devTracks || [];
-    const oneRecordMatchesAll = tracks.some(t =>
-      devFilterEntries.every(({ col, filter }) => filterValueMatches(filter, (t[col.recordField] || '').toString()))
-    );
-    if (!oneRecordMatchesAll) return false;
+    if (!filterValueMatches(filter, val)) return false;
   }
 
   return true;
@@ -1422,9 +1501,14 @@ function setupSearch(){
 function getColumnValueUniverse(col){
   if (col.type === 'select' || (col.type === 'autoEditable' && col.options)) return col.options.slice();
   if (col.type === 'devRecords'){
+    // Обучение / Дата HARD — значение только из активной записи (той, что сейчас видна
+    // в ячейке), иначе в списке фильтра появлялись бы значения из прошлых/неактивных
+    // должностей, по которым фильтр всё равно никогда не найдёт совпадений
     const set = new Set();
     reserveRows.forEach(r => {
-      (r.values.devTracks || []).forEach(t => set.add((t[col.recordField] || '').toString().trim()));
+      const tracks = r.values.devTracks || [];
+      const active = tracks.find(t => t.position === r.values.potPos);
+      if (active) set.add((active[col.recordField] || '').toString().trim());
     });
     return Array.from(set).sort((a,b) => a.localeCompare(b,'ru'));
   }

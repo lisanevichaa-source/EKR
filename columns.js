@@ -13,15 +13,22 @@ const GROUPS = [
 //   auto           — автоматически, никогда не редактируется (данные из СМскилл/Pub3)
 //   autoDate       — то же самое, но по смыслу это дата (значение уже хранится в читаемом формате)
 //   autoEditable   — изначально заполняется автоматически, но роль с правом edit может изменить значение
-//   devRecords     — автоматически, никогда не редактируется; сотрудник может развиваться сразу на
-//                    несколько должностей одновременно — реальное значение лежит не в самом столбце,
-//                    а в общем списке row.values.devTracks (см. DEV_TRACKS_KEY), столбец лишь показывает
-//                    один из атрибутов записи (recordField) в сводном виде с попапом-расшифровкой.
+//   positionSelect — "Потенциальная должность". Реальное редактируемое значение (row.values.potPos),
+//                    но список доступных вариантов не фиксированный, а зависит от "Текущей должности"
+//                    сотрудника — см. POSITION_CATEGORIES и getEligiblePotentialPositions() ниже.
+//   devRecords     — автоматически, никогда не редактируется напрямую. У сотрудника есть "история" —
+//                    массив row.values.devTracks из записей { position, program, percent, hardDate },
+//                    по одной на каждую должность, по которой когда-либо был прогресс. Столбцы этого
+//                    типа (Обучение / Дата HARD) показывают запись из devTracks, У КОТОРОЙ position
+//                    совпадает с текущим значением row.values.potPos — то есть "активную" в данный
+//                    момент. При смене потенциальной должности (см. updatePotentialPosition в db.js):
+//                    если по новой должности запись в истории уже есть — подставляются её % и дата HARD
+//                    как есть (прогресс никуда не делся); если записи ещё нет — создаётся новая, с 0%
+//                    и пустой датой HARD. Так переключение между уже пройденными программами показывает
+//                    настоящий прогресс, а не просто последнее выбранное значение.
 //                    Если задан summaryField — в самой ячейке показывается именно он (например, процент
 //                    прохождения программы), а recordField всё равно используется для фильтра по столбцу
 //                    (например, фильтровать по названию программы, даже если в ячейке виден только %).
-//                    showCount:true — единственный столбец из связки, который показывает "+N" при
-//                    нескольких должностях; у остальных столбцов той же связки индикатор не дублируется.
 //   select         — выпадающий список
 //   free           — свободный ввод текстом
 //   date           — свободный ввод через календарь
@@ -48,7 +55,7 @@ const COLUMNS = [
 
   // ---------- Потенциал развития ----------
   { key:'curPos',          label:'Текущая должность',                     group:'potential',  type:'auto',  value:'Продавец' },
-  { key:'potPos',          label:'Потенциальная должность',               group:'potential',  type:'devRecords', recordField:'position', showCount:true },
+  { key:'potPos',          label:'Потенциальная должность',               group:'potential',  type:'positionSelect' },
   { key:'ipr',             label:'Наличие ИПР',                           group:'potential',  type:'auto',  value:'Да' },
   { key:'training',        label:'Обучение в кадровый резерв',            group:'potential',  type:'devRecords', recordField:'program', summaryField:'percent' },
   { key:'hardDate',        label:'Дата HARD',                             group:'potential',  type:'devRecords', recordField:'hardDate' },
@@ -121,9 +128,7 @@ const DEV_TRACKS_KEY = 'devTracks';
 // Важно: дата HARD проставляется только в момент 100%-го прохождения программы — пока
 // процент меньше 100, hardDate всегда пустой (''), а не "почти готовая" дата.
 const DEMO_DEV_TRACKS = [
-  { position:'Старший кассир',     program:'Кадровый резерв на должность Старший кассир',     percent:89,  hardDate:'' },
-  { position:'Начальник отдела',   program:'Кадровый резерв на должность Начальник отдела',   percent:100, hardDate:'2026-02-01' },
-  { position:'Заведующий складом', program:'Кадровый резерв на должность Заведующий складом', percent:11,  hardDate:'' },
+  { position:'Начальник отдела', program:'Кадровый резерв на должность Начальник отдела', percent:100, hardDate:'2026-02-01' },
 ];
 
 // Разные наборы для 10 сид-строк — где-то одна должность, где-то две-три, где-то пусто.
@@ -188,9 +193,52 @@ const POSITIONS = [
   'Менеджер по оценке',
   'Начальник отдела',
   'Старший кассир',
+  'Старший продавец',
   'Заведующий складом',
   'Сотрудник',
 ];
+
+// Категории текущих должностей — определяют, какие потенциальные должности сотрудник может
+// выбрать в столбце "Потенциальная должность" (см. тип positionSelect выше), в зависимости
+// от его "Текущей должности". Один и тот же сотрудник может попасть сразу в несколько
+// категорий (если его curPos встречается в нескольких) — тогда доступные потенциальные
+// должности объединяются (см. getEligiblePotentialPositions). "name" — рабочее название
+// категории только для этого конфигуратора, сотрудникам и в основной таблице не показывается.
+// Настраивается на странице "Роли и доступы" → вкладка "Категории должностей".
+const POSITION_CATEGORIES_SEED = [
+  { name:'Продающие',            currentPositions:['Продавец','Продавец К2','Продавец-кассир','Продавец-эксперт'], potentialPositions:['Начальник отдела','Заведующий складом','Старший кассир','Старший продавец'] },
+  { name:'Кассовая линия',       currentPositions:['Кассир'],                                                       potentialPositions:['Старший кассир','Начальник отдела','Старший продавец'] },
+  { name:'Складской персонал',   currentPositions:['Кладовщик','Мастер-эксперт СЦ','МСЦ'],                          potentialPositions:['Заведующий складом'] },
+  { name:'Старшие специалисты',  currentPositions:['Старший кассир','Зав.склада','Старший продавец'],               potentialPositions:['Начальник отдела'] },
+  { name:'Начальники отделов',   currentPositions:['Начальник отдела'],                                             potentialPositions:['Директор магазина'] },
+  { name:'Директора магазинов',  currentPositions:['Директор магазина'],                                            potentialPositions:['Директор отделения (ДО)'] },
+  { name:'Директора отделений',  currentPositions:['Директор отделения'],                                           potentialPositions:['Директор по продажам региона'] },
+];
+
+/** Список должностей, доступных для выбора в "Потенциальная должность" сотруднику с данной
+ *  "Текущей должностью" — объединение потенциальных должностей всех категорий, куда входит
+ *  currentPosition. Если currentPosition не входит ни в одну категорию — пустой список
+ *  (это осознанный выбор: должность просто ещё не настроена, а не "доступно всё подряд"). */
+function getEligiblePotentialPositions(currentPosition, categories){
+  const eligible = new Set();
+  (categories || []).forEach(cat => {
+    if (Array.isArray(cat.currentPositions) && cat.currentPositions.includes(currentPosition)){
+      (cat.potentialPositions || []).forEach(p => eligible.add(p));
+    }
+  });
+  return Array.from(eligible);
+}
+
+/** Приводит присланные с клиента данные категории к безопасному виду: обрезает name,
+ *  оставляет из currentPositions/potentialPositions только строки (защита от мусора в API). */
+function sanitizePositionCategory(raw){
+  const clean = arr => Array.isArray(arr) ? arr.filter(v => typeof v === 'string' && v.trim() !== '') : [];
+  return {
+    name: typeof raw?.name === 'string' ? raw.name.trim() : '',
+    currentPositions: clean(raw?.currentPositions),
+    potentialPositions: clean(raw?.potentialPositions),
+  };
+}
 
 // Столбцы, тип которых делает их принципиально нередактируемыми ни для какой роли
 // (данные приходят автоматически из смежных систем — Pub3 -> СМскилл). autoEditable сюда
@@ -303,4 +351,5 @@ module.exports = {
   POSITIONS, isColumnEverEditable, blankPermissions, sanitizePermissions, seedRoles,
   ACTIONS, blankActions, sanitizeActions,
   DEV_TRACKS_KEY, DEMO_DEV_TRACKS, DEV_TRACKS_VARIANTS, parseLegacyDevTracks,
+  POSITION_CATEGORIES_SEED, getEligiblePotentialPositions, sanitizePositionCategory,
 };

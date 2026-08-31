@@ -45,6 +45,17 @@ app.delete('/api/reserve/:id', (req, res) => {
   }
 });
 
+app.patch('/api/reserve/:id/potential-position', (req, res) => {
+  const { position } = req.body || {};
+  if (typeof position !== 'string') return res.status(400).json({ error: 'Не передано поле position' });
+  try {
+    const row = db.updatePotentialPosition(req.params.id, position);
+    res.json({ row });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // --- Роли и доступы ---
 
 app.post('/api/roles', (req, res) => {
@@ -77,6 +88,32 @@ app.patch('/api/roles/:id/permissions', (req, res) => {
 app.delete('/api/roles/:id', (req, res) => {
   try {
     res.json(db.deleteRole(req.params.id));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// --- Категории должностей (настройка допустимых "Потенциальных должностей") ---
+
+app.post('/api/position-categories', (req, res) => {
+  try {
+    res.json(db.createPositionCategory(req.body || {}));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.patch('/api/position-categories/:id', (req, res) => {
+  try {
+    res.json(db.updatePositionCategory(req.params.id, req.body || {}));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete('/api/position-categories/:id', (req, res) => {
+  try {
+    res.json(db.deletePositionCategory(req.params.id));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -47,7 +47,7 @@ async function mutate(url, options){
  *  их нельзя редактировать никогда. autoEditable заполняется автоматически, но роль с правом
  *  edit может значение поменять — по возможности редактирования он ведёт себя как select/free/date. */
 function isEditableType(type){
-  return type === 'select' || type === 'free' || type === 'date' || type === 'autoEditable';
+  return type === 'select' || type === 'free' || type === 'date' || type === 'autoEditable' || type === 'positionSelect';
 }
 
 function escapeHtml(s){

@@ -6,6 +6,7 @@ const {
   COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
   sanitizePermissions, blankPermissions, seedRoles, blankActions, sanitizeActions,
   DEMO_DEV_TRACKS, DEV_TRACKS_VARIANTS, parseLegacyDevTracks,
+  POSITION_CATEGORIES_SEED, getEligiblePotentialPositions, sanitizePositionCategory,
 } = columnsModule;
 // Защита от рассинхрона версий файлов при ручном деплое (если columns.js вдруг окажется
 // старее db.js и ещё не экспортирует эту константу) — без неё values[undefined] тихо
@@ -66,6 +67,14 @@ function isoToRuDisplay(iso){
 function pickRandom(arr){
   return arr[Math.floor(Math.random() * arr.length)];
 }
+/** Из массива записей истории (devTracks) выбирает должность записи с наибольшим процентом —
+ *  используется как "активная" потенциальная должность по умолчанию при генерации демо-данных,
+ *  чтобы совпадать с тем, что раньше показывалось как основное/сводное значение. */
+function pickTopDevTrackPosition(tracks){
+  if (!Array.isArray(tracks) || tracks.length === 0) return '';
+  const top = tracks.reduce((best, t) => ((Number(t.percent) || 0) > (Number(best.percent) || 0) ? t : best), tracks[0]);
+  return top.position || '';
+}
 
 function todayFormatted(){
   const d = new Date();
@@ -82,9 +91,11 @@ function makeDefaultRow(rowIdCounter){
   const values = {};
   COLUMNS.forEach(col => {
     if (col.type === 'devRecords') return; // хранится отдельно, под DEV_TRACKS_KEY
+    if (col.type === 'positionSelect') return; // задаём явно ниже, вместе с devTracks
     values[col.key] = col.value !== undefined ? col.value : '';
   });
   values[DEV_TRACKS_KEY] = DEMO_DEV_TRACKS.map(t => ({ ...t }));
+  values.potPos = DEMO_DEV_TRACKS[0] ? DEMO_DEV_TRACKS[0].position : '';
   return { id: 'row' + rowIdCounter, values };
 }
 
@@ -93,7 +104,7 @@ function makeDefaultRow(rowIdCounter){
 const STRESS_RELOC_READY_OPTIONS = ['Готов', 'Не готов'];
 const STRESS_RELOC_OPTIONS = ['Готов по всей сети', 'Готов в рамках региона', 'Готов в рамках отделения'];
 const STRESS_MOTIVATION_OPTIONS = ['Бригадная', 'Личная'];
-const STRESS_CUR_POS_OPTIONS = ['Продавец', 'Продавец-Кассир', 'Кассир'];
+const STRESS_CUR_POS_OPTIONS = ['Продавец', 'Продавец К2', 'Продавец-кассир', 'Продавец-эксперт', 'Кассир', 'Кладовщик', 'Старший кассир', 'Начальник отдела'];
 
 /** Случайно сгенерированная строка для стресс-теста интерфейса на больших объёмах.
  *  Даты — в диапазоне 01.01.2025–01.08.2026, выпадающие списки — случайно из options,
@@ -106,6 +117,7 @@ function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCod
   const { krDate, assignDate } = randomKrAndAssignDates();
   COLUMNS.forEach(col => {
     if (col.type === 'devRecords') return; // хранится отдельно, под DEV_TRACKS_KEY
+    if (col.type === 'positionSelect') return; // задаём явно ниже, вместе с devTracks
 
     if (col.key === 'krDate'){
       values[col.key] = krDate;
@@ -133,11 +145,14 @@ function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCod
     }
   });
 
-  // Потенциальная должность / Обучение в КР / Дата HARD — не придумываем новые варианты,
-  // просто циклично используем уже существующие 10 наборов (сложная связанная логика,
-  // трогать нежелательно)
+  // История развития (Потенциальная должность / Обучение в КР / Дата HARD) — циклично
+  // используем уже существующие заготовленные наборы, а не придумываем новые (связанная
+  // логика — трогать нежелательно). "Активной" потенциальной должностью (potPos) становится
+  // первая запись набора — остальные остаются в истории и станут видны, если сотруднику
+  // (в реальности через личный кабинет, в демо — вручную в интерфейсе) сменят выбор.
   const devVariant = DEV_TRACKS_VARIANTS[index % DEV_TRACKS_VARIANTS.length];
   values[DEV_TRACKS_KEY] = devVariant.map(t => ({ ...t }));
+  values.potPos = pickTopDevTrackPosition(devVariant);
 
   // "Автоматически редактируемые" поля-снимки — тоже циклично, как и в куратированном демо
   values.managerAtEntry = managerOptions[index % managerOptions.length];
@@ -159,8 +174,9 @@ function seedState(){
   const shopOptions = shopCol.options.filter(o => o !== '—');
   const shopCodeOptions = assignPlaceCol.options.filter(o => o !== '—'); // для столбца "Магазин" при стресс-тесте
 
-  // 10 демо-строк — у каждой свой набор потенциальных должностей (см. DEV_TRACKS_VARIANTS),
-  // чтобы фильтры по "Потенциальной должности"/"Обучению"/"Дате HARD" реально что-то отсеивали
+  // 10 демо-строк — у каждой свой вариант потенциальной должности (см. DEV_TRACKS_VARIANTS),
+  // чтобы фильтры по "Потенциальной должности"/"Обучению"/"Дате HARD" реально что-то отсеивали.
+  // "Активной" становится запись с наибольшим процентом — та же логика, что и в makeRandomRow.
   for (let i = 0; i < 10; i++){
     rowIdCounter++;
     const row = makeDefaultRow(rowIdCounter);
@@ -168,6 +184,7 @@ function seedState(){
     row.values.shopAtEntry = shopOptions[i % shopOptions.length];
     const variant = DEV_TRACKS_VARIANTS[i % DEV_TRACKS_VARIANTS.length];
     row.values.devTracks = variant.map(t => ({ ...t }));
+    row.values.potPos = pickTopDevTrackPosition(variant);
     reserveRows.push(row);
   }
 
@@ -188,6 +205,8 @@ function seedState(){
     rowIdCounter,
     roles: seedRoles(),
     roleIdCounter: 100,
+    positionCategories: POSITION_CATEGORIES_SEED.map((cat, i) => ({ id: 'poscat_' + (i + 1), ...cat })),
+    positionCategoryIdCounter: POSITION_CATEGORIES_SEED.length,
   };
 }
 
@@ -198,6 +217,7 @@ function reshapeRowValues(values){
   const next = {};
   COLUMNS.forEach(col => {
     if (col.type === 'devRecords') return; // обрабатывается отдельно ниже, через devTracks
+    if (col.type === 'positionSelect') return; // обрабатывается отдельно ниже, вместе с devTracks
     if (values[col.key] !== undefined){
       next[col.key] = values[col.key];
       return;
@@ -211,19 +231,33 @@ function reshapeRowValues(values){
     }
   });
 
-  // devTracks — общее хранилище для потенциальных должностей/программ обучения/дат HARD
-  const legacyPotPos = typeof values.potPos === 'string' ? values.potPos.trim() : '';
-  const looksLikeRealLegacyData = legacyPotPos !== '' && legacyPotPos !== '—';
+  // devTracks — история прогресса по всем должностям, по которым он когда-либо был у
+  // сотрудника (не только по текущей активной). Три варианта источника: современный формат
+  // (уже массив) — используем как есть; самый старый плоский формат (три склеенных через
+  // запятую текстовых поля, из времён ДО появления самого массива) — восстанавливаем
+  // приблизительно; иначе — пусто.
+  const rawLegacyPotPos = typeof values.potPos === 'string' ? values.potPos.trim() : '';
+  const looksLikeOldFlatFormat = !Array.isArray(values[DEV_TRACKS_KEY]) && rawLegacyPotPos !== '' && rawLegacyPotPos !== '—';
+  let devTracks;
   if (Array.isArray(values[DEV_TRACKS_KEY])){
-    next[DEV_TRACKS_KEY] = values[DEV_TRACKS_KEY];
-  } else if (looksLikeRealLegacyData){
-    // старый плоский формат (три склеенных через запятую текстовых поля) — восстанавливаем
-    // структуру приблизительно, по порядку значений в списке. "—"/пусто — это не легаси-данные,
-    // а служебная заглушка (например, из-за рассинхрона файлов при деплое), из неё восстанавливать нечего
-    next[DEV_TRACKS_KEY] = parseLegacyDevTracks(values.potPos, values.training, values.hardDate);
+    devTracks = values[DEV_TRACKS_KEY];
+  } else if (looksLikeOldFlatFormat){
+    devTracks = parseLegacyDevTracks(values.potPos, values.training, values.hardDate);
   } else {
-    next[DEV_TRACKS_KEY] = [];
+    devTracks = [];
   }
+  next[DEV_TRACKS_KEY] = devTracks;
+
+  // potPos — "активная" потенциальная должность (та, что сейчас видна в столбце и по которой
+  // подбираются Обучение/Дата HARD). Если это уже современный формат и potPos реально
+  // сохранён как своё значение (не тот же текст, что распознан как легаси-формат выше) и
+  // совпадает с одной из записей истории — доверяем ему. Иначе (миграция более старых
+  // данных, где potPos как отдельное поле ещё не существовал вовсе) — берём должность
+  // записи с наибольшим процентом, то же самое значение, что раньше показывалось как
+  // основное/сводное — просто для непрерывности того, что видел пользователь.
+  const looksLikeModernPotPos = !looksLikeOldFlatFormat && typeof values.potPos === 'string'
+    && devTracks.some(t => t.position === values.potPos);
+  next.potPos = looksLikeModernPotPos ? values.potPos : pickTopDevTrackPosition(devTracks);
 
   return next;
 }
@@ -264,6 +298,10 @@ sqlite.exec(`
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS position_categories (
+    id TEXT PRIMARY KEY,
+    data_json TEXT NOT NULL
+  );
 `);
 
 const stmt = {
@@ -287,6 +325,11 @@ const stmt = {
     INSERT INTO meta (key, value) VALUES (?, ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value
   `),
+
+  selectPositionCategories: sqlite.prepare('SELECT id, data_json FROM position_categories'),
+  insertPositionCategory: sqlite.prepare('INSERT INTO position_categories (id, data_json) VALUES (?, ?)'),
+  updatePositionCategoryRow: sqlite.prepare('UPDATE position_categories SET data_json = ? WHERE id = ?'),
+  deletePositionCategoryRow: sqlite.prepare('DELETE FROM position_categories WHERE id = ?'),
 };
 
 /** Оборачивает синхронный вызов к SQLite и пишет предупреждение в лог, если он занял
@@ -313,13 +356,19 @@ function roleToJson(role){
 
 /** Единоразово вставляет весь state в пустые SQLite-таблицы — используется и при первом
  *  запуске "с нуля", и при переносе уже накопленных данных из старого db.json. */
+function positionCategoryToJson(cat){
+  return JSON.stringify({ name: cat.name, currentPositions: cat.currentPositions, potentialPositions: cat.potentialPositions });
+}
+
 function bulkInsertState(freshState){
   const tx = sqlite.transaction(() => {
     freshState.reserveRows.forEach(r => stmt.insertRow.run(r.id, JSON.stringify(r.values)));
     freshState.employeePool.forEach(p => stmt.insertPool.run(p.id, JSON.stringify(p)));
     freshState.roles.forEach(r => stmt.insertRole.run(r.id, roleToJson(r)));
+    (freshState.positionCategories || []).forEach(c => stmt.insertPositionCategory.run(c.id, positionCategoryToJson(c)));
     stmt.setMeta.run('rowIdCounter', String(freshState.rowIdCounter));
     stmt.setMeta.run('roleIdCounter', String(freshState.roleIdCounter));
+    stmt.setMeta.run('positionCategoryIdCounter', String(freshState.positionCategoryIdCounter || 0));
   });
   tx();
 }
@@ -331,14 +380,21 @@ function loadStateFromSqlite(){
     const data = JSON.parse(r.data_json);
     return { id: r.id, name: data.name, positions: data.positions, permissions: data.permissions, actions: data.actions };
   });
+  const positionCategories = stmt.selectPositionCategories.all().map(r => {
+    const data = JSON.parse(r.data_json);
+    return { id: r.id, name: data.name, currentPositions: data.currentPositions, potentialPositions: data.potentialPositions };
+  });
   const rowIdCounterRow = stmt.getMeta.get('rowIdCounter');
   const roleIdCounterRow = stmt.getMeta.get('roleIdCounter');
+  const positionCategoryIdCounterRow = stmt.getMeta.get('positionCategoryIdCounter');
   return {
     reserveRows,
     employeePool,
     roles,
+    positionCategories,
     rowIdCounter: rowIdCounterRow ? parseInt(rowIdCounterRow.value, 10) : reserveRows.length,
     roleIdCounter: roleIdCounterRow ? parseInt(roleIdCounterRow.value, 10) : 100,
+    positionCategoryIdCounter: positionCategoryIdCounterRow ? parseInt(positionCategoryIdCounterRow.value, 10) : positionCategories.length,
   };
 }
 
@@ -351,6 +407,12 @@ function loadAndMigrateLegacyJson(){
   if (!Array.isArray(legacyState.roles)){
     legacyState.roles = seedRoles();
     legacyState.roleIdCounter = legacyState.roleIdCounter || 100;
+  }
+
+  // категорий должностей ещё не было в более старых версиях — заводим сид-набор
+  if (!Array.isArray(legacyState.positionCategories) || legacyState.positionCategories.length === 0){
+    legacyState.positionCategories = POSITION_CATEGORIES_SEED.map((cat, i) => ({ id: 'poscat_' + (i + 1), ...cat }));
+    legacyState.positionCategoryIdCounter = POSITION_CATEGORIES_SEED.length;
   }
 
   // логика "уволенных сотрудников" убрана из продукта — если в старом файле остались
@@ -378,6 +440,7 @@ function loadAndMigrateLegacyJson(){
   if (!Array.isArray(legacyState.employeePool)) legacyState.employeePool = [];
   if (typeof legacyState.rowIdCounter !== 'number') legacyState.rowIdCounter = legacyState.reserveRows.length;
   if (typeof legacyState.roleIdCounter !== 'number') legacyState.roleIdCounter = 100;
+  if (typeof legacyState.positionCategoryIdCounter !== 'number') legacyState.positionCategoryIdCounter = legacyState.positionCategories.length;
 
   return legacyState;
 }
@@ -409,21 +472,36 @@ function load(){
     // обычная загрузка из уже существующей SQLite-базы
     state = loadStateFromSqlite();
 
-    // схема столбцов могла обновиться — приводим уже сохранённые строки к актуальному
-    // набору ключей, точечно перезаписывая в SQLite только те строки, что реально изменились
+    // категорий должностей ещё может не быть, если база создана более ранней версией
+    // приложения (таблица появилась только что, пустая) — заводим сид-набор один раз
+    if (!Array.isArray(state.positionCategories) || state.positionCategories.length === 0){
+      const seeded = POSITION_CATEGORIES_SEED.map((cat, i) => ({ id: 'poscat_' + (i + 1), ...cat }));
+      seeded.forEach(c => stmt.insertPositionCategory.run(c.id, positionCategoryToJson(c)));
+      stmt.setMeta.run('positionCategoryIdCounter', String(seeded.length));
+      state.positionCategories = seeded;
+      state.positionCategoryIdCounter = seeded.length;
+      console.log(`[db] Категории должностей не найдены — добавлен сид-набор из ${seeded.length} категорий`);
+    }
+
+    // схема столбцов могла обновиться (например, "Потенциальная должность" стала отдельным
+    // редактируемым полем вместо производного от истории) — приводим уже сохранённые строки
+    // к актуальному виду, точечно перезаписывая в SQLite только те строки, что реально
+    // изменились. Сравниваем по полному содержимому, а не только по набору ключей — иначе,
+    // например, восстановление potPos из истории (набор ключей при этом не меняется) не
+    // попало бы обратно в SQLite и оставалось бы неопределённым при каждой новой загрузке.
     let reshapedCount = 0;
     state.reserveRows.forEach(row => {
-      const beforeKeys = Object.keys(row.values).sort().join(',');
+      const before = JSON.stringify(row.values);
       const reshaped = reshapeRowValues(row.values);
-      const afterKeys = Object.keys(reshaped).sort().join(',');
+      const after = JSON.stringify(reshaped);
       row.values = reshaped;
-      if (beforeKeys !== afterKeys){
+      if (before !== after){
         stmt.updateRow.run(JSON.stringify(row.values), row.id);
         reshapedCount++;
       }
     });
     if (reshapedCount > 0){
-      console.log(`[db] Схема столбцов обновлена — ${reshapedCount} строк(и) резерва приведены к актуальному набору полей`);
+      console.log(`[db] Данные приведены к актуальному виду — ${reshapedCount} строк(и) резерва обновлены`);
     }
 
     // права ролей — аналогично, точечно перезаписываем только изменившиеся роли
@@ -437,10 +515,10 @@ function load(){
       }
     });
 
-    console.log(`[db] Загружено из ${DB_FILE}: ${state.reserveRows.length} в резерве, ${state.employeePool.length} в общем списке, ${state.roles.length} ролей`);
+    console.log(`[db] Загружено из ${DB_FILE}: ${state.reserveRows.length} в резерве, ${state.employeePool.length} в общем списке, ${state.roles.length} ролей, ${state.positionCategories.length} категорий должностей`);
   } catch (err){
     console.error('[db] Не удалось прочитать базу, создаю новую взамен повреждённой:', err.message);
-    sqlite.exec('DELETE FROM reserve_rows; DELETE FROM employee_pool; DELETE FROM roles; DELETE FROM meta;');
+    sqlite.exec('DELETE FROM reserve_rows; DELETE FROM employee_pool; DELETE FROM roles; DELETE FROM position_categories; DELETE FROM meta;');
     state = seedState();
     bulkInsertState(state);
   }
@@ -453,6 +531,7 @@ function getState(){
     reserveRows: state.reserveRows,
     employeePool: state.employeePool,
     roles: state.roles,
+    positionCategories: state.positionCategories,
   };
 }
 
@@ -473,9 +552,49 @@ function updateCell(rowId, col, value){
   if (colDef.type === 'auto' || colDef.type === 'autoDate' || colDef.type === 'devRecords' || colDef.type === 'empty'){
     throw new Error('Поле "' + colDef.label + '" недоступно для ручного редактирования');
   }
+  if (colDef.type === 'positionSelect'){
+    // у "Потенциальной должности" своя связанная логика (проверка допустимости по категории,
+    // поиск/создание записи в истории) — редактируется только через updatePotentialPosition,
+    // не через этот общий метод одного поля
+    throw new Error('Поле "' + colDef.label + '" редактируется через отдельный запрос');
+  }
 
   row.values[col] = value;
   timedSqlite(`updateCell rowId=${rowId}`, () => stmt.updateRow.run(JSON.stringify(row.values), rowId));
+  return row;
+}
+
+/** Сменить "активную" потенциальную должность сотрудника. Проверяет, что новая должность
+ *  реально доступна для его "Текущей должности" (по настроенным категориям — см.
+ *  getEligiblePotentialPositions), затем либо переключается на уже существующую запись
+ *  истории (её % и дата HARD подставляются как есть — прогресс никуда не делся), либо
+ *  заводит новую запись с нуля (0%, без даты HARD), если по этой должности прогресса
+ *  ещё не было. Прежние записи истории по другим должностям не теряются — к ним можно
+ *  будет вернуться, просто снова переключившись. */
+function updatePotentialPosition(rowId, newPosition){
+  const row = state.reserveRows.find(r => r.id === rowId);
+  if (!row) throw new Error('Строка резервиста не найдена');
+
+  const pos = (newPosition || '').trim();
+  if (!pos) throw new Error('Не указана потенциальная должность');
+
+  const eligible = getEligiblePotentialPositions(row.values.curPos, state.positionCategories);
+  if (!eligible.includes(pos)){
+    throw new Error(`Должность "${pos}" недоступна для текущей должности "${row.values.curPos}"`);
+  }
+
+  row.values.potPos = pos;
+
+  const tracks = Array.isArray(row.values.devTracks) ? row.values.devTracks : [];
+  const existing = tracks.find(t => t.position === pos);
+  if (!existing){
+    tracks.push({ position: pos, program: `Кадровый резерв на должность ${pos}`, percent: 0, hardDate: '' });
+    row.values.devTracks = tracks;
+  }
+  // если запись для этой должности уже есть в истории — не трогаем её,
+  // % и дата HARD уже там, куда нужно
+
+  timedSqlite(`updatePotentialPosition rowId=${rowId}`, () => stmt.updateRow.run(JSON.stringify(row.values), rowId));
   return row;
 }
 
@@ -600,14 +719,60 @@ function deleteRole(roleId){
   return getState();
 }
 
+/* ===================== КАТЕГОРИИ ДОЛЖНОСТЕЙ ===================== */
+// Настраивают, какие "Потенциальные должности" доступны сотруднику в зависимости от его
+// "Текущей должности" — см. positionSelect в columns.js и getEligiblePotentialPositions.
+
+function createPositionCategory(rawCategory){
+  const clean = sanitizePositionCategory(rawCategory);
+  if (!clean.name) throw new Error('Название категории не может быть пустым');
+  state.positionCategoryIdCounter = (state.positionCategoryIdCounter || 0) + 1;
+  const category = { id: 'poscat_' + state.positionCategoryIdCounter, ...clean };
+  state.positionCategories.push(category);
+
+  const tx = sqlite.transaction(() => {
+    stmt.insertPositionCategory.run(category.id, positionCategoryToJson(category));
+    stmt.setMeta.run('positionCategoryIdCounter', String(state.positionCategoryIdCounter));
+  });
+  tx();
+
+  return getState();
+}
+
+function updatePositionCategory(id, rawCategory){
+  const category = state.positionCategories.find(c => c.id === id);
+  if (!category) throw new Error('Категория не найдена');
+  const clean = sanitizePositionCategory(rawCategory);
+  if (!clean.name) throw new Error('Название категории не может быть пустым');
+  category.name = clean.name;
+  category.currentPositions = clean.currentPositions;
+  category.potentialPositions = clean.potentialPositions;
+
+  stmt.updatePositionCategoryRow.run(positionCategoryToJson(category), id);
+  return getState();
+}
+
+function deletePositionCategory(id){
+  const idx = state.positionCategories.findIndex(c => c.id === id);
+  if (idx === -1) throw new Error('Категория не найдена');
+  state.positionCategories.splice(idx, 1);
+
+  stmt.deletePositionCategoryRow.run(id);
+  return getState();
+}
+
 module.exports = {
   getState,
   updateCell,
+  updatePotentialPosition,
   addToReserve,
   removeFromReserve,
   createRole,
   updateRole,
   updateRolePermissions,
   deleteRole,
+  createPositionCategory,
+  updatePositionCategory,
+  deletePositionCategory,
   DATA_FILE: DB_FILE,
 };
