@@ -33,10 +33,31 @@ const SEED_ROW_COUNT = parseInt(process.env.SEED_ROW_COUNT, 10) || 10;
 // Диапазон дат для случайной генерации (стресс-тест): 01.01.2025 — 01.08.2026.
 const SEED_DATE_RANGE_START = Date.UTC(2025, 0, 1);
 const SEED_DATE_RANGE_END = Date.UTC(2026, 7, 1);
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Минимальный разрыв между "Дата зачисления КР" и "Дата назначения" в стресс-тестовых
+// данных — чтобы назначение всегда было реалистично позже зачисления, а не случайно
+// раньше него (что портило бы виджет "Средний срок пребывания в КР").
+const MIN_KR_TO_ASSIGN_GAP_DAYS = 14;
 
 function randomDateISO(){
   const t = SEED_DATE_RANGE_START + Math.random() * (SEED_DATE_RANGE_END - SEED_DATE_RANGE_START);
   return new Date(t).toISOString().slice(0, 10); // YYYY-MM-DD
+}
+function randomDateISOInRange(startMs, endMs){
+  const t = startMs + Math.random() * (endMs - startMs);
+  return new Date(t).toISOString().slice(0, 10);
+}
+/** Генерирует связанную пару "Дата зачисления КР" / "Дата назначения" — назначение всегда
+ *  минимум на MIN_KR_TO_ASSIGN_GAP_DAYS дней позже зачисления, обе даты остаются в общем
+ *  диапазоне стресс-теста (без этого дата назначения могла случайно оказаться раньше даты
+ *  зачисления — виджет "Средний срок пребывания в КР" считал бы бессмысленные, иногда
+ *  отрицательные промежутки, а в среднем по многим строкам разница уходила в районе нуля). */
+function randomKrAndAssignDates(){
+  const krMaxMs = Math.max(SEED_DATE_RANGE_START, SEED_DATE_RANGE_END - MIN_KR_TO_ASSIGN_GAP_DAYS * DAY_MS);
+  const krDate = randomDateISOInRange(SEED_DATE_RANGE_START, krMaxMs);
+  const krMs = new Date(krDate).getTime();
+  const assignDate = randomDateISOInRange(krMs + MIN_KR_TO_ASSIGN_GAP_DAYS * DAY_MS, SEED_DATE_RANGE_END);
+  return { krDate, assignDate };
 }
 function isoToRuDisplay(iso){
   const [y, m, d] = iso.split('-');
@@ -82,10 +103,15 @@ const STRESS_CUR_POS_OPTIONS = ['Продавец', 'Продавец-Касси
  *  не запрашивалась. */
 function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCodeOptions){
   const values = {};
+  const { krDate, assignDate } = randomKrAndAssignDates();
   COLUMNS.forEach(col => {
     if (col.type === 'devRecords') return; // хранится отдельно, под DEV_TRACKS_KEY
 
-    if (col.key === 'relocReady'){
+    if (col.key === 'krDate'){
+      values[col.key] = krDate;
+    } else if (col.key === 'assignDate'){
+      values[col.key] = assignDate;
+    } else if (col.key === 'relocReady'){
       values[col.key] = pickRandom(STRESS_RELOC_READY_OPTIONS);
     } else if (col.key === 'reloc'){
       values[col.key] = pickRandom(STRESS_RELOC_OPTIONS);
