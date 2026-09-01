@@ -63,8 +63,9 @@ const COLUMNS = [
     options:['Успешно пройдено','Тест направлен','Не пройдено','Пройдено не успешно','Опционально'],
     value:'Тест направлен' },
   { key:'softDate',        label:'Дата SOFT',                             group:'potential',  type:'autoDate', value:'23.06.2021' },
-  { key:'relocReady',      label:'Готовность к релокации',                group:'potential',  type:'auto',  value:'Не готов' },
-  { key:'reloc',           label:'Релокация',                             group:'potential',  type:'auto',  value:'По региону' },
+  { key:'relocReady',      label:'Готовность к релокации',                group:'potential',  type:'select',
+    options:['Готов по всей сети','Готов в рамках региона','Готов в рамках отделения','Готов в определённые города','Не готов'],
+    value:'Не готов' },
 
   // ---------- Сведения о развитии ----------
   { key:'krStatus',        label:'Статус по КР',                         group:'development', type:'select',
@@ -99,6 +100,7 @@ const SELECT_DEFAULTS = {
   soft:'Опционально',
   krStatus:'Да',
   assignment:'Временное',
+  relocReady:'Не готов',
 };
 
 const INITIAL_EMPLOYEE_POOL = [
@@ -297,7 +299,7 @@ function sanitizePermissions(rawPerms){
 function seedRoles(){
   const managerPerms = blankPermissions();
   ['fio','status','curPos','potPos','krStatus','krDate','region','depart','city','shop',
-   'hardDate','soft','softDate','managerFio','relocReady','reloc',
+   'hardDate','soft','softDate','managerFio','relocReady',
    'assignment','assignDate','ipr'].forEach(k => { managerPerms[k].view = true; });
   const managerActions = sanitizeActions({ canAddEmployee: true, canRemoveEmployee: false });
 

@@ -101,8 +101,6 @@ function makeDefaultRow(rowIdCounter){
 
 // Варианты для полей, которым по ТЗ стресс-теста нужна вариативность, хотя они и
 // нередактируемые (обычно у них всегда одно и то же значение — см. col.value в columns.js).
-const STRESS_RELOC_READY_OPTIONS = ['Готов', 'Не готов'];
-const STRESS_RELOC_OPTIONS = ['Готов по всей сети', 'Готов в рамках региона', 'Готов в рамках отделения'];
 const STRESS_MOTIVATION_OPTIONS = ['Бригадная', 'Личная'];
 const STRESS_CUR_POS_OPTIONS = ['Продавец', 'Продавец К2', 'Продавец-кассир', 'Продавец-эксперт', 'Кассир', 'Кладовщик', 'Старший кассир', 'Начальник отдела'];
 
@@ -123,10 +121,6 @@ function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCod
       values[col.key] = krDate;
     } else if (col.key === 'assignDate'){
       values[col.key] = assignDate;
-    } else if (col.key === 'relocReady'){
-      values[col.key] = pickRandom(STRESS_RELOC_READY_OPTIONS);
-    } else if (col.key === 'reloc'){
-      values[col.key] = pickRandom(STRESS_RELOC_OPTIONS);
     } else if (col.key === 'motivation'){
       values[col.key] = pickRandom(STRESS_MOTIVATION_OPTIONS);
     } else if (col.key === 'curPos'){
