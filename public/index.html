@@ -412,10 +412,14 @@
   .date-range-field input:focus{ border-color:var(--accent); }
   .date-range-hint{ font-size:11px; color:var(--ink-soft); margin-top:10px; line-height:1.4; }
   .colvis-group-label{
+    display:flex; align-items:center; gap:7px;
     font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
     color:var(--ink-soft); font-weight:700; padding:8px 8px 4px 10px;
     border-left:3px solid transparent; margin-left:-2px;
+    cursor:pointer; user-select:none;
   }
+  .colvis-group-label input[type="checkbox"]{ accent-color:var(--accent); width:13px; height:13px; flex-shrink:0; }
+  .colvis-group-label:hover{ color:var(--ink); }
   .colvis-group-label[data-colgroup="personal"]{ border-left-color:#a9c3ee; }
   .colvis-group-label[data-colgroup="workData"]{ border-left-color:#9fd6b0; }
   .colvis-group-label[data-colgroup="potential"]{ border-left-color:#c6a8e3; }
@@ -1839,7 +1843,17 @@ function renderColumnVisibilityList(searchQ){
       (!q || c.label.toLowerCase().includes(q))
     );
     if (cols.length === 0) return;
-    html += `<div class="colvis-group-label" data-colgroup="${g.key}">${escapeHtml(g.label)}</div>`;
+    const visibleCount = cols.filter(c => !hiddenColumns.has(c.key)).length;
+    const allVisible = visibleCount === cols.length;
+    // чекбокс группы: отмечен, если видны все столбцы группы; частично отмечен (indeterminate,
+    // проставляется отдельно ниже — HTML-атрибутом это не задать), если видна только часть;
+    // снят, если не видно ни одного
+    html += `
+      <label class="colvis-group-label" data-colgroup="${g.key}">
+        <input type="checkbox" data-colvis-group="${g.key}" ${allVisible ? 'checked' : ''}>
+        <span>${escapeHtml(g.label)} — клик отмечает/снимает всю группу</span>
+      </label>
+    `;
     cols.forEach(col => {
       const checked = !hiddenColumns.has(col.key);
       html += `
@@ -1851,6 +1865,14 @@ function renderColumnVisibilityList(searchQ){
     });
   });
   list.innerHTML = html || `<div class="filter-empty">Ничего не найдено</div>`;
+  // indeterminate — свойство, а не атрибут, поэтому проставляем отдельным проходом после вставки в DOM
+  GROUPS.forEach(g => {
+    const cols = COLUMNS.filter(c => c.group === g.key && getEffectivePermission(c.key).view && (!q || c.label.toLowerCase().includes(q)));
+    if (cols.length === 0) return;
+    const visibleCount = cols.filter(c => !hiddenColumns.has(c.key)).length;
+    const groupCb = list.querySelector(`[data-colvis-group="${g.key}"]`);
+    if (groupCb) groupCb.indeterminate = visibleCount > 0 && visibleCount < cols.length;
+  });
   updateColumnVisibilityCount();
 }
 
@@ -1897,10 +1919,30 @@ function setupColumnVisibilityPopover(){
   });
 
   document.getElementById('columnVisibilityList').addEventListener('change', e => {
+    const groupCb = e.target.closest('[data-colvis-group]');
+    if (groupCb){
+      const groupKey = groupCb.dataset.colvisGroup;
+      const q = document.getElementById('columnVisibilitySearch').value;
+      const qLower = q.trim().toLowerCase();
+      // переключаем только те столбцы группы, что сейчас реально видны в списке (с учётом
+      // поиска) — если пользователь что-то искал и видит не всю группу, клик по заголовку
+      // должен затронуть именно видимое, а не всю группу целиком незаметно для него
+      const cols = COLUMNS.filter(c =>
+        c.group === groupKey && getEffectivePermission(c.key).view && (!qLower || c.label.toLowerCase().includes(qLower))
+      );
+      if (groupCb.checked){
+        cols.forEach(c => hiddenColumns.delete(c.key));
+      } else {
+        cols.forEach(c => hiddenColumns.add(c.key));
+      }
+      renderColumnVisibilityList(q);
+      applyColumnVisibility();
+      return;
+    }
     const cb = e.target.closest('[data-colvis]');
     if (!cb) return;
     if (cb.checked) hiddenColumns.delete(cb.dataset.colvis); else hiddenColumns.add(cb.dataset.colvis);
-    updateColumnVisibilityCount();
+    renderColumnVisibilityList(document.getElementById('columnVisibilitySearch').value);
     applyColumnVisibility();
   });
 
