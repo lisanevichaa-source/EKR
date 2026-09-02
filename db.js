@@ -101,7 +101,15 @@ function makeDefaultRow(rowIdCounter){
 
 // Варианты для полей, которым по ТЗ стресс-теста нужна вариативность, хотя они и
 // нередактируемые (обычно у них всегда одно и то же значение — см. col.value в columns.js).
-const STRESS_MOTIVATION_OPTIONS = ['Бригадная', 'Личная'];
+// 24 значения грейда магазина — из реального справочника "магазин → грейд" (столбцы
+// C/K), присланного как файл-источник для этого поля. В целевой системе грейд сотруднику
+// проставляется по точному совпадению его "Магазина" с этим справочником (см. columns.js);
+// в демо-данных, раз наши демо-коды магазинов не совпадают с реальными названиями из
+// справочника, просто раздаём случайно, для примера.
+const STRESS_GRADE_OPTIONS = [
+  'K5.2','K7','K4.4','K4.2','K2.3','K4.1','K4.3','K3.3','K5.1','K3.1','K2.2','K2.1',
+  'K1.2','K0.1','K3.4','K3.5','K3.2','K1.1','СМ3','СМ2','СМ1','СМ0','K6.1','Col0.1',
+];
 const STRESS_CUR_POS_OPTIONS = ['Продавец', 'Продавец К2', 'Продавец-кассир', 'Продавец-эксперт', 'Кассир', 'Кладовщик', 'Старший кассир', 'Начальник отдела'];
 
 /** Случайно сгенерированная строка для стресс-теста интерфейса на больших объёмах.
@@ -121,8 +129,8 @@ function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCod
       values[col.key] = krDate;
     } else if (col.key === 'assignDate'){
       values[col.key] = assignDate;
-    } else if (col.key === 'motivation'){
-      values[col.key] = pickRandom(STRESS_MOTIVATION_OPTIONS);
+    } else if (col.key === 'grade'){
+      values[col.key] = pickRandom(STRESS_GRADE_OPTIONS);
     } else if (col.key === 'curPos'){
       values[col.key] = pickRandom(STRESS_CUR_POS_OPTIONS);
     } else if (col.key === 'shop'){
@@ -176,6 +184,7 @@ function seedState(){
     const row = makeDefaultRow(rowIdCounter);
     row.values.managerAtEntry = managerOptions[i % managerOptions.length];
     row.values.shopAtEntry = shopOptions[i % shopOptions.length];
+    row.values.grade = STRESS_GRADE_OPTIONS[i % STRESS_GRADE_OPTIONS.length];
     const variant = DEV_TRACKS_VARIANTS[i % DEV_TRACKS_VARIANTS.length];
     row.values.devTracks = variant.map(t => ({ ...t }));
     row.values.potPos = pickTopDevTrackPosition(variant);

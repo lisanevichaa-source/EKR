@@ -162,18 +162,41 @@
     padding:14px 16px;
     display:flex; flex-wrap:wrap; align-items:center; gap:10px;
     margin-bottom:14px;
+    transition:background .2s ease, border-color .2s ease;
   }
+  /* Та же "старая" тёмная подложка, что и у секции виджетов (см. .widgets-section.theme-dark) —
+     переключаются одной и той же кнопкой, чтобы не плодить два независимых тумблера ради
+     одного и того же визуального решения. Поиск и разделитель не имеют своего непрозрачного
+     фона — на тёмном градиенте их пришлось бы сделать полупрозрачными явно, иначе текст
+     поиска слился бы с фоном. */
+  .toolbar.theme-dark{
+    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
+    border-color:transparent;
+  }
+  .toolbar.theme-dark .search{
+    background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25);
+  }
+  .toolbar.theme-dark .search input{ color:#fff; }
+  .toolbar.theme-dark .search input::placeholder{ color:rgba(255,255,255,0.55); }
+  .toolbar.theme-dark .search svg{ color:#fff; }
+  .toolbar.theme-dark .divider-v{ background:rgba(255,255,255,0.25); }
+  .toolbar.theme-dark .ghost-btn{
+    color:#fff; background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25);
+  }
+  .toolbar.theme-dark .ghost-btn:hover{ background:rgba(255,255,255,0.18); border-color:rgba(255,255,255,0.4); }
   .search{
     display:flex; align-items:center; gap:8px;
     border:1px solid var(--line); border-radius:999px; padding:8px 14px;
     min-width:220px; flex:0 0 auto;
+    transition:background .2s ease, border-color .2s ease;
   }
   .search input{
     border:none; outline:none; font-size:13.5px; width:180px; background:transparent; color:var(--ink);
+    transition:color .2s ease;
   }
-  .search svg{ flex-shrink:0; opacity:.5; }
+  .search svg{ flex-shrink:0; opacity:.5; transition:color .2s ease; }
 
-  .divider-v{ width:1px; height:22px; background:var(--line); margin:0 4px; }
+  .divider-v{ width:1px; height:22px; background:var(--line); margin:0 4px; transition:background .2s ease; }
 
   .toolbar-right{ margin-left:auto; display:flex; gap:8px; align-items:center;}
 
@@ -464,7 +487,7 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
         Обновить виджеты
       </button>
-      <button class="widgets-refresh-btn" id="toggleWidgetsThemeBtn" title="Переключить оформление подложки виджетов">
+      <button class="widgets-refresh-btn" id="toggleWidgetsThemeBtn" title="Переключить тёмную/светлую подложку виджетов и панели инструментов">
         <svg id="toggleWidgetsThemeIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <span id="toggleWidgetsThemeText">Тёмная подложка</span>
       </button>
@@ -672,15 +695,17 @@ function computeWidgetData(rows, forcedFYEndYear){
   });
   const avgDays = daysCount > 0 ? Math.round(daysSum / daysCount) : null;
 
-  // КР по должностям — считаем по КАЖДОЙ записи в "Потенциальная должность" (devTracks),
-  // а не по одному значению на сотрудника: один человек может развиваться сразу на
-  // несколько должностей, и каждая такая запись учитывается отдельно
+  // КР по должностям — считаем по "активной" потенциальной должности (row.values.potPos),
+  // ровно по одной на сотрудника — той же самой, что показана в столбце "Потенциальная
+  // должность" в таблице. НЕ по всей истории devTracks: там может быть несколько записей
+  // (человек проходил разные программы в разное время), но для этого виджета важно, куда
+  // сотрудник нацелен сейчас, а не сколько программ он когда-либо проходил — иначе сумма
+  // по виджету превышала бы общее число сотрудников в резерве.
   const positionCounts = {};
   rows.forEach(r => {
-    (r.values.devTracks || []).forEach(t => {
-      if (!t.position) return;
-      positionCounts[t.position] = (positionCounts[t.position] || 0) + 1;
-    });
+    const pos = r.values.potPos;
+    if (!pos) return;
+    positionCounts[pos] = (positionCounts[pos] || 0) + 1;
   });
   const positionList = Object.entries(positionCounts)
     .sort((a, b) => b[1] - a[1])
@@ -850,9 +875,11 @@ function setupWidgetsRefresh(){
   // Чисто визуальная опция для сравнения вариантов с коллегами, состояние не сохраняется
   // между перезагрузками страницы — при каждой загрузке снова светлая подложка по умолчанию.
   document.getElementById('toggleWidgetsThemeBtn').addEventListener('click', () => {
-    const section = document.querySelector('.widgets-section');
+    const widgetsSection = document.querySelector('.widgets-section');
+    const toolbar = document.querySelector('.toolbar');
     const text = document.getElementById('toggleWidgetsThemeText');
-    const isDark = section.classList.toggle('theme-dark');
+    const isDark = widgetsSection.classList.toggle('theme-dark');
+    if (toolbar) toolbar.classList.toggle('theme-dark', isDark);
     text.textContent = isDark ? 'Светлая подложка' : 'Тёмная подложка';
   });
 }

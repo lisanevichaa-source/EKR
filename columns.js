@@ -51,7 +51,6 @@ const COLUMNS = [
   { key:'shop',            label:'Магазин',                               group:'workData',   type:'auto',  value:'12345' },
   { key:'managerFio',      label:'ФИО действующего руководителя',         group:'workData',   type:'auto',  value:'Иванов Иван Директорович' },
   { key:'grade',           label:'Грейд магазина',                        group:'workData',   type:'auto',  value:'401' },
-  { key:'motivation',      label:'Мотивация',                             group:'workData',   type:'auto',  value:'Бригадная' },
 
   // ---------- Потенциал развития ----------
   { key:'curPos',          label:'Текущая должность',                     group:'potential',  type:'auto',  value:'Продавец' },
