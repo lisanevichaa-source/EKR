@@ -1875,7 +1875,7 @@ function renderColumnVisibilityList(searchQ){
     html += `
       <label class="colvis-group-label" data-colgroup="${g.key}">
         <input type="checkbox" data-colvis-group="${g.key}" ${allVisible ? 'checked' : ''}>
-        <span>${escapeHtml(g.label)} — клик отмечает/снимает всю группу</span>
+        <span>${escapeHtml(g.label)}</span>
       </label>
     `;
     cols.forEach(col => {
