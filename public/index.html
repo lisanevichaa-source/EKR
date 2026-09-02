@@ -10,7 +10,7 @@
   .hero{
     background:#fff;
     border-bottom:1px solid var(--line);
-    padding:20px 32px 24px;
+    padding:20px 32px 4px;
     position:relative;
   }
   .breadcrumb{
@@ -112,6 +112,7 @@
   }
   .card-label-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
   .card-label-row .card-label{ margin-bottom:0; }
+  .card-label-selects{ display:flex; align-items:center; gap:6px; }
   .fy-select{
     border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--ink);
     font-size:11.5px; font-weight:600; padding:3px 9px; font-family:inherit; cursor:pointer;
@@ -150,7 +151,7 @@
   .vacancies-link-btn:hover{ background:#122a52; }
 
   /* ---------- MAIN CONTENT ---------- */
-  .content{ padding:24px 32px 60px; }
+  .content{ padding:4px 32px 60px; }
   .section-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;}
   .section-head h2{ font-size:18px; margin:0; }
   .section-head p{ margin:2px 0 0; color:var(--ink-soft); font-size:13px; }
@@ -357,8 +358,8 @@
   .note b{ color:var(--ink); }
 
   @media (max-width:700px){
-    .hero{ padding:20px 16px 28px; }
-    .content{ padding:18px 14px 40px; }
+    .hero{ padding:20px 16px 4px; }
+    .content{ padding:4px 14px 40px; }
   }
 
   /* ---------- FILTER POPOVER ---------- */
@@ -669,6 +670,7 @@ let lastWidgetsRows = [];       // строки, по которым видже�
                                  // чтобы смена финансового года не тянула за собой новый набор
                                  // строк по текущим фильтрам (это дело кнопки "Обновить виджеты")
 let selectedFYEndYear = null;   // null = определять по сегодняшней дате; иначе — явный выбор пользователя
+let selectedAssignmentType = 'Постоянное'; // тип назначения, учитываемый в виджете "История назначений"
 
 /** Правильное склонение слова "день" по числу. */
 function pluralDays(n){
@@ -683,7 +685,7 @@ function pluralDays(n){
 /** Считает все метрики дашборда по переданному набору строк (уже отфильтрованному —
  *  виджеты всегда показывают то, что попадает под текущие фильтры). Никаких обращений
  *  к серверу — вся нужная информация уже загружена на клиенте. */
-function computeWidgetData(rows, forcedFYEndYear){
+function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
   const total = rows.length;
 
   // Средний срок пребывания в КР — среднее число дней между "Дата зачисления КР" (krDate)
@@ -715,20 +717,23 @@ function computeWidgetData(rows, forcedFYEndYear){
     .sort((a, b) => b[1] - a[1])
     .map(([label, count]) => ({ label, count }));
 
-  // История назначений за финансовый год (сентябрь — август). Год определяется так:
-  // если пользователь явно выбрал год в выпадающем списке — берём его; иначе — год,
-  // в который попадает сегодняшняя дата (если по нему вообще есть данные), а если и его
-  // нет — самый свежий из тех, что реально встречаются в данных.
+  // История назначений за финансовый год (сентябрь — август). Считаем только по одному
+  // "Типу назначения" за раз — свой отдельный переключатель в самом виджете (по умолчанию
+  // "Постоянное"), не связан с общими фильтрами таблицы над реестром.
+  const assignmentType = forcedAssignmentType || 'Постоянное';
+  const assignmentRows = rows.filter(r => r.values.assignment === assignmentType);
+
   const monthNames = ['Сен', 'Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг'];
 
   const now = new Date();
   const curMonth = now.getMonth(); // 0 = январь ... 8 = сентябрь
   const autoFYEndYear = (curMonth >= 8 ? now.getFullYear() : now.getFullYear() - 1) + 1;
 
-  // какие финансовые года вообще встречаются в данных (по "Дата назначения") — из них
-  // строится выпадающий список в самом виджете
+  // какие финансовые года вообще встречаются в данных (по "Дата назначения") — считаем
+  // тоже только среди строк выбранного типа назначения, иначе список предлагал бы года,
+  // в которых для этого типа назначения нет вообще ни одной записи
   const fyEndYearsWithData = new Set();
-  rows.forEach(r => {
+  assignmentRows.forEach(r => {
     const assign = r.values.assignDate;
     if (!assign) return;
     const d = new Date(assign);
@@ -744,7 +749,7 @@ function computeWidgetData(rows, forcedFYEndYear){
   const fyStartYear = fyEndYear - 1;
 
   const monthCounts = new Array(12).fill(0);
-  rows.forEach(r => {
+  assignmentRows.forEach(r => {
     const assign = r.values.assignDate;
     if (!assign) return;
     const d = new Date(assign);
@@ -764,13 +769,15 @@ function computeWidgetData(rows, forcedFYEndYear){
     monthCounts,
     fyEndYear,
     availableFYEndYears: availableFYEndYears.length > 0 ? availableFYEndYears : [fyEndYear],
+    assignmentType,
   };
 }
 
-function renderWidgets(rows, forcedFYEndYear){
+function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
   lastWidgetsRows = rows;
-  const data = computeWidgetData(rows, forcedFYEndYear);
+  const data = computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType);
   selectedFYEndYear = data.fyEndYear; // фиксируем реально применённый год (после всех фолбэков)
+  selectedAssignmentType = data.assignmentType;
   const el = document.getElementById('widgets');
 
   let positionsHtml;
@@ -804,6 +811,14 @@ function renderWidgets(rows, forcedFYEndYear){
     `<option value="${y}" ${y === data.fyEndYear ? 'selected' : ''}>FY${String(y).slice(-2)}</option>`
   ).join('');
 
+  const assignmentTypeOptions = [
+    { value: 'Постоянное', label: 'Постоянные' },
+    { value: 'Временное', label: 'Временные' },
+  ];
+  const assignmentSelectHtml = assignmentTypeOptions.map(o =>
+    `<option value="${o.value}" ${o.value === data.assignmentType ? 'selected' : ''}>${o.label}</option>`
+  ).join('');
+
   el.innerHTML = `
     <div class="card card-tall">
       <div class="card-label">КР по должностям</div>
@@ -813,7 +828,10 @@ function renderWidgets(rows, forcedFYEndYear){
     <div class="card card-wide">
       <div class="card-label-row">
         <span class="card-label">История назначений</span>
-        <select class="fy-select" id="fySelect">${fySelectHtml}</select>
+        <span class="card-label-selects">
+          <select class="fy-select" id="assignmentTypeSelect">${assignmentSelectHtml}</select>
+          <select class="fy-select" id="fySelect">${fySelectHtml}</select>
+        </span>
       </div>
       <div class="fy-chart">${chartHtml}</div>
     </div>
@@ -838,11 +856,18 @@ function renderWidgets(rows, forcedFYEndYear){
     </div>
   `;
 
-  // выпадающий список пересоздаётся при каждой перерисовке (innerHTML), поэтому обработчик
-  // навешиваем заново каждый раз. Смена года НЕ трогает "Обновлено: чч:мм" и не пересчитывает
-  // заново по фильтрам — это просто другой взгляд на уже посчитанные данные (lastWidgetsRows)
+  // оба выпадающих списка пересоздаются при каждой перерисовке (innerHTML), поэтому
+  // обработчики навешиваем заново каждый раз. Смена года/типа назначения НЕ трогает
+  // "Обновлено: чч:мм" и не пересчитывает заново по фильтрам таблицы — это просто другой
+  // взгляд на уже посчитанные данные (lastWidgetsRows)
   document.getElementById('fySelect').addEventListener('change', e => {
-    renderWidgets(lastWidgetsRows, parseInt(e.target.value, 10));
+    renderWidgets(lastWidgetsRows, parseInt(e.target.value, 10), selectedAssignmentType);
+  });
+  document.getElementById('assignmentTypeSelect').addEventListener('change', e => {
+    // при смене типа назначения список доступных FY может быть другим для этого типа —
+    // не передаём текущий forcedFYEndYear принудительно, даём computeWidgetData подобрать
+    // подходящий год заново (текущий/самый свежий среди доступных для нового типа)
+    renderWidgets(lastWidgetsRows, null, e.target.value);
   });
 }
 
@@ -855,10 +880,10 @@ function updateWidgetsTimestamp(){
 /** Пересчитывает виджеты по текущим отфильтрованным данным — вызывается один раз при
  *  загрузке страницы и дальше только по кнопке "Обновить виджеты", намеренно не на
  *  каждое изменение в таблице (правку ячейки, смену страницы и т.п.), чтобы не гонять
- *  этот пересчёт лишний раз. Ранее выбранный в "Истории назначений" год сохраняется —
- *  обновление данных не должно молча переключать пользователя обратно на текущий год. */
+ *  этот пересчёт лишний раз. Ранее выбранные в "Истории назначений" год и тип назначения
+ *  сохраняются — обновление данных не должно молча сбрасывать их на значения по умолчанию. */
 function refreshWidgets(){
-  renderWidgets(getFilteredRows(), selectedFYEndYear);
+  renderWidgets(getFilteredRows(), selectedFYEndYear, selectedAssignmentType);
   updateWidgetsTimestamp();
 }
 
