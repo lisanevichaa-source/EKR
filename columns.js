@@ -87,6 +87,7 @@ const COLUMNS = [
   { key:'shopAtEntry',     label:'Магазин в момент вступления в КР',      group:'development', type:'autoEditable',
     options:['—','СМ_1234','СМ_5678','СМ_9012','СМ_3456','СМ_7890','СМ_2345','СМ_6789','СМ_0123','СМ_4567','СМ_8901'],
     value:'СМ_1234' },
+  { key:'selectionComment', label:'Комментарий подбора',                  group:'development', type:'free',  value:'' },
 ];
 
 // Поля, которые физически приходят из HR-системы по сотруднику —
@@ -175,7 +176,7 @@ const DEV_TRACKS_VARIANTS = [
   ],
   // 9. Одна должность — директорский трек, полностью завершена
   [
-    { position:'Директор отделения (ДО)', program:'Кадровый резерв на должность Директор отделения', percent:100, hardDate:'2026-01-10' },
+    { position:'Директор отделения', program:'Кадровый резерв на должность Директор отделения', percent:100, hardDate:'2026-01-10' },
   ],
   // 10. Две должности, одна завершена, другая в процессе
   [
@@ -188,7 +189,7 @@ const DEV_TRACKS_VARIANTS = [
 // Это отдельный список, не связанный со значениями столбцов "Текущая/Потенциальная должность".
 const POSITIONS = [
   'Директор магазина',
-  'Директор отделения (ДО)',
+  'Директор отделения',
   'Директор по продажам региона',
   'HR BP',
   'Менеджер по оценке',
@@ -212,7 +213,7 @@ const POSITION_CATEGORIES_SEED = [
   { name:'Складской персонал',   currentPositions:['Кладовщик','Мастер-эксперт СЦ','МСЦ'],                          potentialPositions:['Заведующий складом'] },
   { name:'Старшие специалисты',  currentPositions:['Старший кассир','Зав.склада','Старший продавец'],               potentialPositions:['Начальник отдела'] },
   { name:'Начальники отделов',   currentPositions:['Начальник отдела'],                                             potentialPositions:['Директор магазина'] },
-  { name:'Директора магазинов',  currentPositions:['Директор магазина'],                                            potentialPositions:['Директор отделения (ДО)'] },
+  { name:'Директора магазинов',  currentPositions:['Директор магазина'],                                            potentialPositions:['Директор отделения'] },
   { name:'Директора отделений',  currentPositions:['Директор отделения'],                                           potentialPositions:['Директор по продажам региона'] },
 ];
 
@@ -310,7 +311,7 @@ function seedRoles(){
     {
       id: 'role_manager',
       name: 'Руководитель',
-      positions: ['Директор магазина', 'Директор отделения (ДО)'],
+      positions: ['Директор магазина', 'Директор отделения'],
       permissions: sanitizePermissions(managerPerms),
       actions: managerActions,
     },

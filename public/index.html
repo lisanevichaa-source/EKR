@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Электронный кадровый резерв — демо</title>
+<title>Кадровый резерв — демо</title>
 <link rel="stylesheet" href="common.css">
 <style>
   /* ---------- HERO ---------- */
@@ -80,16 +80,17 @@
 
   .widgets{
     display:grid;
-    grid-template-columns:repeat(4, 1fr);
+    grid-template-columns:repeat(6, 1fr);
     gap:12px;
   }
   @media (max-width:980px){ .widgets{grid-template-columns:repeat(2,1fr);} }
   @media (max-width:640px){ .widgets{grid-template-columns:1fr;} }
-  /* "КР по должностям" — узкая, но на всю высоту двух рядов слева */
-  .card-tall{ grid-column:1; grid-row:1 / span 2; }
+  /* "Кадровый резерв по должностям" — половина ширины (3 из 6 колонок), на всю высоту
+     двух рядов слева */
+  .card-tall{ grid-column:1 / span 3; grid-row:1 / span 2; }
   @media (max-width:980px){ .card-tall{ grid-column:1; grid-row:auto; } }
-  /* "История назначений" — широкая, занимает оставшуюся ширину в первом ряду */
-  .card-wide{ grid-column:2 / span 3; grid-row:1; }
+  /* "История назначений" — вторая половина ширины, первый ряд */
+  .card-wide{ grid-column:4 / span 3; grid-row:1; }
   @media (max-width:980px){ .card-wide{ grid-column:1 / span 2; grid-row:auto; } }
 
   .card{
@@ -123,13 +124,17 @@
   .card-hint{ font-size:11px; color:var(--ink-soft); margin-top:4px; line-height:1.4; }
 
   /* КР по должностям — список "должность / количество", а не фиксированная сетка из 4,
-     потому что реальный набор должностей теперь произвольный (берётся из данных) */
+     потому что реальный набор должностей теперь произвольный (берётся из данных).
+     Полоска и число показывают долю резервистов от общего пула сотрудников компании,
+     которые в принципе могут претендовать на эту должность (см. estimateEligiblePoolSize —
+     в прототипе это оценка для демонстрации, не настоящий подсчёт по всей компании). */
   .position-list{ flex:1; display:flex; flex-direction:column; justify-content:space-evenly; gap:6px; }
   .position-row{ display:flex; align-items:center; gap:10px; }
   .position-row .p-label{ flex:1; font-size:12px; color:var(--ink-soft); }
   .position-row .p-track{ flex:1.4; height:6px; border-radius:999px; background:#eef0f4; overflow:hidden; }
   .position-row .p-fill{ height:100%; border-radius:999px; background:var(--accent); }
-  .position-row .p-num{ width:24px; text-align:right; font-weight:700; color:var(--ink); font-size:12px; }
+  .position-row .p-num{ min-width:56px; text-align:right; font-weight:700; color:var(--ink); font-size:12px; white-space:nowrap; }
+  .position-row .p-num-total{ font-weight:500; color:var(--ink-soft); font-size:11px; }
   .position-empty{ font-size:12px; color:var(--ink-soft); }
 
   /* История назначений — простой столбчатый график на 12 месяцев, без внешних библиотек */
@@ -302,7 +307,7 @@
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
-    max-width:220px;
+    max-width:280px;
   }
   .cell-no-options{ color:var(--ink-soft); font-style:italic; }
   .cell-empty{
@@ -319,7 +324,7 @@
     color:var(--ink);
     background:#fff;
     min-width:130px;
-    max-width:220px;
+    max-width:280px;
     outline:none;
   }
   select.cell-input{ border-color:#cfd3f5; }
@@ -471,7 +476,7 @@
 <div class="hero">
   <div class="hero-top">
     <div class="hero-title">
-      <h1>Электронный кадровый резерв</h1>
+      <h1>Кадровый резерв</h1>
     </div>
     <div class="hero-top-right">
       <div class="role-view-as">
@@ -681,6 +686,24 @@ function pluralDays(n){
   return 'дней';
 }
 
+/** Оценка размера пула сотрудников ВСЕЙ компании (не только тех, кто в резерве), кто в
+ *  принципе может претендовать на данную потенциальную должность — по логике категорий
+ *  должностей (см. раздел 6 документации), но по всем 15 000+ сотрудникам, а не только по
+ *  тем, кто уже виден в этом реестре. У прототипа таких данных нет физически — реестр знает
+ *  только про тех, кто уже в резерве или в небольшом общем списке кандидатов, не про всех
+ *  сотрудников компании. Здесь — чисто демонстрационная оценка, не настоящий подсчёт:
+ *  число подобрано детерминированно по названию должности (одна и та же должность всегда
+ *  даёт одно и то же число, не "скачет" при каждой перерисовке виджетов), и всегда больше
+ *  текущего числа резервистов — резервисты логически являются частью этого пула. */
+function estimateEligiblePoolSize(positionLabel, currentCount){
+  let hash = 0;
+  for (let i = 0; i < positionLabel.length; i++){
+    hash = (hash * 31 + positionLabel.charCodeAt(i)) >>> 0;
+  }
+  const coveredFraction = 0.12 + (hash % 1000) / 1000 * 0.18; // резерв покрывает 12–30% пула
+  return Math.max(currentCount + 1, Math.round(currentCount / coveredFraction));
+}
+
 /** Считает все метрики дашборда по переданному набору строк (уже отфильтрованному —
  *  виджеты всегда показывают то, что попадает под текущие фильтры). Никаких обращений
  *  к серверу — вся нужная информация уже загружена на клиенте. */
@@ -714,7 +737,7 @@ function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
   });
   const positionList = Object.entries(positionCounts)
     .sort((a, b) => b[1] - a[1])
-    .map(([label, count]) => ({ label, count }));
+    .map(([label, count]) => ({ label, count, total: estimateEligiblePoolSize(label, count) }));
 
   // История назначений за финансовый год (сентябрь — август). Считаем только по одному
   // "Типу назначения" за раз — свой отдельный переключатель в самом виджете (по умолчанию
@@ -783,12 +806,11 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
   if (data.positionList.length === 0){
     positionsHtml = `<div class="position-empty">Пока никто не выбрал потенциальную должность</div>`;
   } else {
-    const maxCount = data.positionList[0].count;
     positionsHtml = data.positionList.slice(0, 6).map(p => `
       <div class="position-row">
         <span class="p-label">${escapeHtml(p.label)}</span>
-        <div class="p-track"><div class="p-fill" style="width:${Math.round(p.count / maxCount * 100)}%"></div></div>
-        <span class="p-num">${p.count}</span>
+        <div class="p-track"><div class="p-fill" style="width:${Math.round(p.count / p.total * 100)}%"></div></div>
+        <span class="p-num">${p.count}<span class="p-num-total">/${p.total}</span></span>
       </div>
     `).join('');
   }
@@ -820,7 +842,7 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
 
   el.innerHTML = `
     <div class="card card-tall">
-      <div class="card-label">КР по должностям</div>
+      <div class="card-label">Кадровый резерв по должностям</div>
       <div class="position-list">${positionsHtml}</div>
     </div>
 
@@ -836,12 +858,12 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
     </div>
 
     <div class="card">
-      <div class="card-label">Сотрудников в КР</div>
+      <div class="card-label">Сотрудников в кадровом резерве</div>
       <div class="card-body-center"><div class="big-num">${data.total.toLocaleString('ru-RU')}</div></div>
     </div>
 
     <div class="card">
-      <div class="card-label">Средний срок пребывания в КР</div>
+      <div class="card-label">Средний срок пребывания в кадровом резерве</div>
       <div class="card-body-center">
         <div class="sub-num">${data.avgDays !== null ? data.avgDays + ' ' + pluralDays(data.avgDays) : '—'}</div>
       </div>

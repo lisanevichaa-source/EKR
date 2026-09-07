@@ -1,7 +1,7 @@
 {
   "name": "kadrovyi-rezerv",
   "version": "1.0.0",
-  "description": "Электронный кадровый резерв — демо-приложение с сохранением данных",
+  "description": "Кадровый резерв — демо-приложение с сохранением данных",
   "private": true,
   "main": "server.js",
   "scripts": {

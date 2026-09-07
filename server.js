@@ -129,6 +129,6 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Электронный кадровый резерв — сервер запущен: http://localhost:${PORT}`);
+  console.log(`Кадровый резерв — сервер запущен: http://localhost:${PORT}`);
   console.log(`Файл базы данных: ${db.DATA_FILE}`);
 });
