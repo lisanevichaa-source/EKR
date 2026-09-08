@@ -343,6 +343,18 @@
   }
   .row-remove-btn:hover{ background:#fdeeef; border-color:#f3c3ca; color:var(--red); }
 
+  /* "уже назначен" — строка заблокирована для редактирования, показывается только через
+     переключатель "Показать назначенных". Лёгкая заливка + бейдж в ячейке ФИО, без
+     кардинальной смены оформления — это всё ещё обычный резервист, просто с историческим
+     статусом. */
+  tr.row-locked{ background:var(--auto-bg); }
+  tr.row-locked:hover{ background:var(--auto-bg); }
+  .locked-badge{
+    display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.03em; color:#fff; background:var(--accent);
+    border-radius:4px; padding:2px 6px; margin-right:6px; vertical-align:middle;
+  }
+
   .table-foot{
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
     padding:12px 16px; font-size:12.5px; color:var(--ink-soft);
@@ -518,6 +530,7 @@
       <input id="searchInput" type="text" placeholder="Поиск по ФИО...">
     </div>
     <div class="toolbar-right">
+      <button class="ghost-btn" id="showAssignedBtn">Показать назначенных</button>
       <button class="ghost-btn" id="clearAllFiltersBtn">Сбросить фильтры</button>
       <button class="ghost-btn" id="columnVisibilityBtn">Настроить отображение столбцов</button>
       <button class="ghost-btn" id="exportReportBtn">Выгрузить отчёт</button>
@@ -625,6 +638,7 @@ let ROLES = [];
 let positionCategories = []; // категории должностей — определяют доступные "Потенциальные должности"
 
 let currentRoleId = ''; // '' = без ограничений (полный доступ), иначе id роли из ROLES
+let showLockedRows = false; // "Показать назначенных" — по умолчанию выключено, видимость самого переключателя зависит от права canShowAssigned у роли
 
 let hiddenColumns = new Set(); // столбцы, скрытые пользователем через "Настроить отображение столбцов" (по умолчанию пусто — показаны все)
 
@@ -724,7 +738,17 @@ function estimateEligiblePoolSize(positionLabel, currentCount){
  *  виджеты всегда показывают то, что попадает под текущие фильтры). Никаких обращений
  *  к серверу — вся нужная информация уже загружена на клиенте. */
 function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
-  const total = rows.length;
+  // "locked" (уже назначенные) сюда тоже попадают (см. getWidgetsRows) — но не для всех
+  // метрик их нужно учитывать одинаково. "Сотрудников в КР" и "КР по должностям" — это
+  // про тех, кто СЕЙЧАС активно в резерве, поэтому только activeRows. А вот "Средний срок
+  // пребывания" и "История назначений" опираются на даты (krDate/assignDate), которые
+  // у уже назначенных людей не менее реальны — их не исключаем.
+  const activeRows = rows.filter(r => r.values.trackState !== 'locked');
+
+  // Сотрудников в КР — считаем УНИКАЛЬНЫХ людей (employeeId), а не строк: один человек
+  // может занимать несколько строк одновременно (несколько треков развития), это не должно
+  // задваивать счётчик.
+  const total = new Set(activeRows.map(r => r.values.employeeId)).size;
 
   // Средний срок пребывания в КР — среднее число дней между "Дата зачисления КР" (krDate)
   // и "Дата назначения" (assignDate), только по строкам, где оба поля реально заполнены
@@ -744,9 +768,10 @@ function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
   // должность" в таблице. НЕ по всей истории devTracks: там может быть несколько записей
   // (человек проходил разные программы в разное время), но для этого виджета важно, куда
   // сотрудник нацелен сейчас, а не сколько программ он когда-либо проходил — иначе сумма
-  // по виджету превышала бы общее число сотрудников в резерве.
+  // по виджету превышала бы общее число сотрудников в резерве. Уже назначенные (locked)
+  // сюда не входят — они не "сейчас развиваются", они уже пришли к цели.
   const positionCounts = {};
-  rows.forEach(r => {
+  activeRows.forEach(r => {
     const pos = r.values.potPos;
     if (!pos) return;
     positionCounts[pos] = (positionCounts[pos] || 0) + 1;
@@ -926,7 +951,7 @@ function updateWidgetsTimestamp(){
  *  этот пересчёт лишний раз. Ранее выбранные в "Истории назначений" год и тип назначения
  *  сохраняются — обновление данных не должно молча сбрасывать их на значения по умолчанию. */
 function refreshWidgets(){
-  renderWidgets(getFilteredRows(), selectedFYEndYear, selectedAssignmentType);
+  renderWidgets(getWidgetsRows(), selectedFYEndYear, selectedAssignmentType);
   updateWidgetsTimestamp();
 }
 
@@ -987,6 +1012,20 @@ function applyActionPermissions(){
   document.querySelectorAll('.row-remove-btn').forEach(btn => {
     btn.style.display = canRemove ? '' : 'none';
   });
+
+  // "Показать назначенных" — сам переключатель виден только ролям с этим правом; если
+  // роль сменилась и у неё этого права больше нет — принудительно выключаем и сам показ,
+  // чтобы не оставить в интерфейсе строки, которые эта роль видеть не должна
+  const canShowAssigned = getEffectiveActionPermission('canShowAssigned');
+  const showAssignedBtn = document.getElementById('showAssignedBtn');
+  if (showAssignedBtn){
+    showAssignedBtn.style.display = canShowAssigned ? '' : 'none';
+    if (!canShowAssigned && showLockedRows){
+      showLockedRows = false;
+    }
+    showAssignedBtn.classList.toggle('active', showLockedRows);
+    showAssignedBtn.textContent = showLockedRows ? 'Скрыть назначенных' : 'Показать назначенных';
+  }
 }
 
 function applyColumnVisibility(){
@@ -1130,7 +1169,9 @@ function formatDevTrackSummary(col, tracks){
 function buildCellInnerHtml(col, row){
   const value = row.values[col.key];
   const perm = getEffectivePermission(col.key);
-  const canEdit = perm.edit && isEditableType(col.type);
+  // trackState:'locked' (сотрудник уже назначен) — строка полностью нередактируема,
+  // независимо от прав роли на конкретное поле
+  const canEdit = perm.edit && isEditableType(col.type) && row.values.trackState !== 'locked';
   let inner = '';
   switch(col.type){
     case 'auto':
@@ -1267,14 +1308,18 @@ function renderTable(){
   let bodyRows = [];
   pageRows.forEach((row, i) => {
     const idx = startIdx + i;
+    const isLocked = row.values.trackState === 'locked';
     let cells = [`<td class="col-rownum" data-col="__rownum">${idx + 1}</td>`];
     COLUMNS.forEach(col => {
-      const fioClass = col.key === 'fio' ? ' col-fio' : '';
-      const inner = buildCellInnerHtml(col, row);
+      let fioClass = col.key === 'fio' ? ' col-fio' : '';
+      let inner = buildCellInnerHtml(col, row);
+      if (col.key === 'fio' && isLocked){
+        inner = `<span class="locked-badge" title="Сотрудник уже назначен на эту должность — строка заблокирована">Назначен</span>` + inner;
+      }
       cells.push(`<td class="${fioClass}" data-col="${col.key}">${inner}</td>`);
     });
-    cells.push(`<td class="col-actions"><button class="row-remove-btn" data-remove-row="${row.id}" title="Убрать из резерва">✕</button></td>`);
-    bodyRows.push(`<tr data-row="${row.id}">${cells.join('')}</tr>`);
+    cells.push(`<td class="col-actions">${isLocked ? '' : `<button class="row-remove-btn" data-remove-row="${row.id}" title="Убрать из резерва">✕</button>`}</td>`);
+    bodyRows.push(`<tr data-row="${row.id}"${isLocked ? ' class="row-locked"' : ''}>${cells.join('')}</tr>`);
   });
 
   table.innerHTML = thead + `<tbody>${bodyRows.join('')}</tbody>`;
@@ -1460,9 +1505,30 @@ function rowMatchesFilters(row, q){
 
 /** Полный отфильтрованный список (без учёта пагинации) — используется и для рендера
  *  текущей страницы, и для подсчёта totalRows/totalPages. */
+/** Строки для основной таблицы: "removed" (удалённые треки) скрыты всегда — данные
+ *  сохранены в базе, но в реестре их быть не должно. "locked" (уже назначенные) —
+ *  скрыты по умолчанию, показываются только если включён переключатель "Показать
+ *  назначенных" (сам переключатель виден только ролям с правом canShowAssigned). */
 function getFilteredRows(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  return reserveRows.filter(row => rowMatchesFilters(row, q));
+  const canSeeLocked = showLockedRows && getEffectiveActionPermission('canShowAssigned');
+  return reserveRows.filter(row => {
+    if (row.values.trackState === 'removed') return false;
+    if (row.values.trackState === 'locked' && !canSeeLocked) return false;
+    return rowMatchesFilters(row, q);
+  });
+}
+
+/** То же самое, но для виджетов — "removed" скрыты всегда, а вот "locked" (уже назначенные)
+ *  ВСЕГДА учитываются, независимо от того, включён ли переключатель "Показать назначенных"
+ *  в самой таблице: виджет "История назначений" обязан считать этих людей в любом случае
+ *  (см. документацию), это не связано с тем, что сейчас видно в реестре визуально. */
+function getWidgetsRows(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  return reserveRows.filter(row => {
+    if (row.values.trackState === 'removed') return false;
+    return rowMatchesFilters(row, q);
+  });
 }
 
 /** Сбрасывает страницу на первую и перерисовывает — вызывается только там, где реально
@@ -1539,7 +1605,17 @@ function setupPagination(){
 async function removeFromReserveRow(rowId){
   const row = reserveRows.find(r => r.id === rowId);
   if (!row) return;
-  const ok = confirm(`Убрать «${row.values.fio}» из кадрового резерва и вернуть в общий список сотрудников?`);
+
+  // убираем именно ЭТОТ трек (одну должность) — у сотрудника может быть ещё несколько
+  // других активных строк, их это не касается; в общий список кандидатов он попадёт,
+  // только если это был последний оставшийся у него активный/заблокированный трек
+  const hasOtherTracks = reserveRows.some(r =>
+    r.id !== rowId && r.values.employeeId === row.values.employeeId && r.values.trackState !== 'removed'
+  );
+  const consequence = hasOtherTracks
+    ? 'Остальные его треки развития это не затронет.'
+    : 'Это его последний трек — сотрудник вернётся в общий список кандидатов.';
+  const ok = confirm(`Убрать «${row.values.fio}» с трека «${row.values.potPos}»?\n${consequence}`);
   if (!ok) return;
 
   try{
@@ -1552,12 +1628,51 @@ async function removeFromReserveRow(rowId){
   renderPoolList(document.getElementById('poolSearchInput').value);
 }
 
-async function addToReserveFromPool(poolId){
+/** Список тех, кого вообще можно сейчас добавить (создать новый трек): и тех, кто ещё
+ *  ни разу не в резерве (общий список кандидатов), и тех, кто уже резервист, но не по
+ *  всем допустимым для него должностям — им можно завести дополнительный трек. У каждого
+ *  кандидата — свой список ОСТАВШИХСЯ допустимых должностей (без тех, что уже заняты
+ *  активным или заблокированным треком). Кандидаты вообще без допустимых должностей
+ *  (currentPos не входит ни в одну категорию, либо все допустимые уже заняты) в список
+ *  не попадают — добавлять им нечего. */
+function getAddableCandidates(){
+  const candidates = [];
+
+  EMPLOYEE_POOL.forEach(p => {
+    const eligible = getEligiblePotentialPositions(p.curPos, positionCategories);
+    if (eligible.length > 0){
+      candidates.push({ employeeId: p.employeeId, fio: p.fio, curPos: p.curPos, city: p.city, shop: p.shop, eligible });
+    }
+  });
+
+  const byEmployee = {};
+  reserveRows.forEach(r => {
+    if (r.values.trackState === 'removed') return; // не занимает "слот" — можно добавить ту же должность заново
+    const empId = r.values.employeeId;
+    if (!byEmployee[empId]) byEmployee[empId] = { sample: r, taken: new Set() };
+    byEmployee[empId].taken.add(r.values.potPos);
+  });
+  Object.entries(byEmployee).forEach(([empId, info]) => {
+    const curPos = info.sample.values.curPos;
+    const eligible = getEligiblePotentialPositions(curPos, positionCategories).filter(p => !info.taken.has(p));
+    if (eligible.length > 0){
+      candidates.push({
+        employeeId: empId, fio: info.sample.values.fio, curPos,
+        city: info.sample.values.city, shop: info.sample.values.shop, eligible,
+      });
+    }
+  });
+
+  candidates.sort((a, b) => a.fio.localeCompare(b.fio, 'ru'));
+  return candidates;
+}
+
+async function addTrackForEmployee(employeeId, position){
   try{
     applyState(await mutate('/api/reserve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ poolId }),
+      body: JSON.stringify({ employeeId, position }),
     }));
   } catch(err){
     return;
@@ -1570,24 +1685,42 @@ async function addToReserveFromPool(poolId){
 function renderPoolList(filter=''){
   const list = document.getElementById('poolList');
   const q = filter.trim().toLowerCase();
-  const items = EMPLOYEE_POOL.filter(p =>
+  const allCandidates = getAddableCandidates();
+  const items = allCandidates.filter(p =>
     !q || p.fio.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || p.shop.includes(q)
   );
 
   if (items.length === 0){
-    list.innerHTML = `<div class="modal-empty">${EMPLOYEE_POOL.length === 0 ? 'В общем списке больше нет сотрудников — все уже в резерве.' : 'Никого не найдено.'}</div>`;
+    list.innerHTML = `<div class="modal-empty">${allCandidates.length === 0 ? 'Добавлять некого — либо все уже в резерве по всем допустимым должностям, либо текущие должности ни у кого не покрыты категориями.' : 'Никого не найдено.'}</div>`;
     return;
   }
 
   list.innerHTML = items.map(p => `
     <div class="pool-item">
-      <div>
-        <div class="pool-item-name">${p.fio}</div>
-        <div class="pool-item-sub">${p.curPos} · ${p.city} · магазин ${p.shop}</div>
+      <div class="pool-item-info">
+        <div class="pool-item-name">${escapeHtml(p.fio)}</div>
+        <div class="pool-item-sub">${escapeHtml(p.curPos)} · ${escapeHtml(p.city)} · магазин ${escapeHtml(p.shop)}</div>
       </div>
-      <button class="pool-add-btn" data-add-id="${p.id}">Добавить</button>
+      <select class="pool-position-select" data-employee-id="${p.employeeId}">
+        ${p.eligible.map(pos => `<option value="${escapeHtml(pos)}">${escapeHtml(pos)}</option>`).join('')}
+      </select>
+      <button class="pool-add-btn" data-add-employee-id="${p.employeeId}">Добавить</button>
     </div>
   `).join('');
+}
+
+/** Переключатель "Показать назначенных" — виден только ролям с правом canShowAssigned
+ *  (см. applyActionPermissions). Влияет только на видимость строк в самой таблице —
+ *  виджеты (в первую очередь "История назначений") продолжают учитывать таких сотрудников
+ *  независимо от этого переключателя, см. getWidgetsRows(). */
+function setupShowAssignedToggle(){
+  const btn = document.getElementById('showAssignedBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    showLockedRows = !showLockedRows;
+    applyRowFilters(); // перерисовывает таблицу и вызывает applyColumnVisibility -> applyActionPermissions,
+                        // где обновится текст/подсветка самой кнопки
+  });
 }
 
 function setupAddModal(){
@@ -1609,9 +1742,11 @@ function setupAddModal(){
   searchInput.addEventListener('input', () => renderPoolList(searchInput.value));
 
   list.addEventListener('click', e => {
-    const btn = e.target.closest('[data-add-id]');
+    const btn = e.target.closest('[data-add-employee-id]');
     if (!btn) return;
-    addToReserveFromPool(btn.dataset.addId);
+    const employeeId = btn.dataset.addEmployeeId;
+    const select = list.querySelector(`.pool-position-select[data-employee-id="${employeeId}"]`);
+    addTrackForEmployee(employeeId, select.value);
   });
 }
 
@@ -2072,7 +2207,7 @@ async function init(){
   }
   setSaveStatus('ok', 'Данные загружены');
 
-  renderWidgets(getFilteredRows());
+  renderWidgets(getWidgetsRows());
   updateWidgetsTimestamp();
   renderRoleSwitcherOptions();
   renderTable();
@@ -2080,6 +2215,7 @@ async function init(){
   setupSearch();
   setupTableInputSync();
   setupAddModal();
+  setupShowAssignedToggle();
   setupFilterPopover();
   setupColumnVisibilityPopover();
   setupDevTracksPopover();

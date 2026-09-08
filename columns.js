@@ -104,18 +104,18 @@ const SELECT_DEFAULTS = {
 };
 
 const INITIAL_EMPLOYEE_POOL = [
-  { id:'p1',  fio:'Смирнова Ольга Павловна',      email:'o.smirnova@company.ru',   phone:'+7 916 220 14 02', region:'Центральный регион',     depart:'Тверское отделение',         city:'Тверь',            shop:'20144', curPos:'Продавец-консультант' },
+  { id:'p1',  fio:'Смирнова Ольга Павловна',      email:'o.smirnova@company.ru',   phone:'+7 916 220 14 02', region:'Центральный регион',     depart:'Тверское отделение',         city:'Тверь',            shop:'20144', curPos:'Продавец К2' },
   { id:'p2',  fio:'Кузнецов Артём Сергеевич',     email:'a.kuznetsov@company.ru',  phone:'+7 921 340 55 19', region:'Северо-Западный регион',  depart:'Невское отделение',          city:'Санкт-Петербург',  shop:'20531', curPos:'Кассир' },
-  { id:'p3',  fio:'Волкова Дарья Игоревна',       email:'d.volkova@company.ru',    phone:'+7 383 118 02 47', region:'Сибирский регион',        depart:'Новосибирское отделение',    city:'Новосибирск',      shop:'20812', curPos:'Администратор зала' },
+  { id:'p3',  fio:'Волкова Дарья Игоревна',       email:'d.volkova@company.ru',    phone:'+7 383 118 02 47', region:'Сибирский регион',        depart:'Новосибирское отделение',    city:'Новосибирск',      shop:'20812', curPos:'Продавец-кассир' },
   { id:'p4',  fio:'Петров Максим Олегович',       email:'m.petrov@company.ru',     phone:'+7 343 902 71 30', region:'Уральский регион',        depart:'Екатеринбургское отделение', city:'Екатеринбург',     shop:'20933', curPos:'Продавец' },
   { id:'p5',  fio:'Никитина Елена Александровна', email:'e.nikitina@company.ru',   phone:'+7 863 447 12 85', region:'Южный регион',            depart:'Ростовское отделение',       city:'Ростов-на-Дону',   shop:'21044', curPos:'Старший продавец' },
   { id:'p6',  fio:'Ковалёв Дмитрий Викторович',   email:'d.kovalev@company.ru',    phone:'+7 861 205 63 71', region:'Южный регион',            depart:'Краснодарское отделение',    city:'Краснодар',        shop:'21102', curPos:'Кассир' },
-  { id:'p7',  fio:'Морозова Анна Дмитриевна',     email:'a.morozova@company.ru',   phone:'+7 846 337 90 12', region:'Приволжский регион',      depart:'Самарское отделение',        city:'Самара',           shop:'21255', curPos:'Продавец-консультант' },
-  { id:'p8',  fio:'Соколов Иван Андреевич',       email:'i.sokolov@company.ru',    phone:'+7 347 519 44 67', region:'Приволжский регион',      depart:'Уфимское отделение',         city:'Уфа',              shop:'21309', curPos:'Администратор' },
+  { id:'p7',  fio:'Морозова Анна Дмитриевна',     email:'a.morozova@company.ru',   phone:'+7 846 337 90 12', region:'Приволжский регион',      depart:'Самарское отделение',        city:'Самара',           shop:'21255', curPos:'Продавец-эксперт' },
+  { id:'p8',  fio:'Соколов Иван Андреевич',       email:'i.sokolov@company.ru',    phone:'+7 347 519 44 67', region:'Приволжский регион',      depart:'Уфимское отделение',         city:'Уфа',              shop:'21309', curPos:'Кладовщик' },
   { id:'p9',  fio:'Лебедева Виктория Романовна',  email:'v.lebedeva@company.ru',   phone:'+7 473 228 06 53', region:'Центральный регион',      depart:'Воронежское отделение',      city:'Воронеж',          shop:'21418', curPos:'Продавец' },
   { id:'p10', fio:'Захаров Егор Николаевич',      email:'e.zakharov@company.ru',   phone:'+7 342 611 39 24', region:'Приволжский регион',      depart:'Пермское отделение',         city:'Пермь',            shop:'21527', curPos:'Кассир' },
   { id:'p11', fio:'Орлова Мария Сергеевна',       email:'m.orlova@company.ru',     phone:'+7 351 774 82 06', region:'Уральский регион',        depart:'Челябинское отделение',      city:'Челябинск',        shop:'21633', curPos:'Старший кассир' },
-  { id:'p12', fio:'Григорьев Павел Игоревич',     email:'p.grigoriev@company.ru',  phone:'+7 391 502 17 88', region:'Сибирский регион',        depart:'Красноярское отделение',     city:'Красноярск',       shop:'21744', curPos:'Продавец-консультант' },
+  { id:'p12', fio:'Григорьев Павел Игоревич',     email:'p.grigoriev@company.ru',  phone:'+7 391 502 17 88', region:'Сибирский регион',        depart:'Красноярское отделение',     city:'Красноярск',       shop:'21744', curPos:'Начальник отдела' },
 ];
 
 // Ключ, под которым в row.values хранится общий список записей развития сотрудника —
@@ -252,6 +252,7 @@ const NON_EDITABLE_TYPES = ['auto', 'autoDate', 'devRecords', 'empty'];
 const ACTIONS = [
   { key:'canAddEmployee',    label:'Добавление сотрудника в резерв' },
   { key:'canRemoveEmployee', label:'Удаление сотрудника из резерва' },
+  { key:'canShowAssigned',   label:'Показать назначенных (уже занявших целевую должность)' },
 ];
 
 // Права на действия "по умолчанию" для новой роли — чистый лист, всё запрещено

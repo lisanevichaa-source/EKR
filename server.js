@@ -28,10 +28,11 @@ app.patch('/api/reserve/:id', (req, res) => {
 });
 
 app.post('/api/reserve', (req, res) => {
-  const { poolId } = req.body || {};
-  if (!poolId) return res.status(400).json({ error: 'Не передан poolId' });
+  const { employeeId, position } = req.body || {};
+  if (!employeeId) return res.status(400).json({ error: 'Не передан employeeId' });
+  if (!position) return res.status(400).json({ error: 'Не передана потенциальная должность' });
   try {
-    res.json(db.addToReserve(poolId));
+    res.json(db.addToReserve(employeeId, position));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

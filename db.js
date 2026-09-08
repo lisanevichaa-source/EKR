@@ -87,7 +87,7 @@ function todayISO(){
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function makeDefaultRow(rowIdCounter){
+function makeDefaultRow(rowIdCounter, employeeId){
   const values = {};
   COLUMNS.forEach(col => {
     if (col.type === 'devRecords') return; // хранится отдельно, под DEV_TRACKS_KEY
@@ -96,6 +96,8 @@ function makeDefaultRow(rowIdCounter){
   });
   values[DEV_TRACKS_KEY] = DEMO_DEV_TRACKS.map(t => ({ ...t }));
   values.potPos = DEMO_DEV_TRACKS[0] ? DEMO_DEV_TRACKS[0].position : '';
+  values.employeeId = employeeId;
+  values.trackState = 'active';
   return { id: 'row' + rowIdCounter, values };
 }
 
@@ -118,7 +120,7 @@ const STRESS_CUR_POS_OPTIONS = ['Продавец', 'Продавец К2', 'П�
  *  нередактируемые поля (ФИО, почта, телефон, регион и т.д.) — как в обычном демо,
  *  одинаковые у всех строк, чтобы не плодить лишний объём работы там, где вариативность
  *  не запрашивалась. */
-function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCodeOptions){
+function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCodeOptions, employeeId){
   const values = {};
   const { krDate, assignDate } = randomKrAndAssignDates();
   COLUMNS.forEach(col => {
@@ -160,11 +162,16 @@ function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCod
   values.managerAtEntry = managerOptions[index % managerOptions.length];
   values.shopAtEntry = shopOptions[index % shopOptions.length];
 
+  values.employeeId = employeeId;
+  values.trackState = 'active';
+
   return { id: 'row' + rowIdCounter, values };
 }
 
 function seedState(){
   let rowIdCounter = 0;
+  let employeeIdCounter = 0;
+  const nextEmployeeId = () => 'emp' + (++employeeIdCounter);
   const reserveRows = [];
 
   // для двух "автоматически редактируемых" полей-снимков используем разные вымышленные
@@ -179,33 +186,74 @@ function seedState(){
   // 10 демо-строк — у каждой свой вариант потенциальной должности (см. DEV_TRACKS_VARIANTS),
   // чтобы фильтры по "Потенциальной должности"/"Обучению"/"Дате HARD" реально что-то отсеивали.
   // "Активной" становится запись с наибольшим процентом — та же логика, что и в makeRandomRow.
+  // Строки 1 и 2 намеренно получают ОДИН И ТОТ ЖЕ employeeId — демонстрирует, что один
+  // человек теперь может иметь несколько треков (строк) одновременно; остальные — по
+  // одному треку на человека, как раньше. Последняя (10-я) строка становится демо-примером
+  // "уже назначен" (trackState:'locked', curPos принудительно равен potPos) — чтобы было
+  // на чём показать переключатель "Показать назначенных".
+  const curatedEmployeeIds = [];
   for (let i = 0; i < 10; i++){
     rowIdCounter++;
-    const row = makeDefaultRow(rowIdCounter);
+    const employeeId = i === 1 ? curatedEmployeeIds[0] : nextEmployeeId(); // строка 2 (индекс 1) — тот же человек, что и строка 1
+    curatedEmployeeIds.push(employeeId);
+    const row = makeDefaultRow(rowIdCounter, employeeId);
     row.values.managerAtEntry = managerOptions[i % managerOptions.length];
     row.values.shopAtEntry = shopOptions[i % shopOptions.length];
     row.values.grade = STRESS_GRADE_OPTIONS[i % STRESS_GRADE_OPTIONS.length];
     const variant = DEV_TRACKS_VARIANTS[i % DEV_TRACKS_VARIANTS.length];
     row.values.devTracks = variant.map(t => ({ ...t }));
     row.values.potPos = pickTopDevTrackPosition(variant);
+    if (i === 9){
+      // демо "уже назначен" — сотрудник фактически занял ту же должность, на которую
+      // развивался; строка блокируется целиком (см. updateCell/removeFromReserve)
+      row.values.curPos = row.values.potPos;
+      row.values.trackState = 'locked';
+    }
     reserveRows.push(row);
   }
 
   // если SEED_ROW_COUNT больше 10 — довешиваем ещё случайно сгенерированных строк сверху
-  // (стресс-тест интерфейса на большом объёме данных), не трогая куратированные первые 10
+  // (стресс-тест интерфейса на большом объёме данных), не трогая куратированные первые 10.
+  // Часть синтетических людей (примерно каждый седьмой) получает сразу ДВА трека —
+  // одна и та же личность, два разных допустимых направления развития — чтобы виджет
+  // "Сотрудников в КР" (считает уникальных людей) и общая логика группировки по
+  // employeeId были на чём проверить при большом объёме данных, а не только на 10
+  // куратированных строках.
   const extraCount = Math.max(0, SEED_ROW_COUNT - 10);
   if (extraCount > 0){
     console.log(`[db] SEED_ROW_COUNT=${SEED_ROW_COUNT} — довешиваю ${extraCount} случайно сгенерированных строк сверх 10 куратированных`);
   }
-  for (let i = 0; i < extraCount; i++){
+  let i = 0;
+  while (i < extraCount){
     rowIdCounter++;
-    reserveRows.push(makeRandomRow(rowIdCounter, i, managerOptions, shopOptions, shopCodeOptions));
+    const employeeId = nextEmployeeId();
+    const row = makeRandomRow(rowIdCounter, i, managerOptions, shopOptions, shopCodeOptions, employeeId);
+    reserveRows.push(row);
+    i++;
+
+    // с вероятностью ~1/7 и если остаётся место в лимите — добавляем этому же человеку
+    // второй трек на другую допустимую по категории должность
+    if (i < extraCount && i % 7 === 0){
+      const eligible = getEligiblePotentialPositions(row.values.curPos, POSITION_CATEGORIES_SEED)
+        .filter(p => p !== row.values.potPos);
+      if (eligible.length > 0){
+        rowIdCounter++;
+        const secondPos = eligible[i % eligible.length];
+        const secondRow = makeRandomRow(rowIdCounter, i, managerOptions, shopOptions, shopCodeOptions, employeeId);
+        secondRow.values.curPos = row.values.curPos; // тот же человек — та же текущая должность
+        secondRow.values.potPos = secondPos;
+        secondRow.values.devTracks = [{ position: secondPos, program: `Кадровый резерв на должность ${secondPos}`, percent: Math.floor(Math.random() * 60), hardDate: '' }];
+        reserveRows.push(secondRow);
+        i++;
+      }
+    }
   }
 
   return {
     reserveRows,
-    employeePool: INITIAL_EMPLOYEE_POOL.map(p => ({ ...p })),
+    employeePool: INITIAL_EMPLOYEE_POOL.map(p => ({ ...p, employeeId: 'emp_pool_' + p.id })),
     rowIdCounter,
+    employeeIdCounter,
     roles: seedRoles(),
     roleIdCounter: 100,
     positionCategories: POSITION_CATEGORIES_SEED.map((cat, i) => ({ id: 'poscat_' + (i + 1), ...cat })),
@@ -261,6 +309,24 @@ function reshapeRowValues(values){
   const looksLikeModernPotPos = !looksLikeOldFlatFormat && typeof values.potPos === 'string'
     && devTracks.some(t => t.position === values.potPos);
   next.potPos = looksLikeModernPotPos ? values.potPos : pickTopDevTrackPosition(devTracks);
+
+  // employeeId — группирует несколько треков (строк) одного и того же человека. Служебное
+  // поле, не столбец из columns.js, не показывается в таблице. Для строк, у которых его
+  // ещё нет (миграция данных, сохранённых до появления множественных треков) — выдаём
+  // каждой строке СВОЙ уникальный id: у нас нет способа надёжно угадать, какие из старых
+  // строк на самом деле относились к одному и тому же человеку, поэтому безопаснее не
+  // пытаться группировать задним числом, а просто гарантировать, что id вообще есть.
+  next.employeeId = typeof values.employeeId === 'string' && values.employeeId
+    ? values.employeeId
+    : ('emp_legacy_' + Math.random().toString(36).slice(2, 10));
+
+  // trackState — состояние конкретного трека: active (обычный, виден и редактируется),
+  // removed (сотрудник/роль убрали трек — скрыт, данные сохранены, восстановим через
+  // повторное добавление той же должности), locked (сотрудник уже назначен на эту
+  // должность — навсегда скрыт из обычного вида, показывается только через "Показать
+  // назначенных", и полностью недоступен для редактирования/удаления). Для строк без
+  // этого поля (миграция) — считаем активными, это было поведение по умолчанию раньше.
+  next.trackState = ['active', 'removed', 'locked'].includes(values.trackState) ? values.trackState : 'active';
 
   return next;
 }
@@ -370,6 +436,7 @@ function bulkInsertState(freshState){
     freshState.roles.forEach(r => stmt.insertRole.run(r.id, roleToJson(r)));
     (freshState.positionCategories || []).forEach(c => stmt.insertPositionCategory.run(c.id, positionCategoryToJson(c)));
     stmt.setMeta.run('rowIdCounter', String(freshState.rowIdCounter));
+    stmt.setMeta.run('employeeIdCounter', String(freshState.employeeIdCounter || 0));
     stmt.setMeta.run('roleIdCounter', String(freshState.roleIdCounter));
     stmt.setMeta.run('positionCategoryIdCounter', String(freshState.positionCategoryIdCounter || 0));
   });
@@ -388,6 +455,7 @@ function loadStateFromSqlite(){
     return { id: r.id, name: data.name, currentPositions: data.currentPositions, potentialPositions: data.potentialPositions };
   });
   const rowIdCounterRow = stmt.getMeta.get('rowIdCounter');
+  const employeeIdCounterRow = stmt.getMeta.get('employeeIdCounter');
   const roleIdCounterRow = stmt.getMeta.get('roleIdCounter');
   const positionCategoryIdCounterRow = stmt.getMeta.get('positionCategoryIdCounter');
   return {
@@ -396,6 +464,7 @@ function loadStateFromSqlite(){
     roles,
     positionCategories,
     rowIdCounter: rowIdCounterRow ? parseInt(rowIdCounterRow.value, 10) : reserveRows.length,
+    employeeIdCounter: employeeIdCounterRow ? parseInt(employeeIdCounterRow.value, 10) : 0,
     roleIdCounter: roleIdCounterRow ? parseInt(roleIdCounterRow.value, 10) : 100,
     positionCategoryIdCounter: positionCategoryIdCounterRow ? parseInt(positionCategoryIdCounterRow.value, 10) : positionCategories.length,
   };
@@ -442,6 +511,7 @@ function loadAndMigrateLegacyJson(){
 
   if (!Array.isArray(legacyState.employeePool)) legacyState.employeePool = [];
   if (typeof legacyState.rowIdCounter !== 'number') legacyState.rowIdCounter = legacyState.reserveRows.length;
+  if (typeof legacyState.employeeIdCounter !== 'number') legacyState.employeeIdCounter = 0;
   if (typeof legacyState.roleIdCounter !== 'number') legacyState.roleIdCounter = 100;
   if (typeof legacyState.positionCategoryIdCounter !== 'number') legacyState.positionCategoryIdCounter = legacyState.positionCategories.length;
 
@@ -549,6 +619,9 @@ function findColumn(key){
 function updateCell(rowId, col, value){
   const row = state.reserveRows.find(r => r.id === rowId);
   if (!row) throw new Error('Строка резервиста не найдена');
+  if (row.values.trackState === 'locked'){
+    throw new Error('Сотрудник уже назначен на эту должность — строка заблокирована и не редактируется');
+  }
 
   const colDef = findColumn(col);
   if (!colDef) throw new Error('Неизвестное поле: ' + col);
@@ -573,10 +646,18 @@ function updateCell(rowId, col, value){
  *  истории (её % и дата HARD подставляются как есть — прогресс никуда не делся), либо
  *  заводит новую запись с нуля (0%, без даты HARD), если по этой должности прогресса
  *  ещё не было. Прежние записи истории по другим должностям не теряются — к ним можно
- *  будет вернуться, просто снова переключившись. */
+ *  будет вернуться, просто снова переключившись.
+ *
+ *  ВАЖНО: в многотрековой модели это относится только к ОДНОЙ конкретной строке (треку) —
+ *  у сотрудника может быть параллельно ещё несколько других строк с другими потенциальными
+ *  должностями, эта функция их не касается. Чтобы завести отдельный НОВЫЙ трек на другую
+ *  должность — используется addToReserve, а не эта функция. */
 function updatePotentialPosition(rowId, newPosition){
   const row = state.reserveRows.find(r => r.id === rowId);
   if (!row) throw new Error('Строка резервиста не найдена');
+  if (row.values.trackState === 'locked'){
+    throw new Error('Сотрудник уже назначен на эту должность — строка заблокирована и не редактируется');
+  }
 
   const pos = (newPosition || '').trim();
   if (!pos) throw new Error('Не указана потенциальная должность');
@@ -584,6 +665,15 @@ function updatePotentialPosition(rowId, newPosition){
   const eligible = getEligiblePotentialPositions(row.values.curPos, state.positionCategories);
   if (!eligible.includes(pos)){
     throw new Error(`Должность "${pos}" недоступна для текущей должности "${row.values.curPos}"`);
+  }
+  // нельзя переключиться на должность, если у этого же сотрудника уже есть ДРУГАЯ активная
+  // строка именно на эту должность — это был бы дубль трека
+  const duplicateTrack = state.reserveRows.some(r =>
+    r.id !== rowId && r.values.employeeId === row.values.employeeId &&
+    r.values.potPos === pos && r.values.trackState !== 'removed'
+  );
+  if (duplicateTrack){
+    throw new Error(`У этого сотрудника уже есть трек на должность "${pos}" в другой строке`);
   }
 
   row.values.potPos = pos;
@@ -601,65 +691,120 @@ function updatePotentialPosition(rowId, newPosition){
   return row;
 }
 
-/** Добавить сотрудника из общего списка в резерв. */
-function addToReserve(poolId){
-  const idx = state.employeePool.findIndex(p => p.id === poolId);
-  if (idx === -1) throw new Error('Сотрудник не найден в общем списке (возможно, уже добавлен)');
-  const [poolEntry] = state.employeePool.splice(idx, 1);
+/** Добавляет сотруднику ОДИН трек — новую строку на конкретную потенциальную должность.
+ *  employeeId может относиться либо к записи в общем списке кандидатов (у сотрудника
+ *  сейчас вообще нет ни одного трека), либо к уже существующему резервисту (заводим ему
+ *  дополнительный, второй/третий трек на другую допустимую должность).
+ *
+ *  Если у этого сотрудника уже когда-то БЫЛ трек именно на эту должность и его удалили
+ *  (trackState:'removed') — восстанавливаем ту же строку как есть, с прежними данными,
+ *  а не создаём новую с нуля. Если трек на эту должность уже активен или заблокирован
+ *  (уже назначен) — повторно завести его нельзя. */
+function addToReserve(employeeId, position){
+  const pos = (position || '').trim();
+  if (!pos) throw new Error('Не указана потенциальная должность');
 
-  const values = {};
-  COLUMNS.forEach(col => {
-    if (col.type === 'devRecords') return; // хранится отдельно, под DEV_TRACKS_KEY
-    if (SOURCE_FIELDS.includes(col.key)){
-      values[col.key] = poolEntry[col.key] || '';
-    } else if (col.type === 'select'){
-      values[col.key] = SELECT_DEFAULTS[col.key] || col.options[0];
-    } else if (col.type === 'auto'){
-      values[col.key] = '—'; // ещё не пришло из смежных систем
-    } else if (col.type === 'autoDate'){
-      values[col.key] = col.key === 'reqDate' ? todayFormatted() : '—';
-    } else if (col.type === 'autoEditable'){
-      values[col.key] = '—'; // будет заполнено смежной системой при первом обновлении
-    } else if (col.type === 'date'){
-      values[col.key] = col.key === 'krDate' ? todayISO() : '';
-    } else if (col.type === 'free'){
-      values[col.key] = '';
-    } else {
-      values[col.key] = '';
+  const poolEntry = state.employeePool.find(p => p.employeeId === employeeId);
+  const anyExistingRow = state.reserveRows.find(r => r.values.employeeId === employeeId);
+  if (!poolEntry && !anyExistingRow) throw new Error('Сотрудник не найден');
+
+  const curPos = poolEntry ? poolEntry.curPos : anyExistingRow.values.curPos;
+  const sourceFieldsSnapshot = poolEntry || anyExistingRow.values;
+
+  const eligible = getEligiblePotentialPositions(curPos, state.positionCategories);
+  if (!eligible.includes(pos)){
+    throw new Error(`Должность "${pos}" недоступна для текущей должности "${curPos}"`);
+  }
+
+  const existingTrack = state.reserveRows.find(r => r.values.employeeId === employeeId && r.values.potPos === pos);
+  let resultRow;
+  if (existingTrack){
+    if (existingTrack.values.trackState === 'active'){
+      throw new Error(`У этого сотрудника уже есть активный трек на должность "${pos}"`);
     }
-  });
-  values[DEV_TRACKS_KEY] = []; // у нового кандидата ещё нет потенциальных должностей/обучения
+    if (existingTrack.values.trackState === 'locked'){
+      throw new Error(`Сотрудник уже был назначен на должность "${pos}" ранее — этот трек заблокирован`);
+    }
+    // trackState === 'removed' — восстанавливаем как есть, с прежними сохранёнными данными
+    existingTrack.values.trackState = 'active';
+    timedSqlite(`addToReserve restore rowId=${existingTrack.id}`, () => stmt.updateRow.run(JSON.stringify(existingTrack.values), existingTrack.id));
+    resultRow = existingTrack;
+  } else {
+    const values = {};
+    COLUMNS.forEach(col => {
+      if (col.type === 'devRecords') return; // хранится отдельно, под DEV_TRACKS_KEY
+      if (col.type === 'positionSelect') return; // зададим явно ниже
+      if (SOURCE_FIELDS.includes(col.key)){
+        values[col.key] = sourceFieldsSnapshot[col.key] || '';
+      } else if (col.type === 'select'){
+        values[col.key] = SELECT_DEFAULTS[col.key] || col.options[0];
+      } else if (col.type === 'auto'){
+        values[col.key] = '—'; // ещё не пришло из смежных систем
+      } else if (col.type === 'autoDate'){
+        values[col.key] = col.key === 'reqDate' ? todayFormatted() : '—';
+      } else if (col.type === 'autoEditable'){
+        values[col.key] = '—'; // будет заполнено смежной системой при первом обновлении
+      } else if (col.type === 'date'){
+        values[col.key] = col.key === 'krDate' ? todayISO() : '';
+      } else if (col.type === 'free'){
+        values[col.key] = '';
+      } else {
+        values[col.key] = '';
+      }
+    });
+    values.potPos = pos;
+    values[DEV_TRACKS_KEY] = [{ position: pos, program: `Кадровый резерв на должность ${pos}`, percent: 0, hardDate: '' }];
+    values.employeeId = employeeId;
+    values.trackState = 'active';
 
-  state.rowIdCounter++;
-  const newRow = { id: 'row' + state.rowIdCounter, values };
-  state.reserveRows.push(newRow);
-
-  const tx = sqlite.transaction(() => {
-    stmt.insertRow.run(newRow.id, JSON.stringify(newRow.values));
-    stmt.deletePool.run(poolId);
+    state.rowIdCounter++;
+    const newRow = { id: 'row' + state.rowIdCounter, values };
+    state.reserveRows.push(newRow);
+    timedSqlite(`addToReserve new rowId=${newRow.id}`, () => stmt.insertRow.run(newRow.id, JSON.stringify(newRow.values)));
     stmt.setMeta.run('rowIdCounter', String(state.rowIdCounter));
-  });
-  tx();
+    resultRow = newRow;
+  }
 
+  // если сотрудник был в общем списке кандидатов (у него не было вообще ни одного трека) —
+  // убираем его оттуда, теперь у него есть хотя бы один трек в резерве
+  if (poolEntry){
+    state.employeePool = state.employeePool.filter(p => p.employeeId !== employeeId);
+    timedSqlite(`addToReserve remove from pool employeeId=${employeeId}`, () => stmt.deletePool.run(poolEntry.id));
+  }
+
+  void resultRow;
   return getState();
 }
 
-/** Убрать сотрудника из резерва (не увольнение) — возвращается в общий список. */
+/** Убрать один трек (строку) сотрудника из резерва — НЕ увольнение и не отказ от всех
+ *  треков разом, только этот конкретный. Данные не удаляются физически, а помечаются
+ *  trackState:'removed' — строка скрывается из обычного вида, но её можно восстановить
+ *  (со всеми прежними данными) через повторное добавление той же должности. Если после
+ *  этого у сотрудника не осталось вообще ни одного активного/заблокированного трека —
+ *  он возвращается в общий список кандидатов (одной записью, а не по числу треков). */
 function removeFromReserve(rowId){
-  const idx = state.reserveRows.findIndex(r => r.id === rowId);
-  if (idx === -1) throw new Error('Строка резервиста не найдена');
-  const [row] = state.reserveRows.splice(idx, 1);
+  const row = state.reserveRows.find(r => r.id === rowId);
+  if (!row) throw new Error('Строка резервиста не найдена');
+  if (row.values.trackState === 'locked'){
+    throw new Error('Сотрудник уже назначен на эту должность — строка заблокирована и не удаляется');
+  }
+  if (row.values.trackState === 'removed'){
+    throw new Error('Этот трек уже удалён');
+  }
 
-  const poolEntry = { id: 'ret_' + row.id };
-  SOURCE_FIELDS.forEach(f => { poolEntry[f] = row.values[f]; });
-  state.employeePool.push(poolEntry);
-  state.employeePool.sort((a, b) => a.fio.localeCompare(b.fio, 'ru'));
+  row.values.trackState = 'removed';
+  timedSqlite(`removeFromReserve rowId=${rowId}`, () => stmt.updateRow.run(JSON.stringify(row.values), rowId));
 
-  const tx = sqlite.transaction(() => {
-    stmt.deleteRow.run(rowId);
-    stmt.insertPool.run(poolEntry.id, JSON.stringify(poolEntry));
-  });
-  tx();
+  const employeeId = row.values.employeeId;
+  const stillHasAny = state.reserveRows.some(r => r.values.employeeId === employeeId && r.values.trackState !== 'removed');
+  const alreadyInPool = state.employeePool.some(p => p.employeeId === employeeId);
+  if (!stillHasAny && !alreadyInPool){
+    const poolEntry = { id: 'ret_' + row.id, employeeId };
+    SOURCE_FIELDS.forEach(f => { poolEntry[f] = row.values[f]; });
+    state.employeePool.push(poolEntry);
+    state.employeePool.sort((a, b) => a.fio.localeCompare(b.fio, 'ru'));
+    timedSqlite(`removeFromReserve add to pool employeeId=${employeeId}`, () => stmt.insertPool.run(poolEntry.id, JSON.stringify(poolEntry)));
+  }
 
   return getState();
 }
