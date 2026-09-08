@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Личный кабинет — демо</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* Демонстрационная имитация экрана мобильного приложения сотрудника — не претендует на
+     точное повторение внешнего вида боевого приложения, только состав и логику полей:
+     что сотрудник может редактировать сам (Готовность к релокации, Куда хочу развиваться)
+     и что подтягивается из реестра автоматически, только на чтение (Пройдённое обучение,
+     Пройдена оценка SOFT) — построчно по каждому его треку развития. */
+  body{ background:var(--bg-page); }
+  .demo-banner{
+    background:#fff7e0; color:#8a6100; font-size:12.5px; padding:9px 20px; text-align:center;
+    border-bottom:1px solid #f0e0ad;
+  }
+  .demo-banner a{ color:#8a6100; font-weight:700; }
+  .phone-wrap{
+    max-width:420px; margin:0 auto; min-height:calc(100vh - 40px); background:#fff;
+    box-shadow:0 0 40px rgba(15,15,40,0.08);
+  }
+  .profile-header{
+    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
+    color:#fff; padding:22px 20px 26px; text-align:center; position:relative;
+  }
+  .profile-header-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .profile-back{ color:#fff; text-decoration:none; font-size:20px; opacity:.85; }
+  .profile-back:hover{ opacity:1; }
+  .profile-settings{ opacity:.6; font-size:18px; }
+  .profile-avatar{
+    width:76px; height:76px; border-radius:50%; background:rgba(255,255,255,0.15);
+    display:flex; align-items:center; justify-content:center; margin:6px auto 12px;
+    font-size:26px; font-weight:700; border:2px solid rgba(255,255,255,0.4);
+  }
+  .profile-name{ font-size:18px; font-weight:700; }
+
+  .section{ padding:18px 20px; border-bottom:8px solid var(--bg-page); }
+  .section-title{ font-size:14.5px; font-weight:700; margin:0 0 12px; color:var(--ink); }
+  .field-row{ display:flex; gap:12px; align-items:flex-start; padding:9px 0; }
+  .field-icon{
+    width:34px; height:34px; border-radius:9px; background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px;
+  }
+  .field-body{ flex:1; min-width:0; }
+  .field-label{ font-size:13px; font-weight:600; display:flex; align-items:center; gap:5px; color:var(--ink); }
+  .field-label .editable-mark{ color:var(--accent); font-size:11px; }
+  .field-value{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+
+  .reloc-select{
+    margin-top:6px; width:100%; border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:7px 9px; font-size:12.5px; font-family:inherit; color:var(--ink); background:#fff;
+  }
+
+  .position-checklist{ margin-top:6px; display:flex; flex-direction:column; gap:9px; }
+  .position-check-item{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink); cursor:pointer; }
+  .position-check-item input{ width:16px; height:16px; accent-color:var(--accent); flex-shrink:0; }
+
+  .track-list{ margin-top:4px; display:flex; flex-direction:column; gap:5px; }
+  .track-line{ font-size:12.5px; display:flex; justify-content:space-between; gap:10px; }
+  .track-line .pos{ color:var(--ink); }
+  .track-line .val{ color:var(--ink-soft); white-space:nowrap; text-align:right; }
+  .field-empty-note{ font-size:12px; color:var(--ink-soft); font-style:italic; }
+
+  .ds-status-wrap{ position:fixed; bottom:12px; right:12px; z-index:20; }
+  .ds-status-wrap .save-status{ box-shadow:0 4px 14px rgba(15,15,40,.12); }
+</style>
+</head>
+<body>
+
+<div class="demo-banner">
+  Демо личного кабинета — изменения здесь сразу видны в <a href="index.html">реестре кадрового резерва</a>, и наоборот
+</div>
+
+<div class="phone-wrap">
+  <div class="profile-header">
+    <div class="profile-header-top">
+      <a class="profile-back" href="index.html" title="К реестру">‹</a>
+      <span class="profile-settings">⚙</span>
+    </div>
+    <div class="profile-avatar" id="avatarInitials">—</div>
+    <div class="profile-name" id="profileName">Загрузка…</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Данные</div>
+    <div class="field-row">
+      <div class="field-icon">💼</div>
+      <div class="field-body">
+        <div class="field-label">Должность</div>
+        <div class="field-value" id="profileCurPos">—</div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-icon">✉</div>
+      <div class="field-body">
+        <div class="field-label">Email</div>
+        <div class="field-value" id="profileEmail">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Карьерное развитие</div>
+
+    <div class="field-row">
+      <div class="field-icon">📍</div>
+      <div class="field-body">
+        <div class="field-label">Готовность к релокации <span class="editable-mark">✎</span></div>
+        <select class="reloc-select" id="relocSelect"></select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field-icon">🎯</div>
+      <div class="field-body">
+        <div class="field-label">Куда хочу развиваться <span class="editable-mark">✎</span></div>
+        <div class="position-checklist" id="positionChecklist"></div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field-icon">📈</div>
+      <div class="field-body">
+        <div class="field-label">Пройдённое обучение</div>
+        <div class="track-list" id="trainingList"></div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field-icon">✅</div>
+      <div class="field-body">
+        <div class="field-label">Пройдена оценка SOFT</div>
+        <div class="track-list" id="softList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ds-status-wrap">
+  <div class="save-status" id="saveStatus"><span class="save-dot"></span><span class="save-status-text">Загрузка…</span></div>
+</div>
+
+<script src="common.js"></script>
+<script>
+// Демо личного кабинета всегда показывает ОДНОГО заранее выбранного сотрудника — тот же
+// человек, что curated-строки 1 и 2 в самом реестре (employeeId "emp1", специально
+// поставлен первым в демо-данных, чтобы его было легко найти).
+const DEMO_EMPLOYEE_ID = 'emp1';
+
+let COLUMNS = [];
+let positionCategories = [];
+let reserveRows = [];
+
+/** Дублирует одноимённую функцию из columns.js/index.html — серверный модуль недоступен
+ *  напрямую в браузере, логика намеренно простая, держать в нескольких местах не накладно. */
+function getEligiblePotentialPositions(currentPosition, categories){
+  const eligible = new Set();
+  (categories || []).forEach(cat => {
+    if (Array.isArray(cat.currentPositions) && cat.currentPositions.includes(currentPosition)){
+      (cat.potentialPositions || []).forEach(p => eligible.add(p));
+    }
+  });
+  return Array.from(eligible);
+}
+
+/** Все строки этого сотрудника, которые вообще имеет смысл показывать в личном кабинете —
+ *  удалённые (trackState:'removed') не в счёт, они больше не выбраны, ничего не отражают. */
+function getMyRows(){
+  return reserveRows.filter(r => r.values.employeeId === DEMO_EMPLOYEE_ID && r.values.trackState !== 'removed');
+}
+
+function render(){
+  const myRows = getMyRows();
+  if (myRows.length === 0){
+    document.getElementById('profileName').textContent = 'Демо-сотрудник не найден в текущих данных';
+    return;
+  }
+  // личные данные (ФИО, должность, почта) у всех строк этого человека одинаковые — берём
+  // из любой, например первой
+  const sample = myRows[0].values;
+
+  document.getElementById('profileName').textContent = sample.fio;
+  document.getElementById('avatarInitials').textContent = (sample.fio || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+  document.getElementById('profileCurPos').textContent = sample.curPos || '—';
+  document.getElementById('profileEmail').textContent = sample.email || '—';
+
+  // Готовность к релокации — общая на всего человека (см. updateRelocReadyForEmployee в db.js)
+  const relocCol = COLUMNS.find(c => c.key === 'relocReady');
+  const relocSelect = document.getElementById('relocSelect');
+  relocSelect.innerHTML = relocCol.options.map(o =>
+    `<option value="${escapeHtml(o)}" ${o === sample.relocReady ? 'selected' : ''}>${escapeHtml(o)}</option>`
+  ).join('');
+
+  // Куда хочу развиваться — чекбокс на каждую должность, допустимую по категориям для
+  // текущей должности этого сотрудника; отмечена, если по ней сейчас есть активный трек
+  const eligible = getEligiblePotentialPositions(sample.curPos, positionCategories);
+  const activePositions = new Set(myRows.filter(r => r.values.trackState === 'active').map(r => r.values.potPos));
+  const checklist = document.getElementById('positionChecklist');
+  if (eligible.length === 0){
+    checklist.innerHTML = `<div class="field-empty-note">Для должности «${escapeHtml(sample.curPos)}» пока не настроены доступные направления развития</div>`;
+  } else {
+    checklist.innerHTML = eligible.map(pos => `
+      <label class="position-check-item">
+        <input type="checkbox" data-position="${escapeHtml(pos)}" ${activePositions.has(pos) ? 'checked' : ''}>
+        <span>${escapeHtml(pos)}</span>
+      </label>
+    `).join('');
+  }
+
+  // Пройдённое обучение — только на чтение, по каждому видимому треку: название (сама
+  // потенциальная должность трека) + % прохождения из его записи в devTracks
+  const trainingList = document.getElementById('trainingList');
+  if (myRows.length === 0){
+    trainingList.innerHTML = `<div class="field-empty-note">Пока нет выбранных направлений</div>`;
+  } else {
+    trainingList.innerHTML = myRows.map(r => {
+      const track = (r.values.devTracks || []).find(t => t.position === r.values.potPos);
+      const pct = track && track.percent !== undefined ? track.percent : 0;
+      return `<div class="track-line"><span class="pos">${escapeHtml(r.values.potPos)}</span><span class="val">${pct}%</span></div>`;
+    }).join('');
+  }
+
+  // Пройдена оценка SOFT — тоже только на чтение, по каждому треку: должность + статус
+  // из столбца "Оценка SOFT" именно этой строки (может отличаться между треками одного
+  // и того же человека — это оценка применительно к конкретному направлению развития)
+  const softList = document.getElementById('softList');
+  if (myRows.length === 0){
+    softList.innerHTML = `<div class="field-empty-note">—</div>`;
+  } else {
+    softList.innerHTML = myRows.map(r => `
+      <div class="track-line"><span class="pos">${escapeHtml(r.values.potPos)}</span><span class="val">${escapeHtml(r.values.soft || '—')}</span></div>
+    `).join('');
+  }
+}
+
+async function reload(){
+  const state = await fetchState();
+  reserveRows = state.reserveRows;
+  render();
+}
+
+function setupHandlers(){
+  document.getElementById('relocSelect').addEventListener('change', async e => {
+    try{
+      await mutate(`/api/employee/${encodeURIComponent(DEMO_EMPLOYEE_ID)}/reloc-ready`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: e.target.value }),
+      });
+    } catch(err){
+      // статус сохранения уже показал ошибку — перерисуем из последнего известного состояния
+    }
+    await reload();
+  });
+
+  document.getElementById('positionChecklist').addEventListener('change', async e => {
+    const cb = e.target.closest('input[type="checkbox"]');
+    if (!cb) return;
+    const position = cb.dataset.position;
+    try{
+      if (cb.checked){
+        await mutate('/api/reserve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employeeId: DEMO_EMPLOYEE_ID, position }),
+        });
+      } else {
+        const row = getMyRows().find(r => r.values.potPos === position && r.values.trackState === 'active');
+        if (row){
+          await mutate(`/api/reserve/${encodeURIComponent(row.id)}`, { method: 'DELETE' });
+        }
+      }
+    } catch(err){
+      // статус сохранения уже показал ошибку
+    }
+    await reload();
+  });
+}
+
+async function init(){
+  setSaveStatus('saving', 'Загрузка…');
+  try{
+    const meta = await fetchMeta();
+    COLUMNS = meta.columns;
+    const state = await fetchState();
+    reserveRows = state.reserveRows;
+    positionCategories = state.positionCategories;
+  } catch(err){
+    console.error(err);
+    setSaveStatus('error', 'Нет связи с сервером');
+    document.getElementById('profileName').textContent = 'Не удалось загрузить данные';
+    return;
+  }
+  setSaveStatus('ok', 'Загружено');
+  render();
+  setupHandlers();
+}
+
+init();
+</script>
+</body>
+</html>

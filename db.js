@@ -809,6 +809,26 @@ function removeFromReserve(rowId){
   return getState();
 }
 
+/** "Готовность к релокации" — по смыслу свойство самого человека, а не конкретного трека
+ *  развития, хотя физически (как и вся личная информация в модели "одна строка = один
+ *  трек") хранится в каждой его строке отдельно. Эта функция обновляет значение сразу во
+ *  ВСЕХ АКТИВНЫХ строках этого employeeId разом, чтобы они не разошлись между собой —
+ *  используется личным кабинетом сотрудника (см. /profile.html). Заблокированные
+ *  (trackState:'locked', "уже назначен") строки НЕ трогаем — они полностью заморожены
+ *  как исторический снимок, это правило действует без исключений, в том числе и здесь.
+ *  Удалённые (trackState:'removed') тоже не трогаем — не видны и не участвуют ни в чём,
+ *  пока не будут восстановлены (тогда унаследуют то значение, что было заморожено в них
+ *  на момент удаления — так же, как и остальные их поля). */
+function updateRelocReadyForEmployee(employeeId, value){
+  const rows = state.reserveRows.filter(r => r.values.employeeId === employeeId && r.values.trackState === 'active');
+  if (rows.length === 0) throw new Error('Сотрудник не найден среди активных строк резерва');
+  rows.forEach(row => {
+    row.values.relocReady = value;
+    timedSqlite(`updateRelocReadyForEmployee rowId=${row.id}`, () => stmt.updateRow.run(JSON.stringify(row.values), row.id));
+  });
+  return getState();
+}
+
 /* ===================== РОЛИ И ДОСТУПЫ ===================== */
 
 function createRole(name, positions){
@@ -915,6 +935,7 @@ module.exports = {
   updatePotentialPosition,
   addToReserve,
   removeFromReserve,
+  updateRelocReadyForEmployee,
   createRole,
   updateRole,
   updateRolePermissions,

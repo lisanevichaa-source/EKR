@@ -57,6 +57,18 @@ app.patch('/api/reserve/:id/potential-position', (req, res) => {
   }
 });
 
+// "Готовность к релокации" — используется личным кабинетом (см. /profile.html), обновляет
+// значение сразу во всех строках этого сотрудника, а не в одной конкретной
+app.patch('/api/employee/:employeeId/reloc-ready', (req, res) => {
+  const { value } = req.body || {};
+  if (typeof value !== 'string') return res.status(400).json({ error: 'Не передано поле value' });
+  try {
+    res.json(db.updateRelocReadyForEmployee(req.params.employeeId, value));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // --- Роли и доступы ---
 
 app.post('/api/roles', (req, res) => {
