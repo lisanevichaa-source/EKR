@@ -380,7 +380,7 @@ sqlite.exec(`
 `);
 
 const stmt = {
-  selectRows: sqlite.prepare('SELECT id, values_json FROM reserve_rows'),
+  selectRows: sqlite.prepare('SELECT id, values_json FROM reserve_rows ORDER BY rowid'),
   insertRow: sqlite.prepare('INSERT INTO reserve_rows (id, values_json) VALUES (?, ?)'),
   updateRow: sqlite.prepare('UPDATE reserve_rows SET values_json = ? WHERE id = ?'),
   deleteRow: sqlite.prepare('DELETE FROM reserve_rows WHERE id = ?'),
@@ -605,9 +605,26 @@ function load(){
 
 load();
 
+/** Группирует строки резерва так, чтобы все треки одного и того же сотрудника (одинаковый
+ *  employeeId) шли в таблице подряд, даже если по факту они были добавлены не одна за
+ *  другой (например, кому-то завели второй трек намного позже первого — физически такая
+ *  строка окажется в самом конце общего списка). Порядок между РАЗНЫМИ людьми не меняется —
+ *  используется позиция, на которой каждый employeeId впервые встретился в исходном
+ *  порядке; порядок строк ВНУТРИ одного и того же employeeId тоже сохраняется как есть
+ *  (сортировка стабильная). Это защита на будущее, а не просто разовая починка: точка
+ *  входа общая для всех ответов API — не имеет значения, из-за чего конкретно разъехался
+ *  порядок в тот или иной момент. */
+function groupRowsByEmployee(rows){
+  const firstSeenIndex = new Map();
+  rows.forEach((r, i) => {
+    if (!firstSeenIndex.has(r.values.employeeId)) firstSeenIndex.set(r.values.employeeId, i);
+  });
+  return [...rows].sort((a, b) => firstSeenIndex.get(a.values.employeeId) - firstSeenIndex.get(b.values.employeeId));
+}
+
 function getState(){
   return {
-    reserveRows: state.reserveRows,
+    reserveRows: groupRowsByEmployee(state.reserveRows),
     employeePool: state.employeePool,
     roles: state.roles,
     positionCategories: state.positionCategories,

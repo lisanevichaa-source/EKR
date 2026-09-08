@@ -21,6 +21,12 @@
     max-width:420px; margin:0 auto; min-height:calc(100vh - 40px); background:#fff;
     box-shadow:0 0 40px rgba(15,15,40,0.08);
   }
+  /* На реальном телефоне (а не в превью на десктопе) — во всю ширину экрана, без теней
+     и белых полей по бокам, которые тут только мешают */
+  @media (max-width:460px){
+    .phone-wrap{ max-width:100%; box-shadow:none; min-height:100vh; }
+    .demo-banner{ font-size:11.5px; padding:8px 14px; }
+  }
   .profile-header{
     background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
     color:#fff; padding:22px 20px 26px; text-align:center; position:relative;
@@ -44,24 +50,48 @@
     display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px;
   }
   .field-body{ flex:1; min-width:0; }
-  .field-label{ font-size:13px; font-weight:600; display:flex; align-items:center; gap:5px; color:var(--ink); }
-  .field-label .editable-mark{ color:var(--accent); font-size:11px; }
+  .field-label{ font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px; color:var(--ink); }
   .field-value{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
 
-  .reloc-select{
-    margin-top:6px; width:100%; border:1px solid var(--line); border-radius:var(--radius-sm);
-    padding:7px 9px; font-size:12.5px; font-family:inherit; color:var(--ink); background:#fff;
+  /* Карандаш — настоящая кнопка входа в режим редактирования, а не декоративная иконка.
+     Само значение (select/чекбоксы) больше не лежит прямо на странице, где случайный тап
+     при скролле мог бы незаметно его поменять — редактирование открывается только через
+     явный клик сюда, во всплывающей модалке. */
+  .edit-pencil-btn{
+    border:none; background:none; color:var(--accent); font-size:12px; cursor:pointer;
+    padding:2px 4px; line-height:1; flex-shrink:0;
   }
+  .edit-pencil-btn:hover{ opacity:.7; }
 
-  .position-checklist{ margin-top:6px; display:flex; flex-direction:column; gap:9px; }
-  .position-check-item{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink); cursor:pointer; }
-  .position-check-item input{ width:16px; height:16px; accent-color:var(--accent); flex-shrink:0; }
+  .position-checklist{ display:flex; flex-direction:column; gap:12px; }
+  .position-check-item{ display:flex; align-items:center; gap:10px; font-size:14px; color:var(--ink); cursor:pointer; }
+  .position-check-item input{ width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; }
 
   .track-list{ margin-top:4px; display:flex; flex-direction:column; gap:5px; }
   .track-line{ font-size:12.5px; display:flex; justify-content:space-between; gap:10px; }
   .track-line .pos{ color:var(--ink); }
   .track-line .val{ color:var(--ink-soft); white-space:nowrap; text-align:right; }
   .field-empty-note{ font-size:12px; color:var(--ink-soft); font-style:italic; }
+
+  /* ---------- МОДАЛКА РЕДАКТИРОВАНИЯ ---------- */
+  .edit-modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(15,15,40,0.45);
+    align-items:flex-end; justify-content:center; z-index:30;
+  }
+  .edit-modal-overlay.open{ display:flex; }
+  .edit-modal-card{
+    background:#fff; width:100%; max-width:420px; border-radius:16px 16px 0 0;
+    padding:18px 20px 22px; max-height:80vh; display:flex; flex-direction:column;
+  }
+  .edit-modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .edit-modal-head h3{ margin:0; font-size:15px; color:var(--ink); }
+  .edit-modal-body{ overflow-y:auto; flex:1; }
+  .edit-modal-select{
+    width:100%; border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:9px 10px; font-size:14px; font-family:inherit; color:var(--ink); background:#fff;
+  }
+  .edit-modal-foot{ margin-top:16px; }
+  .edit-modal-foot .primary-btn{ width:100%; justify-content:center; padding:11px; font-size:13.5px; }
 
   .ds-status-wrap{ position:fixed; bottom:12px; right:12px; z-index:20; }
   .ds-status-wrap .save-status{ box-shadow:0 4px 14px rgba(15,15,40,.12); }
@@ -107,16 +137,22 @@
     <div class="field-row">
       <div class="field-icon">📍</div>
       <div class="field-body">
-        <div class="field-label">Готовность к релокации <span class="editable-mark">✎</span></div>
-        <select class="reloc-select" id="relocSelect"></select>
+        <div class="field-label">
+          Готовность к релокации
+          <button type="button" class="edit-pencil-btn" id="editRelocBtn" title="Изменить">✎</button>
+        </div>
+        <div class="field-value" id="relocDisplay">—</div>
       </div>
     </div>
 
     <div class="field-row">
       <div class="field-icon">🎯</div>
       <div class="field-body">
-        <div class="field-label">Куда хочу развиваться <span class="editable-mark">✎</span></div>
-        <div class="position-checklist" id="positionChecklist"></div>
+        <div class="field-label">
+          Куда хочу развиваться
+          <button type="button" class="edit-pencil-btn" id="editPositionsBtn" title="Изменить">✎</button>
+        </div>
+        <div class="track-list" id="positionsDisplay"></div>
       </div>
     </div>
 
@@ -134,6 +170,19 @@
         <div class="field-label">Пройдена оценка SOFT</div>
         <div class="track-list" id="softList"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="edit-modal-overlay" id="editModalOverlay">
+  <div class="edit-modal-card">
+    <div class="edit-modal-head">
+      <h3 id="editModalTitle">Изменить</h3>
+      <button class="modal-close" id="editModalClose">✕</button>
+    </div>
+    <div class="edit-modal-body" id="editModalBody"></div>
+    <div class="edit-modal-foot">
+      <button class="primary-btn" id="editModalDone">Готово</button>
     </div>
   </div>
 </div>
@@ -186,27 +235,19 @@ function render(){
   document.getElementById('profileCurPos').textContent = sample.curPos || '—';
   document.getElementById('profileEmail').textContent = sample.email || '—';
 
-  // Готовность к релокации — общая на всего человека (см. updateRelocReadyForEmployee в db.js)
-  const relocCol = COLUMNS.find(c => c.key === 'relocReady');
-  const relocSelect = document.getElementById('relocSelect');
-  relocSelect.innerHTML = relocCol.options.map(o =>
-    `<option value="${escapeHtml(o)}" ${o === sample.relocReady ? 'selected' : ''}>${escapeHtml(o)}</option>`
-  ).join('');
+  // Готовность к релокации и Куда хочу развиваться — на самой странице только текстом,
+  // без прямого select/чекбоксов: значение меняется только через явный клик по карандашу
+  // и модалку (см. openRelocEditor/openPositionsEditor), чтобы случайный тап при скролле
+  // не мог незаметно поменять выбор.
+  document.getElementById('relocDisplay').textContent = sample.relocReady || '—';
 
-  // Куда хочу развиваться — чекбокс на каждую должность, допустимую по категориям для
-  // текущей должности этого сотрудника; отмечена, если по ней сейчас есть активный трек
   const eligible = getEligiblePotentialPositions(sample.curPos, positionCategories);
-  const activePositions = new Set(myRows.filter(r => r.values.trackState === 'active').map(r => r.values.potPos));
-  const checklist = document.getElementById('positionChecklist');
-  if (eligible.length === 0){
-    checklist.innerHTML = `<div class="field-empty-note">Для должности «${escapeHtml(sample.curPos)}» пока не настроены доступные направления развития</div>`;
+  const activePositions = myRows.filter(r => r.values.trackState === 'active').map(r => r.values.potPos);
+  const positionsDisplay = document.getElementById('positionsDisplay');
+  if (activePositions.length === 0){
+    positionsDisplay.innerHTML = `<div class="field-empty-note">Пока ничего не выбрано</div>`;
   } else {
-    checklist.innerHTML = eligible.map(pos => `
-      <label class="position-check-item">
-        <input type="checkbox" data-position="${escapeHtml(pos)}" ${activePositions.has(pos) ? 'checked' : ''}>
-        <span>${escapeHtml(pos)}</span>
-      </label>
-    `).join('');
+    positionsDisplay.innerHTML = activePositions.map(pos => `<div class="track-line"><span class="pos">${escapeHtml(pos)}</span></div>`).join('');
   }
 
   // Пройдённое обучение — только на чтение, по каждому видимому треку: название (сама
@@ -233,6 +274,62 @@ function render(){
       <div class="track-line"><span class="pos">${escapeHtml(r.values.potPos)}</span><span class="val">${escapeHtml(r.values.soft || '—')}</span></div>
     `).join('');
   }
+
+  // если модалка редактирования сейчас открыта — обновляем и её содержимое вместе с
+  // остальной страницей (например, после того как чекбокс внутри неё сам вызвал reload())
+  if (openEditorKind === 'reloc') renderRelocEditorBody(sample);
+  if (openEditorKind === 'positions') renderPositionsEditorBody(sample, myRows);
+}
+
+/* ===================== МОДАЛКА РЕДАКТИРОВАНИЯ ===================== */
+let openEditorKind = null; // null | 'reloc' | 'positions' — какая модалка сейчас открыта
+
+function closeEditModal(){
+  document.getElementById('editModalOverlay').classList.remove('open');
+  openEditorKind = null;
+}
+
+function renderRelocEditorBody(sample){
+  const relocCol = COLUMNS.find(c => c.key === 'relocReady');
+  document.getElementById('editModalBody').innerHTML = `
+    <select class="edit-modal-select" id="relocSelect">
+      ${relocCol.options.map(o => `<option value="${escapeHtml(o)}" ${o === sample.relocReady ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('')}
+    </select>
+  `;
+}
+
+function openRelocEditor(){
+  const myRows = getMyRows();
+  if (myRows.length === 0) return;
+  openEditorKind = 'reloc';
+  document.getElementById('editModalTitle').textContent = 'Готовность к релокации';
+  renderRelocEditorBody(myRows[0].values);
+  document.getElementById('editModalOverlay').classList.add('open');
+}
+
+function renderPositionsEditorBody(sample, myRows){
+  const eligible = getEligiblePotentialPositions(sample.curPos, positionCategories);
+  const activePositions = new Set(myRows.filter(r => r.values.trackState === 'active').map(r => r.values.potPos));
+  const body = document.getElementById('editModalBody');
+  if (eligible.length === 0){
+    body.innerHTML = `<div class="field-empty-note">Для должности «${escapeHtml(sample.curPos)}» пока не настроены доступные направления развития</div>`;
+  } else {
+    body.innerHTML = `<div class="position-checklist">${eligible.map(pos => `
+      <label class="position-check-item">
+        <input type="checkbox" data-position="${escapeHtml(pos)}" ${activePositions.has(pos) ? 'checked' : ''}>
+        <span>${escapeHtml(pos)}</span>
+      </label>
+    `).join('')}</div>`;
+  }
+}
+
+function openPositionsEditor(){
+  const myRows = getMyRows();
+  if (myRows.length === 0) return;
+  openEditorKind = 'positions';
+  document.getElementById('editModalTitle').textContent = 'Куда хочу развиваться';
+  renderPositionsEditorBody(myRows[0].values, myRows);
+  document.getElementById('editModalOverlay').classList.add('open');
 }
 
 async function reload(){
@@ -242,20 +339,33 @@ async function reload(){
 }
 
 function setupHandlers(){
-  document.getElementById('relocSelect').addEventListener('change', async e => {
-    try{
-      await mutate(`/api/employee/${encodeURIComponent(DEMO_EMPLOYEE_ID)}/reloc-ready`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: e.target.value }),
-      });
-    } catch(err){
-      // статус сохранения уже показал ошибку — перерисуем из последнего известного состояния
-    }
-    await reload();
+  document.getElementById('editRelocBtn').addEventListener('click', openRelocEditor);
+  document.getElementById('editPositionsBtn').addEventListener('click', openPositionsEditor);
+  document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+  document.getElementById('editModalDone').addEventListener('click', closeEditModal);
+  document.getElementById('editModalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'editModalOverlay') closeEditModal();
   });
 
-  document.getElementById('positionChecklist').addEventListener('change', async e => {
+  // делегирование — содержимое модалки (select/чекбоксы) каждый раз пересоздаётся заново,
+  // поэтому слушатель вешаем один раз на сам контейнер тела модалки, а не на конкретные
+  // элементы внутри него
+  document.getElementById('editModalBody').addEventListener('change', async e => {
+    const select = e.target.closest('#relocSelect');
+    if (select){
+      try{
+        await mutate(`/api/employee/${encodeURIComponent(DEMO_EMPLOYEE_ID)}/reloc-ready`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: select.value }),
+        });
+      } catch(err){
+        // статус сохранения уже показал ошибку — перерисуем из последнего известного состояния
+      }
+      await reload();
+      return;
+    }
+
     const cb = e.target.closest('input[type="checkbox"]');
     if (!cb) return;
     const position = cb.dataset.position;
