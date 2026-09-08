@@ -203,6 +203,12 @@ function seedState(){
     const variant = DEV_TRACKS_VARIANTS[i % DEV_TRACKS_VARIANTS.length];
     row.values.devTracks = variant.map(t => ({ ...t }));
     row.values.potPos = pickTopDevTrackPosition(variant);
+    if (i === 0 || i === 1){
+      // это demo-человек личного кабинета (/profile.html, DEMO_EMPLOYEE_ID = "emp1") —
+      // у остальных куратированных строк ФИО одинаковое по умолчанию (col.value), из-за
+      // этого он путался с ними; даём ему отдельное, узнаваемое имя
+      row.values.fio = 'Приложение Иван Иванович';
+    }
     if (i === 9){
       // демо "уже назначен" — сотрудник фактически занял ту же должность, на которую
       // развивался; строка блокируется целиком (см. updateCell/removeFromReserve)
