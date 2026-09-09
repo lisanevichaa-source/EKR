@@ -257,8 +257,9 @@ function render(){
     positionsDisplay.innerHTML = activePositions.map(pos => `<div class="track-line"><span class="pos">${escapeHtml(pos)}</span></div>`).join('');
   }
 
-  // Пройдённое обучение — только на чтение, по каждому видимому треку: название (сама
-  // потенциальная должность трека) + % прохождения из его записи в devTracks
+  // Пройдённое обучение — только на чтение, по каждому видимому треку: название программы
+  // обучения (не должности!) + % прохождения из записи в devTracks, относящейся к активной
+  // потенциальной должности этого трека
   const trainingList = document.getElementById('trainingList');
   if (myRows.length === 0){
     trainingList.innerHTML = `<div class="field-empty-note">Пока нет выбранных направлений</div>`;
@@ -266,7 +267,8 @@ function render(){
     trainingList.innerHTML = myRows.map(r => {
       const track = (r.values.devTracks || []).find(t => t.position === r.values.potPos);
       const pct = track && track.percent !== undefined ? track.percent : 0;
-      return `<div class="track-line"><span class="pos">${escapeHtml(r.values.potPos)}</span><span class="val">${pct}%</span></div>`;
+      const programName = track && track.program ? track.program : r.values.potPos;
+      return `<div class="track-line"><span class="pos">${escapeHtml(programName)}</span><span class="val">${pct}%</span></div>`;
     }).join('');
   }
 
