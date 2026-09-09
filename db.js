@@ -852,6 +852,46 @@ function updateRelocReadyForEmployee(employeeId, value){
   return getState();
 }
 
+/** "Не хочу развиваться" — сотрудник отказывается от развития целиком, а не от одного
+ *  конкретного трека (для этого есть отдельное удаление одной строки). Убирает СРАЗУ ВСЕ
+ *  активные треки этого employeeId — обязательно требует причину, без неё действие не
+ *  выполняется. Причина добавляется в "Комментарий сотрудника" КАЖДОЙ убираемой строки —
+ *  дописывается новой строкой с датой к уже накопленному тексту, если он там был, а не
+ *  затирает его (сотрудник мог отказываться уже не в первый раз за время работы).
+ *  Заблокированные (locked, "уже назначен") строки не трогаем — они не считаются
+ *  "развитием", это уже свершившийся факт, отказываться там не от чего. */
+function declineAllTracksForEmployee(employeeId, reason){
+  const trimmedReason = (reason || '').trim();
+  if (!trimmedReason) throw new Error('Не указана причина отказа');
+
+  const rows = state.reserveRows.filter(r => r.values.employeeId === employeeId && r.values.trackState === 'active');
+  if (rows.length === 0) throw new Error('У сотрудника нет активных треков, от которых можно отказаться');
+
+  const dateStr = todayFormatted();
+  rows.forEach(row => {
+    row.values.trackState = 'removed';
+    const existing = (row.values.employeeComment || '').trim();
+    const newLine = `${dateStr} — ${trimmedReason}`;
+    row.values.employeeComment = (existing && existing !== '—') ? `${existing}\n${newLine}` : newLine;
+    timedSqlite(`declineAllTracksForEmployee rowId=${row.id}`, () => stmt.updateRow.run(JSON.stringify(row.values), row.id));
+  });
+
+  // если после отказа от всех треков не осталось вообще ничего активного/заблокированного —
+  // сотрудник целиком возвращается в общий список кандидатов (см. ту же логику в removeFromReserve)
+  const stillHasAny = state.reserveRows.some(r => r.values.employeeId === employeeId && r.values.trackState !== 'removed');
+  const alreadyInPool = state.employeePool.some(p => p.employeeId === employeeId);
+  if (!stillHasAny && !alreadyInPool){
+    const sample = rows[0].values;
+    const poolEntry = { id: 'ret_' + employeeId, employeeId };
+    SOURCE_FIELDS.forEach(f => { poolEntry[f] = sample[f]; });
+    state.employeePool.push(poolEntry);
+    state.employeePool.sort((a, b) => a.fio.localeCompare(b.fio, 'ru'));
+    timedSqlite(`declineAllTracksForEmployee add to pool employeeId=${employeeId}`, () => stmt.insertPool.run(poolEntry.id, JSON.stringify(poolEntry)));
+  }
+
+  return getState();
+}
+
 /* ===================== РОЛИ И ДОСТУПЫ ===================== */
 
 function createRole(name, positions){
@@ -959,6 +999,7 @@ module.exports = {
   addToReserve,
   removeFromReserve,
   updateRelocReadyForEmployee,
+  declineAllTracksForEmployee,
   createRole,
   updateRole,
   updateRolePermissions,

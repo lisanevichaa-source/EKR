@@ -73,6 +73,26 @@
   .track-line .val{ color:var(--ink-soft); white-space:nowrap; text-align:right; }
   .field-empty-note{ font-size:12px; color:var(--ink-soft); font-style:italic; }
 
+  /* "Не хочу развиваться" — намеренно приглушённая, не похожа на основное действие: это
+     затрагивает сразу всё, а не одно поле, случайное нажатие должно быть маловероятным.
+     К тому же дальше всё равно обязательная модалка с причиной, так что сам по себе клик
+     сюда ещё ничего не решает. */
+  .decline-all-row{ padding:16px 0 4px; text-align:center; }
+  .decline-all-btn{
+    border:none; background:none; color:var(--ink-soft); font-size:12px;
+    text-decoration:underline; cursor:pointer; font-family:inherit; padding:6px 10px;
+  }
+  .decline-all-btn:hover{ color:#c81e3a; }
+
+  .decline-modal-note{ font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin:0 0 12px; }
+  .decline-reason-input{
+    width:100%; border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:9px 10px; font-size:13.5px; font-family:inherit; color:var(--ink); resize:vertical;
+  }
+  .danger-btn{ background:#c81e3a; border-color:#c81e3a; }
+  .danger-btn:hover{ background:#a8172f; border-color:#a8172f; }
+  .danger-btn:disabled{ background:#e4a3ac; border-color:#e4a3ac; cursor:not-allowed; }
+
   /* ---------- МОДАЛКА РЕДАКТИРОВАНИЯ ---------- */
   /* Намеренно НЕ переключаем display:none/flex у этого элемента — на мобильном Chrome это
      известная причина, из-за которой position:fixed иногда "отвязывается" от вьюпорта и
@@ -178,6 +198,10 @@
         <div class="track-list" id="softList"></div>
       </div>
     </div>
+
+    <div class="decline-all-row">
+      <button type="button" class="decline-all-btn" id="declineAllBtn">Не хочу развиваться</button>
+    </div>
   </div>
 </div>
 
@@ -190,6 +214,26 @@
     <div class="edit-modal-body" id="editModalBody"></div>
     <div class="edit-modal-foot">
       <button class="primary-btn" id="editModalDone">Готово</button>
+    </div>
+  </div>
+</div>
+
+<div class="edit-modal-overlay" id="declineModalOverlay">
+  <div class="edit-modal-card">
+    <div class="edit-modal-head">
+      <h3>Не хочу развиваться</h3>
+      <button class="modal-close" id="declineModalClose">✕</button>
+    </div>
+    <div class="edit-modal-body">
+      <p class="decline-modal-note">
+        Это уберёт сразу все ваши текущие направления развития
+        (<span id="declinePositionsSummary"></span>). Пожалуйста, укажите причину — без неё
+        отказ не сохранится.
+      </p>
+      <textarea class="decline-reason-input" id="declineReasonInput" rows="4" placeholder="Укажите причину…"></textarea>
+    </div>
+    <div class="edit-modal-foot">
+      <button class="primary-btn danger-btn" id="declineConfirmBtn" disabled>Подтвердить отказ</button>
     </div>
   </div>
 </div>
@@ -208,6 +252,9 @@ const DEMO_EMPLOYEE_ID = 'emp1';
 let COLUMNS = [];
 let positionCategories = [];
 let reserveRows = [];
+let employeePool = []; // сюда возвращается сотрудник, если у него не осталось ни одного
+                        // активного/заблокированного трека — нужно для корректного
+                        // отображения "отказался от всех направлений", а не ошибки
 
 /** Дублирует одноимённую функцию из columns.js/index.html — серверный модуль недоступен
  *  напрямую в браузере, логика намеренно простая, держать в нескольких местах не накладно. */
@@ -229,13 +276,19 @@ function getMyRows(){
 
 function render(){
   const myRows = getMyRows();
-  if (myRows.length === 0){
+  const poolEntry = employeePool.find(p => p.employeeId === DEMO_EMPLOYEE_ID);
+
+  if (myRows.length === 0 && !poolEntry){
+    // по-настоящему нет данных вообще ни в резерве, ни в общем списке кандидатов — это
+    // действительно нештатная ситуация, а не просто "отказался от всех направлений"
     document.getElementById('profileName').textContent = 'Демо-сотрудник не найден в текущих данных';
     return;
   }
-  // личные данные (ФИО, должность, почта) у всех строк этого человека одинаковые — берём
-  // из любой, например первой
-  const sample = myRows[0].values;
+
+  // личные данные (ФИО, должность, почта) — из любой активной строки; а если активных
+  // треков нет вообще (сотрудник отказался от всех направлений и вернулся в общий список
+  // кандидатов) — из записи в этом общем списке, у неё те же самые базовые поля
+  const sample = myRows.length > 0 ? myRows[0].values : poolEntry;
 
   document.getElementById('profileName').textContent = sample.fio;
   document.getElementById('avatarInitials').textContent = (sample.fio || '').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
@@ -245,8 +298,9 @@ function render(){
   // Готовность к релокации и Куда хочу развиваться — на самой странице только текстом,
   // без прямого select/чекбоксов: значение меняется только через явный клик по карандашу
   // и модалку (см. openRelocEditor/openPositionsEditor), чтобы случайный тап при скролле
-  // не мог незаметно поменять выбор.
-  document.getElementById('relocDisplay').textContent = sample.relocReady || '—';
+  // не мог незаметно поменять выбор. Если активных треков нет вообще — редактировать пока
+  // нечего (обе модалки сами проверяют это перед открытием), просто показываем "—".
+  document.getElementById('relocDisplay').textContent = myRows.length > 0 ? (sample.relocReady || '—') : '—';
 
   const eligible = getEligiblePotentialPositions(sample.curPos, positionCategories);
   const activePositions = myRows.filter(r => r.values.trackState === 'active').map(r => r.values.potPos);
@@ -283,6 +337,13 @@ function render(){
       <div class="track-line"><span class="pos">${escapeHtml(r.values.potPos)}</span><span class="val">${escapeHtml(r.values.soft || '—')}</span></div>
     `).join('');
   }
+
+  // "Не хочу развиваться" — отказываться не от чего, если активных треков нет вообще
+  const hasActiveTracks = myRows.some(r => r.values.trackState === 'active');
+  document.getElementById('declineAllBtn').style.display = hasActiveTracks ? '' : 'none';
+  document.getElementById('editRelocBtn').style.display = hasActiveTracks ? '' : 'none';
+  // "editPositionsBtn" НЕ скрываем даже без активных треков — это единственный способ
+  // выбрать новое направление развития после того, как отказался от всех прежних
 
   // если модалка редактирования сейчас открыта — обновляем и её содержимое вместе с
   // остальной страницей (например, после того как чекбокс внутри неё сам вызвал reload())
@@ -334,16 +395,19 @@ function renderPositionsEditorBody(sample, myRows){
 
 function openPositionsEditor(){
   const myRows = getMyRows();
-  if (myRows.length === 0) return;
+  const poolEntry = employeePool.find(p => p.employeeId === DEMO_EMPLOYEE_ID);
+  const sample = myRows.length > 0 ? myRows[0].values : poolEntry;
+  if (!sample) return; // ни строк, ни записи в общем списке — действительно нечего показывать
   openEditorKind = 'positions';
   document.getElementById('editModalTitle').textContent = 'Куда хочу развиваться';
-  renderPositionsEditorBody(myRows[0].values, myRows);
+  renderPositionsEditorBody(sample, myRows);
   document.getElementById('editModalOverlay').classList.add('open');
 }
 
 async function reload(){
   const state = await fetchState();
   reserveRows = state.reserveRows;
+  employeePool = state.employeePool;
   render();
 }
 
@@ -396,6 +460,53 @@ function setupHandlers(){
     }
     await reload();
   });
+
+  /* ---------- "Не хочу развиваться" ---------- */
+  const declineOverlay = document.getElementById('declineModalOverlay');
+  const declineInput = document.getElementById('declineReasonInput');
+  const declineConfirmBtn = document.getElementById('declineConfirmBtn');
+
+  function openDeclineModal(){
+    const myRows = getMyRows().filter(r => r.values.trackState === 'active');
+    if (myRows.length === 0) return; // отказываться не от чего
+    document.getElementById('declinePositionsSummary').textContent = myRows.map(r => r.values.potPos).join(', ');
+    declineInput.value = '';
+    declineConfirmBtn.disabled = true;
+    declineOverlay.classList.add('open');
+    declineInput.focus();
+  }
+  function closeDeclineModal(){
+    declineOverlay.classList.remove('open');
+  }
+
+  document.getElementById('declineAllBtn').addEventListener('click', openDeclineModal);
+  document.getElementById('declineModalClose').addEventListener('click', closeDeclineModal);
+  declineOverlay.addEventListener('click', e => {
+    if (e.target.id === 'declineModalOverlay') closeDeclineModal();
+  });
+  // подтвердить можно только если причина реально заполнена (не только пробелы) — это
+  // обязательное условие, а не просто рекомендация
+  declineInput.addEventListener('input', () => {
+    declineConfirmBtn.disabled = declineInput.value.trim() === '';
+  });
+  declineConfirmBtn.addEventListener('click', async () => {
+    const reason = declineInput.value.trim();
+    if (!reason) return;
+    declineConfirmBtn.disabled = true;
+    try{
+      await mutate(`/api/employee/${encodeURIComponent(DEMO_EMPLOYEE_ID)}/decline`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+    } catch(err){
+      // статус сохранения уже показал ошибку — не закрываем модалку, пусть попробуют ещё раз
+      declineConfirmBtn.disabled = false;
+      return;
+    }
+    closeDeclineModal();
+    await reload();
+  });
 }
 
 async function init(){
@@ -406,6 +517,7 @@ async function init(){
     const state = await fetchState();
     reserveRows = state.reserveRows;
     positionCategories = state.positionCategories;
+    employeePool = state.employeePool;
   } catch(err){
     console.error(err);
     setSaveStatus('error', 'Нет связи с сервером');

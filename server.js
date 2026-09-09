@@ -69,6 +69,18 @@ app.patch('/api/employee/:employeeId/reloc-ready', (req, res) => {
   }
 });
 
+// "Не хочу развиваться" — используется личным кабинетом, убирает СРАЗУ ВСЕ активные треки
+// сотрудника, обязательно требует причину
+app.post('/api/employee/:employeeId/decline', (req, res) => {
+  const { reason } = req.body || {};
+  if (typeof reason !== 'string') return res.status(400).json({ error: 'Не передано поле reason' });
+  try {
+    res.json(db.declineAllTracksForEmployee(req.params.employeeId, reason));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // --- Роли и доступы ---
 
 app.post('/api/roles', (req, res) => {
