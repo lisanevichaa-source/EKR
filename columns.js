@@ -59,7 +59,7 @@ const COLUMNS = [
   { key:'training',        label:'Обучение в кадровый резерв',            group:'potential',  type:'devRecords', recordField:'program', summaryField:'percent' },
   { key:'hardDate',        label:'Дата HARD',                             group:'potential',  type:'devRecords', recordField:'hardDate' },
   { key:'soft',            label:'Оценка SOFT',                           group:'potential',  type:'select',
-    options:['Успешно пройдено','Тест направлен','Не пройдено','Пройдено не успешно','Опционально'],
+    options:['Успешно пройдено','Тест направлен','Пройдено не успешно','Не требуется'],
     value:'Тест направлен' },
   { key:'softDate',        label:'Дата SOFT',                             group:'potential',  type:'autoDate', value:'23.06.2021' },
   { key:'relocReady',      label:'Готовность к релокации',                group:'potential',  type:'select',
@@ -97,7 +97,7 @@ const SOURCE_FIELDS = ['fio','email','phone','region','depart','city','shop','cu
 // Разумные значения по умолчанию для выпадающих списков при добавлении сотрудника в резерв.
 const SELECT_DEFAULTS = {
   status:'Назначен',
-  soft:'Опционально',
+  soft:'Не требуется',
   krStatus:'Да',
   assignment:'Временное',
   relocReady:'Не готов',
