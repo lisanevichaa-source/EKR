@@ -449,6 +449,41 @@
   .filter-popover-foot .ghost-btn{ padding:5px 11px; font-size:12px; }
   .filter-popover-count{ display:block; font-size:11.5px; color:var(--ink-soft); padding:0 12px 8px; }
 
+  /* ---------- ИСТОРИЯ НАЗНАЧЕНИЙ — попап по наведению на столбец, список людей ---------- */
+  .month-details-popover{
+    display:none;
+    position:fixed; z-index:70;
+    width:270px; max-height:340px;
+    background:#fff; border-radius:var(--radius-md);
+    border:1px solid var(--line);
+    box-shadow:0 18px 50px rgba(15,15,40,0.28);
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .month-details-popover.open{ display:flex; }
+  .month-details-popover-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 12px; border-bottom:1px solid var(--line); font-size:12.5px; font-weight:700; color:var(--ink);
+  }
+  .month-details-popover-list{ overflow-y:auto; padding:4px 12px; flex:1; }
+  .month-details-item{ padding:7px 0; border-bottom:1px solid var(--line); }
+  .month-details-item:last-child{ border-bottom:none; }
+  .month-details-item .name{ font-size:12.5px; font-weight:600; color:var(--ink); }
+  .month-details-item .pos{ font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
+  .month-details-empty{ padding:20px 10px; text-align:center; color:var(--ink-soft); font-size:12px; }
+  .month-details-popover-foot{ padding:8px 12px; border-top:1px solid var(--line); }
+  .month-details-export-btn{
+    width:100%; border:1px solid var(--accent); background:#fff; color:var(--accent);
+    font-size:12px; font-weight:600; padding:7px; border-radius:999px; cursor:pointer; font-family:inherit;
+  }
+  .month-details-export-btn:hover{ background:var(--accent); color:#fff; }
+  .fy-bar-col{ cursor:pointer; }
+  .period-export-btn{
+    border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--ink-soft);
+    font-size:11px; font-weight:600; padding:4px 10px; cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .period-export-btn:hover{ color:var(--ink); border-color:#b9c2d4; }
+
   /* ---------- DEV RECORDS (несколько потенциальных должностей у одного сотрудника) ---------- */
   .dev-records-btn{
     border:1px solid var(--line); background:var(--auto-bg); color:var(--ink);
@@ -581,6 +616,16 @@
   </div>
 </div>
 
+<div class="month-details-popover" id="monthDetailsPopover">
+  <div class="month-details-popover-head">
+    <span id="monthDetailsPopoverTitle">Месяц</span>
+  </div>
+  <div class="month-details-popover-list" id="monthDetailsPopoverList"></div>
+  <div class="month-details-popover-foot">
+    <button class="month-details-export-btn" id="monthDetailsExportBtn">Выгрузить в excel</button>
+  </div>
+</div>
+
 <div class="filter-popover" id="filterPopover">
   <div class="filter-popover-head">
     <span id="filterPopoverTitle">Фильтр</span>
@@ -690,6 +735,10 @@ let lastWidgetsRows = [];       // строки, по которым видже�
                                  // строк по текущим фильтрам (это дело кнопки "Обновить виджеты")
 let selectedFYEndYear = null;   // null = определять по сегодняшней дате; иначе — явный выбор пользователя
 let selectedAssignmentType = 'Постоянное'; // тип назначения, учитываемый в виджете "История назначений"
+let lastWidgetsData = null;     // последний результат computeWidgetData — нужен попапу по
+                                 // наведению и кнопке "Выгрузить в excel" за весь период, чтобы
+                                 // не пересчитывать заново, когда сам renderWidgets() уже
+                                 // пересоздал разметку через innerHTML
 
 /** Правильное склонение слова "день" по числу. */
 function pluralDays(n){
@@ -812,7 +861,7 @@ function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
     || autoFYEndYear;
   const fyStartYear = fyEndYear - 1;
 
-  const monthCounts = new Array(12).fill(0);
+  const monthRows = Array.from({ length: 12 }, () => []);
   assignmentRows.forEach(r => {
     const assign = r.values.assignDate;
     if (!assign) return;
@@ -822,8 +871,10 @@ function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
     let idx = -1;
     if (m >= 8 && y === fyStartYear) idx = m - 8;
     else if (m < 8 && y === fyStartYear + 1) idx = m + 4;
-    if (idx >= 0 && idx < 12) monthCounts[idx]++;
+    if (idx >= 0 && idx < 12) monthRows[idx].push(r);
   });
+  const monthCounts = monthRows.map(list => list.length);
+  const periodRows = monthRows.flat(); // все строки текущего FY + типа назначения разом, для экспорта "за весь период"
 
   return {
     total,
@@ -831,6 +882,8 @@ function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
     positionList,
     monthNames,
     monthCounts,
+    monthRows,
+    periodRows,
     fyEndYear,
     availableFYEndYears: availableFYEndYears.length > 0 ? availableFYEndYears : [fyEndYear],
     assignmentType,
@@ -868,9 +921,9 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
     const count = data.monthCounts[i];
     const heightPct = count > 0 ? Math.max(Math.round(count / maxMonth * 100), 4) : 2;
     return `
-      <div class="fy-bar-col">
+      <div class="fy-bar-col" data-month-idx="${i}">
         <span class="fy-bar-val">${count > 0 ? count : ''}</span>
-        <div class="fy-bar${count === 0 ? ' zero' : ''}" style="height:${heightPct}%" title="${name}: ${count}"></div>
+        <div class="fy-bar${count === 0 ? ' zero' : ''}" style="height:${heightPct}%" title="${name}: ${count} — наведите для списка"></div>
         <span class="fy-bar-month">${name}</span>
       </div>
     `;
@@ -888,6 +941,11 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
     `<option value="${o.value}" ${o.value === data.assignmentType ? 'selected' : ''}>${o.label}</option>`
   ).join('');
 
+  // сохраняем данные последнего расчёта, чтобы попап по наведению и кнопка "за весь период"
+  // могли достать список строк без пересчёта — сам renderWidgets() каждый раз пересоздаёт
+  // всю разметку виджетов через innerHTML, локальные ссылки на DOM/данные тут не выживут
+  lastWidgetsData = data;
+
   el.innerHTML = `
     <div class="card card-tall">
       <div class="card-label">Кадровый резерв по должностям</div>
@@ -898,6 +956,7 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
       <div class="card-label-row">
         <span class="card-label">История назначений</span>
         <span class="card-label-selects">
+          <button class="period-export-btn" id="periodExportBtn" title="Выгрузить в Excel все строки текущего периода">Выгрузить в excel</button>
           <select class="fy-select" id="assignmentTypeSelect">${assignmentSelectHtml}</select>
           <select class="fy-select" id="fySelect">${fySelectHtml}</select>
         </span>
@@ -937,6 +996,11 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
     // не передаём текущий forcedFYEndYear принудительно, даём computeWidgetData подобрать
     // подходящий год заново (текущий/самый свежий среди доступных для нового типа)
     renderWidgets(lastWidgetsRows, null, e.target.value);
+  });
+  document.getElementById('periodExportBtn').addEventListener('click', () => {
+    const d = lastWidgetsData;
+    const typeLabel = d.assignmentType === 'Постоянное' ? 'Постоянные' : 'Временные';
+    exportRowsToExcel(d.periodRows, `История_назначений_FY${String(d.fyEndYear).slice(-2)}_${typeLabel}`);
   });
 }
 
@@ -1113,10 +1177,13 @@ function computeExportColWidths(headers, rows){
   });
 }
 
-function exportReport(){
+/** Общая выгрузка произвольного набора строк в Excel — тот же состав и порядок столбцов,
+ *  что видно на экране (учитывая права роли и скрытые столбцы). Используется и основной
+ *  кнопкой "Выгрузить отчёт" (весь текущий отфильтрованный список), и кнопками
+ *  "Выгрузить в excel" в виджете "История назначений" — там набор строк уже не весь
+ *  реестр, а конкретный месяц или весь выбранный период (год + тип назначения). */
+function exportRowsToExcel(rows, filenameSuffix){
   const cols = getExportableColumns();
-  const rows = getFilteredRows(); // те же строки, что сейчас проходят поиск + все активные фильтры
-
   const headers = cols.map(c => c.label);
   const aoa = [headers];
   rows.forEach(row => {
@@ -1131,7 +1198,12 @@ function exportReport(){
 
   const today = new Date();
   const dateTag = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-  XLSX.writeFile(wb, `Кадровый_резерв_${dateTag}.xlsx`);
+  const suffix = filenameSuffix ? `_${filenameSuffix}` : '';
+  XLSX.writeFile(wb, `Кадровый_резерв${suffix}_${dateTag}.xlsx`);
+}
+
+function exportReport(){
+  exportRowsToExcel(getFilteredRows()); // те же строки, что сейчас проходят поиск + все активные фильтры
 }
 
 function setupExportButton(){
@@ -1933,6 +2005,87 @@ function setupDevTracksPopover(){
   });
 }
 
+/** Попап по наведению на столбец в "Истории назначений" — список ФИО+должность тех, кто
+ *  учтён именно в этом месяце, плюс кнопка выгрузки этого списка в Excel. Событие вешаем
+ *  на #widgets один раз при инициализации (делегирование) — сам этот div не пересоздаётся
+ *  при перерисовке виджетов, пересоздаётся только его содержимое через innerHTML. */
+function setupMonthDetailsPopover(){
+  const widgetsEl = document.getElementById('widgets');
+  const popover = document.getElementById('monthDetailsPopover');
+  let hideTimer = null;
+
+  function showForBarCol(barCol){
+    if (!lastWidgetsData) return;
+    const idx = parseInt(barCol.dataset.monthIdx, 10);
+    const monthRows = lastWidgetsData.monthRows[idx] || [];
+    const monthName = lastWidgetsData.monthNames[idx];
+
+    document.getElementById('monthDetailsPopoverTitle').textContent = `${monthName} — ${monthRows.length} ${pluralPeople(monthRows.length)}`;
+
+    const list = document.getElementById('monthDetailsPopoverList');
+    if (monthRows.length === 0){
+      list.innerHTML = `<div class="month-details-empty">Никого не назначено в этом месяце</div>`;
+    } else {
+      list.innerHTML = monthRows.map(r => `
+        <div class="month-details-item">
+          <div class="name">${escapeHtml(r.values.fio)}</div>
+          <div class="pos">${escapeHtml(r.values.potPos || '—')}</div>
+        </div>
+      `).join('');
+    }
+
+    popover.dataset.monthIdx = String(idx);
+    popover.classList.add('open');
+    const rect = barCol.getBoundingClientRect();
+    const popW = 270, popH = popover.offsetHeight || 300;
+    let left = Math.min(rect.left - popW / 2 + rect.width / 2, window.innerWidth - popW - 12);
+    let top = rect.top - popH - 8;
+    if (top < 12) top = rect.bottom + 8; // если сверху не помещается — показываем снизу
+    popover.style.left = Math.max(12, left) + 'px';
+    popover.style.top = top + 'px';
+  }
+
+  function scheduleHide(){
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => popover.classList.remove('open'), 150);
+  }
+  function cancelHide(){
+    clearTimeout(hideTimer);
+  }
+
+  widgetsEl.addEventListener('mouseover', e => {
+    const barCol = e.target.closest('.fy-bar-col');
+    if (barCol){ cancelHide(); showForBarCol(barCol); }
+  });
+  widgetsEl.addEventListener('mouseout', e => {
+    const barCol = e.target.closest('.fy-bar-col');
+    if (barCol && !barCol.contains(e.relatedTarget)) scheduleHide();
+  });
+  popover.addEventListener('mouseover', cancelHide);
+  popover.addEventListener('mouseout', e => {
+    if (!popover.contains(e.relatedTarget)) scheduleHide();
+  });
+
+  document.getElementById('monthDetailsExportBtn').addEventListener('click', () => {
+    if (!lastWidgetsData) return;
+    const idx = parseInt(popover.dataset.monthIdx, 10);
+    const monthRows = lastWidgetsData.monthRows[idx] || [];
+    const monthName = lastWidgetsData.monthNames[idx];
+    const typeLabel = lastWidgetsData.assignmentType === 'Постоянное' ? 'Постоянные' : 'Временные';
+    exportRowsToExcel(monthRows, `История_назначений_${monthName}_FY${String(lastWidgetsData.fyEndYear).slice(-2)}_${typeLabel}`);
+  });
+}
+
+/** Правильное склонение слова "человек" по числу — для заголовка попапа. */
+function pluralPeople(n){
+  const abs = Math.abs(n) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return 'человек';
+  if (last === 1) return 'человек';
+  if (last >= 2 && last <= 4) return 'человека';
+  return 'человек';
+}
+
 function setupFilterPopover(){
   document.getElementById('clearAllFiltersBtn').addEventListener('click', () => {
     columnFilters = {};
@@ -2218,6 +2371,7 @@ async function init(){
   setupAddModal();
   setupShowAssignedToggle();
   setupFilterPopover();
+  setupMonthDetailsPopover();
   setupColumnVisibilityPopover();
   setupDevTracksPopover();
   setupRoleSwitcher();
