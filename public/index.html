@@ -484,6 +484,31 @@
   }
   .period-export-btn:hover{ color:var(--ink); border-color:#b9c2d4; }
 
+  /* ---------- ПОПАП С ПОЛНЫМ КОММЕНТАРИЕМ СОТРУДНИКА ---------- */
+  .comment-popover{
+    display:none;
+    position:fixed; z-index:70;
+    width:320px; max-height:320px;
+    background:#fff; border-radius:var(--radius-md);
+    border:1px solid var(--line);
+    box-shadow:0 18px 50px rgba(15,15,40,0.28);
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .comment-popover.open{ display:flex; }
+  .comment-popover-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 12px; border-bottom:1px solid var(--line); font-size:12.5px; font-weight:700; color:var(--ink);
+  }
+  .comment-popover-body{ overflow-y:auto; padding:4px 12px; flex:1; }
+  .comment-popover-line{
+    font-size:12.5px; color:var(--ink); line-height:1.5; padding:8px 0;
+    border-bottom:1px solid var(--line); white-space:pre-wrap;
+  }
+  .comment-popover-line:last-child{ border-bottom:none; }
+  .cell-comment{ cursor:pointer; }
+  .cell-comment:hover{ text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; }
+
   /* ---------- DEV RECORDS (несколько потенциальных должностей у одного сотрудника) ---------- */
   .dev-records-btn{
     border:1px solid var(--line); background:var(--auto-bg); color:var(--ink);
@@ -624,6 +649,14 @@
   <div class="month-details-popover-foot">
     <button class="month-details-export-btn" id="monthDetailsExportBtn">Выгрузить в excel</button>
   </div>
+</div>
+
+<div class="comment-popover" id="commentPopover">
+  <div class="comment-popover-head">
+    <span>Комментарий сотрудника</span>
+    <button class="modal-close" id="commentPopoverClose">✕</button>
+  </div>
+  <div class="comment-popover-body" id="commentPopoverBody"></div>
 </div>
 
 <div class="filter-popover" id="filterPopover">
@@ -1249,7 +1282,14 @@ function buildCellInnerHtml(col, row){
   switch(col.type){
     case 'auto':
     case 'autoDate':
-      inner = `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+      if (col.key === 'employeeComment' && value){
+        // копится как многострочный текст (одна причина отказа — одна строка, через \n) —
+        // в самой ячейке всё равно видна только первая строка/обрезанный текст, полный
+        // текст открывается по клику в отдельном попапе, см. setupCommentPopover()
+        inner = `<div class="cell-auto cell-comment" data-row="${row.id}" title="Клик — открыть полностью">${escapeHtml(value)}</div>`;
+      } else {
+        inner = `<div class="cell-auto" title="${escapeHtml(value || '')}">${value ? escapeHtml(value) : '—'}</div>`;
+      }
       break;
     case 'select':
       inner = canEdit
@@ -2009,6 +2049,54 @@ function setupDevTracksPopover(){
  *  учтён именно в этом месяце, плюс кнопка выгрузки этого списка в Excel. Событие вешаем
  *  на #widgets один раз при инициализации (делегирование) — сам этот div не пересоздаётся
  *  при перерисовке виджетов, пересоздаётся только его содержимое через innerHTML. */
+/** Попап с полным текстом "Комментарий сотрудника" — сама ячейка в таблице обрезана
+ *  (одна строка, многоточие), а комментариев может накопиться несколько (по одному на
+ *  каждый отказ от развития через "Не хочу развиваться" — см. раздел про личный кабинет).
+ *  Текст хранится как одна строка на запись, разделённая переносом строки — здесь просто
+ *  показываем каждую строку отдельным блоком, ничего дополнительно не парсим (первая
+ *  запись в демо-данных, например, вообще без даты в начале — это нормально, не все
+ *  комментарии обязаны следовать формату "дата / текст"). Открывается по клику (не по
+ *  наведению) — это ячейка таблицы среди множества других, наведение было бы слишком
+ *  чувствительным к случайным движениям мыши.
+ */
+function setupCommentPopover(){
+  const table = document.getElementById('mainTable');
+  const popover = document.getElementById('commentPopover');
+
+  table.addEventListener('click', e => {
+    const cell = e.target.closest('.cell-comment');
+    if (!cell) return;
+    const rowId = cell.dataset.row;
+    const row = reserveRows.find(r => r.id === rowId);
+    if (!row) return;
+    const fullText = row.values.employeeComment || '';
+
+    const body = document.getElementById('commentPopoverBody');
+    const lines = fullText.split('\n').filter(l => l.trim() !== '');
+    body.innerHTML = lines.length > 0
+      ? lines.map(l => `<div class="comment-popover-line">${escapeHtml(l)}</div>`).join('')
+      : `<div class="comment-popover-line">—</div>`;
+
+    popover.classList.add('open');
+    const rect = cell.getBoundingClientRect();
+    const popW = 320, popH = popover.offsetHeight || 250;
+    let left = Math.min(rect.left, window.innerWidth - popW - 12);
+    let top = rect.bottom + 6;
+    if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
+    popover.style.left = Math.max(12, left) + 'px';
+    popover.style.top = top + 'px';
+  });
+
+  document.getElementById('commentPopoverClose').addEventListener('click', () => {
+    popover.classList.remove('open');
+  });
+  document.addEventListener('click', e => {
+    if (popover.classList.contains('open') && !popover.contains(e.target) && !e.target.closest('.cell-comment')){
+      popover.classList.remove('open');
+    }
+  });
+}
+
 function setupMonthDetailsPopover(){
   const widgetsEl = document.getElementById('widgets');
   const popover = document.getElementById('monthDetailsPopover');
@@ -2372,6 +2460,7 @@ async function init(){
   setupShowAssignedToggle();
   setupFilterPopover();
   setupMonthDetailsPopover();
+  setupCommentPopover();
   setupColumnVisibilityPopover();
   setupDevTracksPopover();
   setupRoleSwitcher();

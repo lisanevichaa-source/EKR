@@ -871,7 +871,7 @@ function declineAllTracksForEmployee(employeeId, reason){
   rows.forEach(row => {
     row.values.trackState = 'removed';
     const existing = (row.values.employeeComment || '').trim();
-    const newLine = `${dateStr} — ${trimmedReason}`;
+    const newLine = `${dateStr} / ${trimmedReason}`;
     row.values.employeeComment = (existing && existing !== '—') ? `${existing}\n${newLine}` : newLine;
     timedSqlite(`declineAllTracksForEmployee rowId=${row.id}`, () => stmt.updateRow.run(JSON.stringify(row.values), row.id));
   });
