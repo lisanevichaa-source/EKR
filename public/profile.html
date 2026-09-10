@@ -221,15 +221,11 @@
 <div class="edit-modal-overlay" id="declineModalOverlay">
   <div class="edit-modal-card">
     <div class="edit-modal-head">
-      <h3>Не хочу развиваться</h3>
+      <h3 id="declineModalTitle">Не хочу развиваться</h3>
       <button class="modal-close" id="declineModalClose">✕</button>
     </div>
     <div class="edit-modal-body">
-      <p class="decline-modal-note">
-        Это уберёт сразу все ваши текущие направления развития
-        (<span id="declinePositionsSummary"></span>). Пожалуйста, укажите причину — без неё
-        отказ не сохранится.
-      </p>
+      <p class="decline-modal-note" id="declineModalNote"></p>
       <textarea class="decline-reason-input" id="declineReasonInput" rows="4" placeholder="Укажите причину…"></textarea>
     </div>
     <div class="edit-modal-foot">
@@ -442,41 +438,69 @@ function setupHandlers(){
     const cb = e.target.closest('input[type="checkbox"]');
     if (!cb) return;
     const position = cb.dataset.position;
-    try{
-      if (cb.checked){
+    if (cb.checked){
+      try{
         await mutate('/api/reserve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ employeeId: DEMO_EMPLOYEE_ID, position }),
         });
-      } else {
-        const row = getMyRows().find(r => r.values.potPos === position && r.values.trackState === 'active');
-        if (row){
-          await mutate(`/api/reserve/${encodeURIComponent(row.id)}`, { method: 'DELETE' });
-        }
+      } catch(err){
+        // статус сохранения уже показал ошибку
       }
-    } catch(err){
-      // статус сохранения уже показал ошибку
+      await reload();
+    } else {
+      // снятие галочки — тоже требует причину, как и "Не хочу развиваться", просто пишется
+      // только в ЭТУ одну строку, а не во все сразу. Закрываем редактор должностей и
+      // открываем модалку с причиной поверх него — после подтверждения/отмены редактор
+      // можно будет открыть заново по тому же карандашу, уже с актуальным состоянием.
+      const row = getMyRows().find(r => r.values.potPos === position && r.values.trackState === 'active');
+      closeEditModal();
+      if (row) openDeclineOneModal(row);
     }
-    await reload();
   });
 
-  /* ---------- "Не хочу развиваться" ---------- */
+  /* ---------- "Не хочу развиваться" — целиком, или снятие одной галочки (см. обработчик
+     чекбоксов выше) — общая модалка с причиной, отличается только тем, куда пишется
+     результат: во все активные строки сразу, или только в одну конкретную. */
   const declineOverlay = document.getElementById('declineModalOverlay');
   const declineInput = document.getElementById('declineReasonInput');
   const declineConfirmBtn = document.getElementById('declineConfirmBtn');
+  let declineMode = null;       // 'all' | 'one'
+  let declineTargetRowId = null; // используется только в режиме 'one'
 
   function openDeclineModal(){
     const myRows = getMyRows().filter(r => r.values.trackState === 'active');
     if (myRows.length === 0) return; // отказываться не от чего
-    document.getElementById('declinePositionsSummary').textContent = myRows.map(r => r.values.potPos).join(', ');
+    declineMode = 'all';
+    declineTargetRowId = null;
+    document.getElementById('declineModalTitle').textContent = 'Не хочу развиваться';
+    document.getElementById('declineModalNote').textContent =
+      `Это уберёт сразу все ваши текущие направления развития (${myRows.map(r => r.values.potPos).join(', ')}). ` +
+      `Пожалуйста, укажите причину — без неё отказ не сохранится.`;
     declineInput.value = '';
     declineConfirmBtn.disabled = true;
     declineOverlay.classList.add('open');
     declineInput.focus();
   }
+
+  function openDeclineOneModal(row){
+    declineMode = 'one';
+    declineTargetRowId = row.id;
+    document.getElementById('declineModalTitle').textContent = 'Убрать направление';
+    document.getElementById('declineModalNote').textContent =
+      `Вы снимаете направление «${row.values.potPos}» — остальные ваши направления это не затронет. ` +
+      `Пожалуйста, укажите причину — без неё направление останется как есть.`;
+    declineInput.value = '';
+    declineConfirmBtn.disabled = true;
+    declineOverlay.classList.add('open');
+    declineInput.focus();
+  }
+
   function closeDeclineModal(){
     declineOverlay.classList.remove('open');
+    declineMode = null;
+    declineTargetRowId = null;
   }
 
   document.getElementById('declineAllBtn').addEventListener('click', openDeclineModal);
@@ -494,11 +518,19 @@ function setupHandlers(){
     if (!reason) return;
     declineConfirmBtn.disabled = true;
     try{
-      await mutate(`/api/employee/${encodeURIComponent(DEMO_EMPLOYEE_ID)}/decline`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
-      });
+      if (declineMode === 'all'){
+        await mutate(`/api/employee/${encodeURIComponent(DEMO_EMPLOYEE_ID)}/decline`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason }),
+        });
+      } else if (declineMode === 'one' && declineTargetRowId){
+        await mutate(`/api/reserve/${encodeURIComponent(declineTargetRowId)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason }),
+        });
+      }
     } catch(err){
       // статус сохранения уже показал ошибку — не закрываем модалку, пусть попробуют ещё раз
       declineConfirmBtn.disabled = false;

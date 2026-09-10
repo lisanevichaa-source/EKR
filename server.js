@@ -39,8 +39,9 @@ app.post('/api/reserve', (req, res) => {
 });
 
 app.delete('/api/reserve/:id', (req, res) => {
+  const { reason } = req.body || {};
   try {
-    res.json(db.removeFromReserve(req.params.id));
+    res.json(db.removeFromReserve(req.params.id, reason));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

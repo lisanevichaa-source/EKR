@@ -805,7 +805,12 @@ function addToReserve(employeeId, position){
  *  (со всеми прежними данными) через повторное добавление той же должности. Если после
  *  этого у сотрудника не осталось вообще ни одного активного/заблокированного трека —
  *  он возвращается в общий список кандидатов (одной записью, а не по числу треков). */
-function removeFromReserve(rowId){
+/** Убрать один трек (строку) сотрудника из резерва. `reason` — необязательный параметр:
+ *  кнопка «Удалить» в самом ЭКР его не передаёт (это действие роли, причина не нужна, как
+ *  и раньше), а вот личный кабинет — при снятии одной галочки в «Куда хочу развиваться» —
+ *  передаёт обязательно (то же требование, что и у «Не хочу развиваться», только запись
+ *  идёт в ЭТУ ОДНУ строку, а не во все активные строки сотрудника разом). */
+function removeFromReserve(rowId, reason){
   const row = state.reserveRows.find(r => r.id === rowId);
   if (!row) throw new Error('Строка резервиста не найдена');
   if (row.values.trackState === 'locked'){
@@ -813,6 +818,14 @@ function removeFromReserve(rowId){
   }
   if (row.values.trackState === 'removed'){
     throw new Error('Этот трек уже удалён');
+  }
+
+  const trimmedReason = (reason || '').trim();
+  if (trimmedReason){
+    const dateStr = todayFormatted();
+    const existing = (row.values.employeeComment || '').trim();
+    const newLine = `${dateStr} / ${trimmedReason}`;
+    row.values.employeeComment = (existing && existing !== '—') ? `${existing}\n${newLine}` : newLine;
   }
 
   row.values.trackState = 'removed';
