@@ -4,8 +4,9 @@
 
 const GROUPS = [
   { key:'personal',    label:'Персональные данные' },
-  { key:'workData',    label:'Кадровые данные' },
   { key:'potential',   label:'Потенциал развития' },
+  { key:'devStatus',   label:'Статус развития' },
+  { key:'contacts',    label:'Контактные данные' },
   { key:'development', label:'Сведения о развитии' },
 ];
 
@@ -34,42 +35,40 @@ const GROUPS = [
 //   date           — свободный ввод через календарь
 //   empty          — источник ещё не определён, поле всегда пустое и нередактируемое
 const COLUMNS = [
-  // ---------- Персональные данные ----------
   { key:'fio',             label:'ФИО',                                   group:'personal',   type:'auto',  value:'Анисенко Никита Владимирович' },
   { key:'status',          label:'Статус',                                group:'personal',   type:'select',
     options:['Назначен','В КР','Аннулировано','Развиваем на ТД','Тест Soft','Сессия ОС'],
     value:'Назначен' },
-  { key:'reqDate',         label:'Дата заявки',                           group:'personal',   type:'autoDate', value:'13.04.2023' },
-  { key:'employeeComment', label:'Комментарий сотрудника',                group:'personal',   type:'auto',  value:'Передумал' },
-  { key:'email',           label:'Почта кандидата',                       group:'personal',   type:'auto',  value:'primer_1@yandex.ru' },
-  { key:'phone',           label:'Номер телефона',                        group:'personal',   type:'auto',  value:'+7 911 111 11 11' },
-
-  // ---------- Кадровые данные ----------
-  { key:'region',          label:'Регион',                                group:'workData',   type:'auto',  value:'Поволжский регион' },
-  { key:'depart',          label:'Отделение',                             group:'workData',   type:'auto',  value:'Казанское отделение' },
-  { key:'city',            label:'Город проживания',                      group:'workData',   type:'auto',  value:'Казань' },
-  { key:'shop',            label:'Магазин',                               group:'workData',   type:'auto',  value:'12345' },
-  { key:'managerFio',      label:'ФИО действующего руководителя',         group:'workData',   type:'auto',  value:'Иванов Иван Директорович' },
-  { key:'grade',           label:'Грейд магазина',                        group:'workData',   type:'auto',  value:'401' },
+  { key:'region',          label:'Регион',                                group:'personal',   type:'auto',  value:'Поволжский регион' },
+  { key:'depart',          label:'Отделение',                             group:'personal',   type:'auto',  value:'Казанское отделение' },
+  { key:'shop',            label:'Магазин',                               group:'personal',   type:'auto',  value:'12345' },
+  { key:'grade',           label:'Грейд магазина',                        group:'personal',   type:'auto',  value:'401' },
 
   // ---------- Потенциал развития ----------
-  { key:'curPos',          label:'Текущая должность',                     group:'potential',  type:'auto',  value:'Продавец' },
+  { key:'curPos',          label:'Текущая должность',                     group:'personal',  type:'auto',  value:'Продавец' },
   { key:'potPos',          label:'Потенциальная должность',               group:'potential',  type:'positionSelect' },
-  { key:'ipr',             label:'Наличие ИПР',                           group:'potential',  type:'auto',  value:'Да' },
-  { key:'training',        label:'Обучение в кадровый резерв',            group:'potential',  type:'devRecords', recordField:'program', summaryField:'percent' },
-  { key:'hardDate',        label:'Дата HARD',                             group:'potential',  type:'devRecords', recordField:'hardDate' },
-  { key:'soft',            label:'Оценка SOFT',                           group:'potential',  type:'select',
+  { key:'krStatus',        label:'Статус по КР',                         group:'potential', type:'select',
+    options:['Да','Нет'], value:'Да' },
+  { key:'reqDate',         label:'Дата заявки',                           group:'potential',   type:'autoDate', value:'13.04.2023' },
+  { key:'krDate',          label:'Дата зачисления КР',                    group:'potential', type:'date',  value:'2025-01-01' },
+  { key:'training',        label:'Обучение в кадровый резерв',            group:'devStatus',  type:'devRecords', recordField:'program', summaryField:'percent' },
+  { key:'hardDate',        label:'Дата HARD',                             group:'devStatus',  type:'devRecords', recordField:'hardDate' },
+  { key:'soft',            label:'Оценка SOFT',                           group:'devStatus',  type:'select',
     options:['Успешно пройдено','Тест направлен','Пройдено не успешно','Не требуется'],
     value:'Тест направлен' },
-  { key:'softDate',        label:'Дата SOFT',                             group:'potential',  type:'autoDate', value:'23.06.2021' },
-  { key:'relocReady',      label:'Готовность к релокации',                group:'potential',  type:'select',
+  { key:'softDate',        label:'Дата SOFT',                             group:'devStatus',  type:'autoDate', value:'23.06.2021' },
+  { key:'relocReady',      label:'Готовность к релокации',                group:'devStatus',  type:'select',
     options:['Готов по всей сети','Готов в рамках региона','Готов в рамках отделения','Готов в определённые города','Не готов'],
     value:'Не готов' },
 
   // ---------- Сведения о развитии ----------
-  { key:'krStatus',        label:'Статус по КР',                         group:'development', type:'select',
-    options:['Да','Нет'], value:'Да' },
-  { key:'krDate',          label:'Дата зачисления КР',                    group:'development', type:'date',  value:'2025-01-01' },
+  { key:'email',           label:'Почта кандидата',                       group:'contacts',   type:'auto',  value:'primer_1@yandex.ru' },
+  { key:'phone',           label:'Номер телефона',                        group:'contacts',   type:'auto',  value:'+7 911 111 11 11' },
+
+  // ---------- Кадровые данные ----------
+  { key:'city',            label:'Город проживания',                      group:'contacts',   type:'auto',  value:'Казань' },
+  { key:'ipr',             label:'Наличие ИПР',                           group:'development',  type:'auto',  value:'Да' },
+  { key:'managerFio',      label:'ФИО действующего руководителя',         group:'development',   type:'auto',  value:'Иванов Иван Директорович' },
   { key:'assignment',      label:'Тип назначения',                        group:'development', type:'select',
     options:['Временное','Постоянное'], value:'Временное' },
   { key:'assignDate',      label:'Дата назначения',                       group:'development', type:'date',  value:'2026-01-01' },
@@ -77,7 +76,9 @@ const COLUMNS = [
   { key:'assignPlace',     label:'Место назначения',                      group:'development', type:'select',
     options:['СМ_1234','СМ_20144','СМ_20531','СМ_20812','СМ_20933','СМ_21044','СМ_21102','СМ_21255'],
     value:'СМ_1234' },
+  { key:'employeeComment', label:'Комментарий сотрудника',                group:'development',   type:'auto',  value:'Передумал' },
   { key:'managerComment',  label:'Комментарий менеджера по оценке',       group:'development', type:'free',  value:'Молодец, берем' },
+  { key:'selectionComment', label:'Комментарий подбора',                  group:'development', type:'free',  value:'' },
   { key:'managerAtEntry',  label:'Руководитель в момент вступления в КР', group:'development', type:'autoEditable',
     options:['—','Иванов Руководитель Петрович','Петров Руководитель Петрович','Сидоров Руководитель Петрович',
              'Кузнецов Руководитель Петрович','Смирнов Руководитель Петрович','Волков Руководитель Петрович',
@@ -87,7 +88,7 @@ const COLUMNS = [
   { key:'shopAtEntry',     label:'Магазин в момент вступления в КР',      group:'development', type:'autoEditable',
     options:['—','СМ_1234','СМ_5678','СМ_9012','СМ_3456','СМ_7890','СМ_2345','СМ_6789','СМ_0123','СМ_4567','СМ_8901'],
     value:'СМ_1234' },
-  { key:'selectionComment', label:'Комментарий подбора',                  group:'development', type:'free',  value:'' },
+
 ];
 
 // Поля, которые физически приходят из HR-системы по сотруднику —
