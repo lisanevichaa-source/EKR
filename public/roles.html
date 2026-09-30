@@ -548,9 +548,15 @@ function renderPermTable(){
     cols.forEach(col => {
       const perm = permDraft[col.key] || { view: false, edit: false };
       const lockedEdit = !isEditableType(col.type);
+      // подпись рядом с полем, почему редактирование заблокировано — не всегда это
+      // "приходит из СМскилл": "Потенциальная должность" не редактируется в обход
+      // создания/удаления треков совсем по другой причине
+      const lockNote = col.key === 'potPos' ? 'задаётся при создании трека'
+        : col.type === 'citySelect' ? 'заполняет сотрудник в личном кабинете'
+        : 'СМскилл';
       html += `
         <div class="perm-row">
-          <span class="perm-col-label">${escapeHtml(col.label)}${lockedEdit ? '<span class="perm-lock-note">СМскилл</span>' : ''}</span>
+          <span class="perm-col-label">${escapeHtml(col.label)}${lockedEdit ? `<span class="perm-lock-note">${lockNote}</span>` : ''}</span>
           <input type="checkbox" class="perm-checkbox" data-perm-col="${col.key}" data-perm-type="view" ${perm.view ? 'checked' : ''}>
           <input type="checkbox" class="perm-checkbox" data-perm-col="${col.key}" data-perm-type="edit" ${perm.edit ? 'checked' : ''} ${lockedEdit ? 'disabled' : ''}>
         </div>

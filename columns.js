@@ -37,8 +37,9 @@ const GROUPS = [
 const COLUMNS = [
   { key:'fio',             label:'ФИО',                                   group:'personal',   type:'auto',  value:'Анисенко Никита Владимирович' },
   { key:'status',          label:'Статус',                                group:'personal',   type:'select',
-    options:['Назначен','В КР','Аннулировано','Развиваем на ТД','Тест Soft','Сессия ОС'],
-    value:'Назначен' },
+    options:['Назначен','В КР','Исключён бизнесом','Развиваем в текущей должности','Тест Soft','Сессия ОС',
+      'Рассматривается на должность','В процессе обучения','Отказался от развития'],
+    value:'В КР' },
   { key:'region',          label:'Регион',                                group:'personal',   type:'auto',  value:'Поволжский регион' },
   { key:'depart',          label:'Отделение',                             group:'personal',   type:'auto',  value:'Казанское отделение' },
   { key:'shop',            label:'Магазин',                               group:'personal',   type:'auto',  value:'12345' },
@@ -47,7 +48,7 @@ const COLUMNS = [
   // ---------- Потенциал развития ----------
   { key:'curPos',          label:'Текущая должность',                     group:'personal',  type:'auto',  value:'Продавец' },
   { key:'potPos',          label:'Потенциальная должность',               group:'potential',  type:'positionSelect' },
-  { key:'krStatus',        label:'Статус по КР',                         group:'potential', type:'select',
+  { key:'krStatus',        label:'Статус КР',                            group:'potential', type:'select',
     options:['Да','Нет'], value:'Да' },
   { key:'reqDate',         label:'Дата заявки',                           group:'potential',   type:'autoDate', value:'13.04.2023' },
   { key:'krDate',          label:'Дата зачисления КР',                    group:'potential', type:'date',  value:'2025-01-01' },
@@ -60,6 +61,7 @@ const COLUMNS = [
   { key:'relocReady',      label:'Готовность к релокации',                group:'devStatus',  type:'select',
     options:['Готов по всей сети','Готов в рамках региона','Готов в рамках отделения','Готов в определённые города','Не готов'],
     value:'Не готов' },
+  { key:'relocCities',     label:'Города релокации',                      group:'devStatus',  type:'citySelect', value:'' },
 
   // ---------- Сведения о развитии ----------
   { key:'email',           label:'Почта кандидата',                       group:'contacts',   type:'auto',  value:'primer_1@yandex.ru' },
@@ -76,9 +78,11 @@ const COLUMNS = [
   { key:'assignPlace',     label:'Место назначения',                      group:'development', type:'select',
     options:['СМ_1234','СМ_20144','СМ_20531','СМ_20812','СМ_20933','СМ_21044','СМ_21102','СМ_21255'],
     value:'СМ_1234' },
-  { key:'employeeComment', label:'Комментарий сотрудника',                group:'development',   type:'auto',  value:'Передумал' },
-  { key:'managerComment',  label:'Комментарий менеджера по оценке',       group:'development', type:'free',  value:'Молодец, берем' },
-  { key:'selectionComment', label:'Комментарий подбора',                  group:'development', type:'free',  value:'' },
+  { key:'employeeComment', label:'Комментарий сотрудника',                group:'development',   type:'auto',  value:'—' },
+  { key:'managerComment',  label:'Комментарий менеджера по оценке',       group:'development', type:'free',  value:'Молодец, берем', popupEdit:true },
+  { key:'relocFact',       label:'Релокация',                             group:'development', type:'select',
+    options:['Да','Нет'], value:'' },
+  { key:'selectionComment', label:'Комментарий подбора',                  group:'development', type:'free',  value:'', popupEdit:true },
   { key:'managerAtEntry',  label:'Руководитель в момент вступления в КР', group:'development', type:'autoEditable',
     options:['—','Иванов Руководитель Петрович','Петров Руководитель Петрович','Сидоров Руководитель Петрович',
              'Кузнецов Руководитель Петрович','Смирнов Руководитель Петрович','Волков Руководитель Петрович',
@@ -96,13 +100,32 @@ const COLUMNS = [
 const SOURCE_FIELDS = ['fio','email','phone','region','depart','city','shop','curPos'];
 
 // Разумные значения по умолчанию для выпадающих списков при добавлении сотрудника в резерв.
+// "Назначен" сюда осознанно не входит — выбор этого значения теперь по-настоящему
+// блокирует трек (см. markAsAssigned), поэтому не должно быть дефолтом ни у одного нового
+// трека — иначе выглядело бы так, будто человек уже назначен, хотя он только начал
+// развиваться.
+//
+// relocFact ("Релокация") — осознанно ПУСТОЕ значение по умолчанию: пока роль явно не
+// отметила, была ли релокация, поле остаётся незаполненным (в ячейке "—"), а не "Да".
+// Из-за этого нельзя проверять значение через `SELECT_DEFAULTS[key] || options[0]` — пустая
+// строка ложна, и подставился бы первый пункт списка. Используйте getSelectDefault().
 const SELECT_DEFAULTS = {
-  status:'Назначен',
+  status:'В КР',
   soft:'Не требуется',
   krStatus:'Да',
   assignment:'Временное',
   relocReady:'Не готов',
+  relocFact:'',
 };
+
+/** Значение по умолчанию для select-столбца при создании нового трека / приведении старой
+ *  строки к актуальной схеме. Если для столбца явно задано значение в SELECT_DEFAULTS (в
+ *  том числе пустая строка) — берётся оно; иначе — первый пункт списка options. */
+function getSelectDefault(col){
+  return Object.prototype.hasOwnProperty.call(SELECT_DEFAULTS, col.key)
+    ? SELECT_DEFAULTS[col.key]
+    : col.options[0];
+}
 
 const INITIAL_EMPLOYEE_POOL = [
   { id:'p1',  fio:'Смирнова Ольга Павловна',      email:'o.smirnova@company.ru',   phone:'+7 916 220 14 02', region:'Центральный регион',     depart:'Тверское отделение',         city:'Тверь',            shop:'20144', curPos:'Продавец К2' },
@@ -186,6 +209,21 @@ const DEV_TRACKS_VARIANTS = [
   ],
 ];
 
+// Справочник городов присутствия сети для выбора "Города релокации".
+// В прототипе — сокращённый пример (~50 городов) вместо полного внутреннего справочника Спортмастера.
+const RELOCATION_CITIES = [
+  'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань',
+  'Нижний Новгород', 'Челябинск', 'Красноярск', 'Самара', 'Уфа',
+  'Ростов-на-Дону', 'Омск', 'Краснодар', 'Воронеж', 'Пермь',
+  'Волгоград', 'Саратов', 'Тюмень', 'Тольятти', 'Ижевск',
+  'Барнаул', 'Ульяновск', 'Иркутск', 'Хабаровск', 'Ярославль',
+  'Владивосток', 'Махачкала', 'Томск', 'Оренбург', 'Кемерово',
+  'Новокузнецк', 'Рязань', 'Астрахань', 'Набережные Челны', 'Пенза',
+  'Липецк', 'Киров', 'Чебоксары', 'Тула', 'Калининград',
+  'Курск', 'Ставрополь', 'Улан-Удэ', 'Тверь', 'Магнитогорск',
+  'Иваново', 'Брянск', 'Белгород', 'Сургут', 'Владимир',
+];
+
 // Справочник должностей для назначения ролей (страница "Роли и доступы").
 // Это отдельный список, не связанный со значениями столбцов "Текущая/Потенциальная должность".
 const POSITIONS = [
@@ -246,7 +284,18 @@ function sanitizePositionCategory(raw){
 // Столбцы, тип которых делает их принципиально нередактируемыми ни для какой роли
 // (данные приходят автоматически из смежных систем — Pub3 -> СМскилл). autoEditable сюда
 // намеренно НЕ входит — такие поля заполняются автоматически, но роль с правом edit может их менять.
-const NON_EDITABLE_TYPES = ['auto', 'autoDate', 'devRecords', 'empty'];
+// positionSelect ("Потенциальная должность") добавлен сюда осознанно, хотя формально это
+// не "автоматическое" поле — направление развития теперь всегда задаётся либо при
+// добавлении нового трека (кнопка "Добавить"/личный кабинет), либо создаёт новый трек, а
+// не переписывает уже существующую строку "на лету". В многотрековой модели редактирование
+// уже существующей строки в обход этого было бы путаницей: остальные поля строки (дата
+// зачисления, снимки руководителя/магазина и т.д.) остались бы от прежнего направления,
+// а potPos сменился бы на новое — рассинхронизация. Смена направления теперь моделируется
+// как "убрать этот трек + завести новый", а не правка на месте.
+// citySelect ("Города релокации") — заполняется только самим сотрудником в личном кабинете
+// (см. PATCH /api/employee/:id/reloc-cities), в реестре его не правит ни одна роль. Держать
+// этот список в синхроне с isEditableType в public/common.js и с проверкой в db.updateCell.
+const NON_EDITABLE_TYPES = ['auto', 'autoDate', 'devRecords', 'empty', 'positionSelect', 'citySelect'];
 
 // Действия в реестре, не привязанные к конкретному полю — доступ к ним тоже настраивается
 // по ролям, отдельно от видимости/редактирования столбцов.
@@ -254,6 +303,7 @@ const ACTIONS = [
   { key:'canAddEmployee',    label:'Добавление сотрудника в резерв' },
   { key:'canRemoveEmployee', label:'Удаление сотрудника из резерва' },
   { key:'canShowAssigned',   label:'Показать назначенных (уже занявших целевую должность)' },
+  { key:'canShowRemoved',    label:'Показать удалённых (убранных сотрудником/ролью треков)' },
 ];
 
 // Права на действия "по умолчанию" для новой роли — чистый лист, всё запрещено
@@ -301,12 +351,12 @@ function sanitizePermissions(rawPerms){
 function seedRoles(){
   const managerPerms = blankPermissions();
   ['fio','status','curPos','potPos','krStatus','krDate','region','depart','city','shop',
-   'hardDate','soft','softDate','managerFio','relocReady',
+   'hardDate','soft','softDate','managerFio','relocReady','relocCities',
    'assignment','assignDate','ipr'].forEach(k => { managerPerms[k].view = true; });
   const managerActions = sanitizeActions({ canAddEmployee: true, canRemoveEmployee: false });
 
   const employeePerms = blankPermissions();
-  ['fio','curPos','potPos','krStatus','krDate','relocReady','status'].forEach(k => { employeePerms[k].view = true; });
+  ['fio','curPos','potPos','krStatus','krDate','relocReady','relocCities','status'].forEach(k => { employeePerms[k].view = true; });
   const employeeActions = sanitizeActions({ canAddEmployee: false, canRemoveEmployee: false });
 
   return [
@@ -351,8 +401,8 @@ function parseLegacyDevTracks(potPosStr, trainingStr, hardDateStr){
 }
 
 module.exports = {
-  GROUPS, COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
-  POSITIONS, isColumnEverEditable, blankPermissions, sanitizePermissions, seedRoles,
+  GROUPS, COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, getSelectDefault, NON_EDITABLE_TYPES, INITIAL_EMPLOYEE_POOL,
+  POSITIONS, RELOCATION_CITIES, isColumnEverEditable, blankPermissions, sanitizePermissions, seedRoles,
   ACTIONS, blankActions, sanitizeActions,
   DEV_TRACKS_KEY, DEMO_DEV_TRACKS, DEV_TRACKS_VARIANTS, parseLegacyDevTracks,
   POSITION_CATEGORIES_SEED, getEligiblePotentialPositions, sanitizePositionCategory,

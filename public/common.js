@@ -46,8 +46,14 @@ async function mutate(url, options){
  *  auto/autoDate/empty — поля приходят из смежных систем (Pub3 -> СМскилл) либо ещё не определены,
  *  их нельзя редактировать никогда. autoEditable заполняется автоматически, но роль с правом
  *  edit может значение поменять — по возможности редактирования он ведёт себя как select/free/date. */
+// ВАЖНО: этот список держится в синхроне вручную с NON_EDITABLE_TYPES в columns.js
+// (там — отрицательный список, тут — положительный) — при добавлении нового типа столбца
+// или смене редактируемости существующего нужно поправить оба места.
+// positionSelect ("Потенциальная должность") сюда осознанно не входит — направление
+// развития теперь всегда задаётся при создании нового трека, а не правкой на месте уже
+// существующей строки, см. подробный комментарий в columns.js у NON_EDITABLE_TYPES.
 function isEditableType(type){
-  return type === 'select' || type === 'free' || type === 'date' || type === 'autoEditable' || type === 'positionSelect';
+  return type === 'select' || type === 'free' || type === 'date' || type === 'autoEditable';
 }
 
 function escapeHtml(s){

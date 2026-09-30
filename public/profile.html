@@ -9,7 +9,7 @@
   /* Демонстрационная имитация экрана мобильного приложения сотрудника — не претендует на
      точное повторение внешнего вида боевого приложения, только состав и логику полей:
      что сотрудник может редактировать сам (Готовность к релокации, Куда хочу развиваться)
-     и что подтягивается из реестра автоматически, только на чтение (Пройдённое обучение,
+     и что подтягивается из реестра автоматически, только на чтение (Пройденное обучение,
      Пройдена оценка SOFT) — построчно по каждому его треку развития. */
   body{ background:var(--bg-page); }
   .demo-banner{
@@ -66,6 +66,16 @@
   .position-checklist{ display:flex; flex-direction:column; gap:12px; }
   .position-check-item{ display:flex; align-items:center; gap:10px; font-size:14px; color:var(--ink); cursor:pointer; }
   .position-check-item input{ width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; }
+  /* "Уже пройдено" — заблокированный трек, показываем в списке, но снять/поставить
+     галочку нельзя (input disabled — браузер сам не даст кликнуть, отдельно защищать
+     ничего не нужно). Приглушённый вид и текстовая пометка, чтобы не путать с тем, что
+     реально сейчас в развитии. */
+  .position-check-item-locked{ cursor:default; color:var(--ink-soft); }
+  .position-check-item-locked input{ accent-color:var(--ink-soft); cursor:default; }
+  .position-locked-note{
+    font-size:11px; color:var(--ink-soft); background:var(--auto-bg);
+    border-radius:999px; padding:2px 8px; margin-left:auto; flex-shrink:0;
+  }
 
   .track-list{ margin-top:4px; display:flex; flex-direction:column; gap:5px; }
   .track-line{ font-size:12.5px; display:flex; justify-content:space-between; gap:10px; }
@@ -120,6 +130,33 @@
   .edit-modal-foot{ margin-top:16px; }
   .edit-modal-foot .primary-btn{ width:100%; justify-content:center; padding:11px; font-size:13.5px; }
 
+  /* ---------- Города релокации: поиск по мере ввода + список выбранных с удалением ---------- */
+  .city-search-input{
+    width:100%; border:1px solid var(--line); border-radius:var(--radius-sm);
+    padding:9px 10px; font-size:14px; font-family:inherit; color:var(--ink); background:#fff;
+    box-sizing:border-box;
+  }
+  .city-suggestions{
+    margin-top:6px; border:1px solid var(--line); border-radius:var(--radius-sm);
+    overflow:hidden; max-height:180px; overflow-y:auto;
+  }
+  .city-suggestion-item{
+    display:block; width:100%; text-align:left; border:none; background:#fff;
+    padding:9px 10px; font-size:13.5px; font-family:inherit; color:var(--ink); cursor:pointer;
+  }
+  .city-suggestion-item + .city-suggestion-item{ border-top:1px solid var(--line); }
+  .city-suggestion-item:hover{ background:var(--auto-bg); }
+  .city-selected-list{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .city-chip{
+    display:flex; align-items:center; gap:6px; background:var(--auto-bg);
+    border-radius:999px; padding:6px 8px 6px 12px; font-size:13px; color:var(--ink);
+  }
+  .city-chip-remove{
+    border:none; background:none; color:var(--ink-soft); cursor:pointer; font-size:11px;
+    line-height:1; padding:2px 4px; border-radius:999px; flex-shrink:0;
+  }
+  .city-chip-remove:hover{ color:#c81e3a; }
+
   .ds-status-wrap{ position:fixed; bottom:12px; right:12px; z-index:20; }
   .ds-status-wrap .save-status{ box-shadow:0 4px 14px rgba(15,15,40,.12); }
 </style>
@@ -172,6 +209,17 @@
       </div>
     </div>
 
+    <div class="field-row" id="citiesFieldRow">
+      <div class="field-icon">🏙</div>
+      <div class="field-body">
+        <div class="field-label">
+          Города релокации
+          <button type="button" class="edit-pencil-btn" id="editCitiesBtn" title="Изменить">✎</button>
+        </div>
+        <div class="field-value" id="citiesDisplay">—</div>
+      </div>
+    </div>
+
     <div class="field-row">
       <div class="field-icon">🎯</div>
       <div class="field-body">
@@ -186,7 +234,7 @@
     <div class="field-row">
       <div class="field-icon">📈</div>
       <div class="field-body">
-        <div class="field-label">Пройдённое обучение</div>
+        <div class="field-label">Пройденное обучение</div>
         <div class="track-list" id="trainingList"></div>
       </div>
     </div>
@@ -246,6 +294,7 @@
 const DEMO_EMPLOYEE_ID = 'emp1';
 
 let COLUMNS = [];
+let RELOCATION_CITIES = [];
 let positionCategories = [];
 let reserveRows = [];
 let employeePool = []; // сюда возвращается сотрудник, если у него не осталось ни одного
@@ -298,18 +347,38 @@ function render(){
   // нечего (обе модалки сами проверяют это перед открытием), просто показываем "—".
   document.getElementById('relocDisplay').textContent = myRows.length > 0 ? (sample.relocReady || '—') : '—';
 
+  // "Города релокации" имеют смысл только при relocReady === 'Готов в определённые города' —
+  // в остальных случаях список либо пуст, либо (при смене готовности) автоматически очищается
+  // на сервере (см. updateRelocReadyForEmployee в db.js), поэтому здесь просто скрываем
+  // саму возможность редактирования, а не пытаемся показать неактуальные данные.
+  const citiesApplicable = myRows.length > 0 && sample.relocReady === 'Готов в определённые города';
+  const selectedCities = citiesApplicable ? (sample.relocCities || '').split(',').map(s => s.trim()).filter(Boolean) : [];
+  document.getElementById('citiesDisplay').textContent = citiesApplicable
+    ? (selectedCities.length > 0 ? selectedCities.join(', ') : 'Пока не выбраны')
+    : '—';
+  document.getElementById('editCitiesBtn').style.display = citiesApplicable ? '' : 'none';
+
   const eligible = getEligiblePotentialPositions(sample.curPos, positionCategories);
-  const activePositions = myRows.filter(r => r.values.trackState === 'active').map(r => r.values.potPos);
+  const activeRows = myRows.filter(r => r.values.trackState === 'active');
+  const lockedRows = myRows.filter(r => r.values.trackState === 'locked');
+
+  // "Куда хочу развиваться" — общий список на главной странице (не сам редактор, см.
+  // renderPositionsEditorBody ниже) показывает и активные направления, и уже достигнутые
+  // (заблокированные) — сотрудник прошёл этот путь, скрывать это не нужно, даже если его
+  // потом откатили на прежнюю должность. Достигнутые просто помечены отдельно, чтобы не
+  // путать с тем, что реально сейчас в развитии.
   const positionsDisplay = document.getElementById('positionsDisplay');
-  if (activePositions.length === 0){
+  if (activeRows.length === 0 && lockedRows.length === 0){
     positionsDisplay.innerHTML = `<div class="field-empty-note">Пока ничего не выбрано</div>`;
   } else {
-    positionsDisplay.innerHTML = activePositions.map(pos => `<div class="track-line"><span class="pos">${escapeHtml(pos)}</span></div>`).join('');
+    const activeLines = activeRows.map(r => `<div class="track-line"><span class="pos">${escapeHtml(r.values.potPos)}</span></div>`);
+    const lockedLines = lockedRows.map(r => `<div class="track-line"><span class="pos">${escapeHtml(r.values.potPos)}</span><span class="val">Уже пройдено</span></div>`);
+    positionsDisplay.innerHTML = activeLines.concat(lockedLines).join('');
   }
 
-  // Пройдённое обучение — только на чтение, по каждому видимому треку: название программы
-  // обучения (не должности!) + % прохождения из записи в devTracks, относящейся к активной
-  // потенциальной должности этого трека
+  // Пройденное обучение — по каждому видимому треку (и активному, и уже достигнутому —
+  // это честная история прохождения, скрывать уже пройденное не нужно): название программы
+  // обучения (не должности!) + % прохождения из записи в devTracks
   const trainingList = document.getElementById('trainingList');
   if (myRows.length === 0){
     trainingList.innerHTML = `<div class="field-empty-note">Пока нет выбранных направлений</div>`;
@@ -322,9 +391,9 @@ function render(){
     }).join('');
   }
 
-  // Пройдена оценка SOFT — тоже только на чтение, по каждому треку: должность + статус
-  // из столбца "Оценка SOFT" именно этой строки (может отличаться между треками одного
-  // и того же человека — это оценка применительно к конкретному направлению развития)
+  // Пройдена оценка SOFT — тоже по каждому видимому треку: должность + статус из столбца
+  // "Оценка SOFT" именно этой строки (может отличаться между треками одного и того же
+  // человека — это оценка применительно к конкретному направлению развития)
   const softList = document.getElementById('softList');
   if (myRows.length === 0){
     softList.innerHTML = `<div class="field-empty-note">—</div>`;
@@ -335,7 +404,7 @@ function render(){
   }
 
   // "Не хочу развиваться" — отказываться не от чего, если активных треков нет вообще
-  const hasActiveTracks = myRows.some(r => r.values.trackState === 'active');
+  const hasActiveTracks = activeRows.length > 0;
   document.getElementById('declineAllBtn').style.display = hasActiveTracks ? '' : 'none';
   document.getElementById('editRelocBtn').style.display = hasActiveTracks ? '' : 'none';
   // "editPositionsBtn" НЕ скрываем даже без активных треков — это единственный способ
@@ -344,6 +413,15 @@ function render(){
   // если модалка редактирования сейчас открыта — обновляем и её содержимое вместе с
   // остальной страницей (например, после того как чекбокс внутри неё сам вызвал reload())
   if (openEditorKind === 'reloc') renderRelocEditorBody(sample);
+  if (openEditorKind === 'cities'){
+    // если готовность вдруг перестала быть "Готов в определённые города" (например, отредактировали
+    // в самом реестре и оттуда пришло обновление) — редактор городов больше не имеет смысла, закрываем
+    if (!citiesApplicable){
+      closeEditModal();
+    } else {
+      renderCitiesEditorBody(sample);
+    }
+  }
   if (openEditorKind === 'positions') renderPositionsEditorBody(sample, myRows);
 }
 
@@ -373,19 +451,118 @@ function openRelocEditor(){
   document.getElementById('editModalOverlay').classList.add('open');
 }
 
+// строка поиска в редакторе городов — отдельное состояние вне render(), потому что тело
+// модалки перерисовывается заново при каждом изменении (после reload()), а набранный,
+// но ещё не выбранный текст поиска нужно при этом не терять
+let citySearchQuery = '';
+
+function renderCitiesEditorBody(sample){
+  const selected = (sample.relocCities || '').split(',').map(s => s.trim()).filter(Boolean);
+  const query = citySearchQuery.trim().toLowerCase();
+  const suggestions = query
+    ? RELOCATION_CITIES.filter(c => !selected.includes(c) && c.toLowerCase().includes(query)).slice(0, 8)
+    : [];
+  document.getElementById('editModalBody').innerHTML = `
+    <input type="text" class="city-search-input" id="citySearchInput" placeholder="Начните вводить название города…" value="${escapeHtml(citySearchQuery)}" autocomplete="off">
+    ${suggestions.length > 0
+      ? `<div class="city-suggestions">${suggestions.map(c => `<button type="button" class="city-suggestion-item" data-add-city="${escapeHtml(c)}">${escapeHtml(c)}</button>`).join('')}</div>`
+      : (query ? `<div class="field-empty-note" style="margin-top:6px;">Город не найден в справочнике</div>` : '')}
+    <div class="city-selected-list">
+      ${selected.length === 0
+        ? `<div class="field-empty-note">Города пока не выбраны</div>`
+        : selected.map(c => `
+            <div class="city-chip">
+              <span>${escapeHtml(c)}</span>
+              <button type="button" class="city-chip-remove" data-remove-city="${escapeHtml(c)}" title="Убрать">✕</button>
+            </div>
+          `).join('')}
+    </div>
+  `;
+  // после перерисовки (например, сразу после того как этот же ввод вызвал фильтрацию)
+  // возвращаем фокус и курсор в конец строки поиска, чтобы не сбивать печать пользователя
+  const input = document.getElementById('citySearchInput');
+  if (input){
+    input.focus();
+    const pos = input.value.length;
+    input.setSelectionRange(pos, pos);
+  }
+}
+
+function openCitiesEditor(){
+  const myRows = getMyRows().filter(r => r.values.trackState === 'active');
+  if (myRows.length === 0) return;
+  const sample = myRows[0].values;
+  if (sample.relocReady !== 'Готов в определённые города') return; // редактировать нечего
+  openEditorKind = 'cities';
+  citySearchQuery = '';
+  document.getElementById('editModalTitle').textContent = 'Города релокации';
+  renderCitiesEditorBody(sample);
+  document.getElementById('editModalOverlay').classList.add('open');
+}
+
+async function addRelocCity(city){
+  const myRows = getMyRows().filter(r => r.values.trackState === 'active');
+  if (myRows.length === 0) return;
+  const current = (myRows[0].values.relocCities || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (current.includes(city)) return;
+  const next = [...current, city];
+  citySearchQuery = '';
+  try{
+    await mutate(`/api/employee/${encodeURIComponent(DEMO_EMPLOYEE_ID)}/reloc-cities`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cities: next }),
+    });
+  } catch(err){
+    // статус сохранения уже показал ошибку
+  }
+  await reload();
+}
+
+async function removeRelocCity(city){
+  const myRows = getMyRows().filter(r => r.values.trackState === 'active');
+  if (myRows.length === 0) return;
+  const current = (myRows[0].values.relocCities || '').split(',').map(s => s.trim()).filter(Boolean);
+  const next = current.filter(c => c !== city);
+  try{
+    await mutate(`/api/employee/${encodeURIComponent(DEMO_EMPLOYEE_ID)}/reloc-cities`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cities: next }),
+    });
+  } catch(err){
+    // статус сохранения уже показал ошибку
+  }
+  await reload();
+}
+
 function renderPositionsEditorBody(sample, myRows){
   const eligible = getEligiblePotentialPositions(sample.curPos, positionCategories);
   const activePositions = new Set(myRows.filter(r => r.values.trackState === 'active').map(r => r.values.potPos));
+  const lockedPositions = new Set(myRows.filter(r => r.values.trackState === 'locked').map(r => r.values.potPos));
+
+  // объединяем обычные допустимые по категориям должности с уже пройденными (locked) —
+  // последние могли выпасть из eligible после смены текущей должности (категории всегда
+  // считаются от НОВОЙ curPos, не от той, что была на момент достижения), но раз сотрудник
+  // это прошёл — прятать не нужно, просто показываем как уже завершённое, без возможности
+  // снять/добавить заново (см. раздел "Трек уже завершён" в документе разработчика)
+  const allPositions = Array.from(new Set([...eligible, ...lockedPositions]));
+
   const body = document.getElementById('editModalBody');
-  if (eligible.length === 0){
+  if (allPositions.length === 0){
     body.innerHTML = `<div class="field-empty-note">Для должности «${escapeHtml(sample.curPos)}» пока не настроены доступные направления развития</div>`;
   } else {
-    body.innerHTML = `<div class="position-checklist">${eligible.map(pos => `
-      <label class="position-check-item">
-        <input type="checkbox" data-position="${escapeHtml(pos)}" ${activePositions.has(pos) ? 'checked' : ''}>
-        <span>${escapeHtml(pos)}</span>
-      </label>
-    `).join('')}</div>`;
+    body.innerHTML = `<div class="position-checklist">${allPositions.map(pos => {
+      const isLocked = lockedPositions.has(pos);
+      const isChecked = isLocked || activePositions.has(pos);
+      return `
+        <label class="position-check-item${isLocked ? ' position-check-item-locked' : ''}">
+          <input type="checkbox" data-position="${escapeHtml(pos)}" ${isChecked ? 'checked' : ''} ${isLocked ? 'disabled' : ''}>
+          <span>${escapeHtml(pos)}</span>
+          ${isLocked ? '<span class="position-locked-note">Уже пройдено</span>' : ''}
+        </label>
+      `;
+    }).join('')}</div>`;
   }
 }
 
@@ -409,6 +586,7 @@ async function reload(){
 
 function setupHandlers(){
   document.getElementById('editRelocBtn').addEventListener('click', openRelocEditor);
+  document.getElementById('editCitiesBtn').addEventListener('click', openCitiesEditor);
   document.getElementById('editPositionsBtn').addEventListener('click', openPositionsEditor);
   document.getElementById('editModalClose').addEventListener('click', closeEditModal);
   document.getElementById('editModalDone').addEventListener('click', closeEditModal);
@@ -436,7 +614,7 @@ function setupHandlers(){
     }
 
     const cb = e.target.closest('input[type="checkbox"]');
-    if (!cb) return;
+    if (!cb || openEditorKind !== 'positions') return;
     const position = cb.dataset.position;
     if (cb.checked){
       try{
@@ -457,6 +635,30 @@ function setupHandlers(){
       const row = getMyRows().find(r => r.values.potPos === position && r.values.trackState === 'active');
       closeEditModal();
       if (row) openDeclineOneModal(row);
+    }
+  });
+
+  // "Города релокации" — поиск по мере ввода (фильтрация списка подсказок при каждом
+  // введённом символе) и клики по подсказке/крестику — отдельные обработчики, потому что
+  // это не select/checkbox, а обычные input/button внутри той же перерисовываемой модалки
+  document.getElementById('editModalBody').addEventListener('input', e => {
+    const input = e.target.closest('#citySearchInput');
+    if (!input || openEditorKind !== 'cities') return;
+    citySearchQuery = input.value;
+    const myRows = getMyRows().filter(r => r.values.trackState === 'active');
+    if (myRows.length > 0) renderCitiesEditorBody(myRows[0].values);
+  });
+
+  document.getElementById('editModalBody').addEventListener('click', e => {
+    if (openEditorKind !== 'cities') return;
+    const addBtn = e.target.closest('[data-add-city]');
+    if (addBtn){
+      addRelocCity(addBtn.dataset.addCity);
+      return;
+    }
+    const removeBtn = e.target.closest('[data-remove-city]');
+    if (removeBtn){
+      removeRelocCity(removeBtn.dataset.removeCity);
     }
   });
 
@@ -546,6 +748,7 @@ async function init(){
   try{
     const meta = await fetchMeta();
     COLUMNS = meta.columns;
+    RELOCATION_CITIES = meta.relocationCities || [];
     const state = await fetchState();
     reserveRows = state.reserveRows;
     positionCategories = state.positionCategories;

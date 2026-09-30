@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { GROUPS, COLUMNS, POSITIONS, ACTIONS } = require('./columns');
+const { GROUPS, COLUMNS, POSITIONS, RELOCATION_CITIES, ACTIONS } = require('./columns');
 const db = require('./db');
 
 const app = express();
@@ -9,7 +9,7 @@ app.use(express.json());
 // --- API ---
 
 app.get('/api/meta', (req, res) => {
-  res.json({ groups: GROUPS, columns: COLUMNS, positions: POSITIONS, actions: ACTIONS });
+  res.json({ groups: GROUPS, columns: COLUMNS, positions: POSITIONS, relocationCities: RELOCATION_CITIES, actions: ACTIONS });
 });
 
 app.get('/api/state', (req, res) => {
@@ -20,8 +20,12 @@ app.patch('/api/reserve/:id', (req, res) => {
   const { col, value } = req.body || {};
   if (typeof col !== 'string') return res.status(400).json({ error: 'Не передано поле col' });
   try {
-    const row = db.updateCell(req.params.id, col, value ?? '');
-    res.json({ row });
+    const { row, relatedRows } = db.updateCell(req.params.id, col, value ?? '');
+    // relatedRows — другие строки, изменившиеся вместе с этой (сейчас так бывает только для
+    // "Готовности к релокации": значение общее для всех активных треков человека)
+    const payload = { row };
+    if (relatedRows && relatedRows.length > 0) payload.relatedRows = relatedRows;
+    res.json(payload);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -47,6 +51,17 @@ app.delete('/api/reserve/:id', (req, res) => {
   }
 });
 
+// Ручная простановка статуса "Назначен" прямо в ЭКР — блокирует трек немедленно и
+// необратимо (см. раздел 2 документа, "Уже назначен"). Интерфейс обязан предупредить о
+// необратимости ДО вызова — сам эндпоинт подтверждения не запрашивает.
+app.post('/api/reserve/:id/mark-assigned', (req, res) => {
+  try {
+    res.json(db.markAsAssigned(req.params.id));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.patch('/api/reserve/:id/potential-position', (req, res) => {
   const { position } = req.body || {};
   if (typeof position !== 'string') return res.status(400).json({ error: 'Не передано поле position' });
@@ -65,6 +80,19 @@ app.patch('/api/employee/:employeeId/reloc-ready', (req, res) => {
   if (typeof value !== 'string') return res.status(400).json({ error: 'Не передано поле value' });
   try {
     res.json(db.updateRelocReadyForEmployee(req.params.employeeId, value));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// "Города релокации" — используется личным кабинетом, обновляет значение сразу во всех
+// строках этого сотрудника; имеет смысл только при relocReady === 'Готов в определённые
+// города' (проверяется на стороне db.updateRelocCitiesForEmployee)
+app.patch('/api/employee/:employeeId/reloc-cities', (req, res) => {
+  const { cities } = req.body || {};
+  if (!Array.isArray(cities)) return res.status(400).json({ error: 'Не передано поле cities (ожидается массив)' });
+  try {
+    res.json(db.updateRelocCitiesForEmployee(req.params.employeeId, cities));
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

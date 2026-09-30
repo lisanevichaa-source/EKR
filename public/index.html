@@ -41,38 +41,24 @@
   }
 
   .widgets-section{
-    background:var(--auto-bg);
-    border:1px solid var(--line);
+    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
+    border:1px solid transparent;
     border-radius:var(--radius-md);
     padding:14px 16px;
-    transition:background .2s ease;
   }
-  /* "Старая" тёмная подложка — тот же градиент, что был до перехода на светлый дизайн
-     портала. Меняет только фон самой секции виджетов и цвет текста тулбара, лежащего
-     прямо на этом фоне — сами карточки виджетов и раньше, и сейчас белые, их внутренний
-     вид трогать не нужно. */
-  .widgets-section.theme-dark{
-    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
-    border-color:transparent;
-  }
-  .widgets-section.theme-dark .widgets-updated{ color:rgba(255,255,255,0.65); }
-  .widgets-section.theme-dark .widgets-refresh-btn{
-    color:#fff; background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25);
-  }
-  .widgets-section.theme-dark .widgets-refresh-btn:hover{ background:rgba(255,255,255,0.18); }
   .widgets-toolbar{
     display:flex; align-items:center; justify-content:flex-end; gap:8px;
     margin-bottom:10px;
   }
-  .widgets-updated{ font-size:12px; color:var(--ink-soft); margin-right:auto; transition:color .2s ease; }
+  .widgets-updated{ font-size:12px; color:rgba(255,255,255,0.65); margin-right:auto; }
   .widgets-refresh-btn{
     display:inline-flex; align-items:center; gap:7px;
-    border:1px solid var(--line); border-radius:999px;
+    border:1px solid rgba(255,255,255,0.25); border-radius:999px;
     padding:7px 14px; font-size:12.5px; font-family:inherit; font-weight:600;
-    color:var(--ink); background:#fff; cursor:pointer;
-    transition:background .15s ease, color .2s ease, border-color .2s ease;
+    color:#fff; background:rgba(255,255,255,0.1); cursor:pointer;
+    transition:background .15s ease;
   }
-  .widgets-refresh-btn:hover{ background:var(--auto-bg); }
+  .widgets-refresh-btn:hover{ background:rgba(255,255,255,0.18); }
   .widgets-refresh-btn:active svg{ animation:spin .5s linear; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
   #toggleWidgetsIcon{ transition:transform .15s ease; }
@@ -112,7 +98,7 @@
   }
   .card-label-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
   .card-label-row .card-label{ margin-bottom:0; }
-  .card-label-selects{ display:flex; align-items:center; gap:6px; }
+  .card-label-selects{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
   .fy-select{
     border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--ink);
     font-size:11.5px; font-weight:600; padding:3px 9px; font-family:inherit; cursor:pointer;
@@ -161,34 +147,41 @@
   .section-head p{ margin:2px 0 0; color:var(--ink-soft); font-size:13px; }
 
   .toolbar{
-    background:var(--auto-bg);
-    border:1px solid var(--line);
+    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
+    border:1px solid transparent;
     border-radius:var(--radius-md);
     padding:14px 16px;
     display:flex; flex-wrap:wrap; align-items:center; gap:10px;
     margin-bottom:14px;
-    transition:background .2s ease, border-color .2s ease;
   }
-  /* Та же "старая" тёмная подложка, что и у секции виджетов (см. .widgets-section.theme-dark) —
-     переключаются одной и той же кнопкой, чтобы не плодить два независимых тумблера ради
-     одного и того же визуального решения. Поиск и разделитель не имеют своего непрозрачного
-     фона — на тёмном градиенте их пришлось бы сделать полупрозрачными явно, иначе текст
-     поиска слился бы с фоном. */
-  .toolbar.theme-dark{
-    background:linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 55%, var(--grad-c) 100%);
-    border-color:transparent;
-  }
-  .toolbar.theme-dark .search{
+  /* Поиск и разделитель не имеют своего непрозрачного фона — на тёмном градиенте их
+     пришлось бы сделать полупрозрачными явно, иначе текст поиска слился бы с фоном. */
+  .toolbar .search{
     background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25);
   }
-  .toolbar.theme-dark .search input{ color:#fff; }
-  .toolbar.theme-dark .search input::placeholder{ color:rgba(255,255,255,0.55); }
-  .toolbar.theme-dark .search svg{ color:#fff; }
-  .toolbar.theme-dark .divider-v{ background:rgba(255,255,255,0.25); }
-  .toolbar.theme-dark .ghost-btn{
+  .toolbar .search input{ color:#fff; }
+  .toolbar .search input::placeholder{ color:rgba(255,255,255,0.55); }
+  .toolbar .search svg{ color:#fff; }
+  .toolbar .divider-v{ background:rgba(255,255,255,0.25); }
+  .toolbar .ghost-btn{
     color:#fff; background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25);
   }
-  .toolbar.theme-dark .ghost-btn:hover{ background:rgba(255,255,255,0.18); border-color:rgba(255,255,255,0.4); }
+  .toolbar .ghost-btn:hover{ background:rgba(255,255,255,0.18); border-color:rgba(255,255,255,0.4); }
+  .toolbar .toolbar-btn-group{
+    background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.3);
+  }
+  .toolbar .toolbar-btn-group .ghost-btn:not(.active){
+    background:rgba(255,255,255,0.12); color:#fff; border-color:transparent;
+  }
+  .toolbar .toolbar-btn-group .ghost-btn:not(.active):hover{
+    background:rgba(255,255,255,0.22);
+  }
+  /* Активное (нажатое) состояние — сплошной белый фон вместо светло-голубого, чтобы
+     максимально контрастировать и с тёмным фоном тулбара, и с соседними неактивными
+     кнопками (у тех фон полупрозрачный, разница иначе была бы едва заметна). */
+  .toolbar .toolbar-btn-group .ghost-btn.active{
+    background:#fff; color:var(--accent); border-color:#fff;
+  }
   .search{
     display:flex; align-items:center; gap:8px;
     border:1px solid var(--line); border-radius:999px; padding:8px 14px;
@@ -204,6 +197,18 @@
   .divider-v{ width:1px; height:22px; background:var(--line); margin:0 4px; transition:background .2s ease; }
 
   .toolbar-right{ margin-left:auto; display:flex; gap:8px; align-items:center;}
+  /* Общая подложка вокруг двух смысловых групп кнопок тулбара: "что показывать в таблице"
+     (Показать назначенных/удалённых, Скрыть активные) и "действия над отображением/данными"
+     (Сбросить фильтры, Настроить отображение, Выгрузить отчёт). Каждая группа — свой такой
+     блок, визуально отделяющий её от остального тулбара; отдельный разделитель между блоками
+     не нужен, сама подложка уже создаёт нужный зазор. Обводка чуть темнее общего --line —
+     та была почти незаметна на белом фоне тулбара. */
+  .toolbar-btn-group{
+    display:flex; gap:6px; align-items:center;
+    background:var(--auto-bg); border:1.5px solid #c7cad6; border-radius:999px;
+    padding:3px;
+  }
+  .toolbar-btn-group .ghost-btn:not(.active){ background:#fff; }
 
   /* table */
   .table-wrap{
@@ -346,16 +351,26 @@
   .row-remove-btn:hover{ background:#fdeeef; border-color:#f3c3ca; color:var(--red); }
 
   /* "уже назначен" — строка заблокирована для редактирования, показывается только через
-     переключатель "Показать назначенных". Лёгкая заливка + бейдж в ячейке ФИО, без
-     кардинальной смены оформления — это всё ещё обычный резервист, просто с историческим
-     статусом. */
+     переключатель "Показать назначенных". Лёгкая заливка всей строки, без бейджа —
+     это всё ещё обычный резервист, просто с историческим статусом. */
   tr.row-locked{ background:var(--auto-bg); }
   tr.row-locked:hover{ background:var(--auto-bg); }
-  .locked-badge{
-    display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase;
-    letter-spacing:.03em; color:#fff; background:var(--accent);
-    border-radius:4px; padding:2px 6px; margin-right:6px; vertical-align:middle;
+
+  /* "удалён" — трек убрали (кнопкой или через личный кабинет), показывается через отдельный
+     переключатель "Показать удалённых". Другой оттенок, чем у "уже назначен" — это разные
+     по смыслу состояния (там необратимый факт истории, тут обратимое действие, которое
+     можно отменить прямо здесь же кнопкой восстановления) — и они не должны визуально
+     путаться друг с другом. В отличие от "уже назначен", ячейки тут остаются
+     редактируемыми по обычным правам роли, не заблокированы. */
+  tr.row-removed{ background:#fbf3e4; }
+  tr.row-removed:hover{ background:#fbf3e4; }
+  .row-restore-btn{
+    width:28px; height:28px; border-radius:50%;
+    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+    font-size:14px; line-height:1; cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
   }
+  .row-restore-btn:hover{ background:#eaf4ec; border-color:#bfe0c6; color:#1f8a52; }
 
   .table-foot{
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
@@ -512,6 +527,36 @@
   .cell-comment{ cursor:pointer; }
   .cell-comment:hover{ text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; }
 
+  /* ---------- ПОПАП РЕДАКТИРОВАНИЯ СВОБОДНОГО ТЕКСТА (Комментарий подбора / Комментарий
+     менеджера по оценке) — в обычной ячейке таблицы слишком мало места для полноценного
+     ввода, поэтому клик по ячейке открывает попап с textarea вместо строки ввода на месте. */
+  .cell-freepopup{ cursor:pointer; min-height:16px; }
+  .cell-freepopup:hover{ text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; }
+  .freetext-popover{
+    display:none;
+    position:fixed; z-index:70;
+    width:340px; max-height:360px;
+    background:#fff; border-radius:var(--radius-md);
+    border:1px solid var(--line);
+    box-shadow:0 18px 50px rgba(15,15,40,0.28);
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .freetext-popover.open{ display:flex; }
+  .freetext-popover-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 12px; border-bottom:1px solid var(--line); font-size:12.5px; font-weight:700; color:var(--ink);
+  }
+  .freetext-popover-body{ padding:10px 12px; flex:1; display:flex; }
+  .freetext-popover-textarea{
+    width:100%; min-height:140px; resize:vertical; border:1px solid var(--line);
+    border-radius:var(--radius-sm); padding:9px 10px; font-size:13.5px; font-family:inherit;
+    color:var(--ink);
+  }
+  .freetext-popover-textarea:disabled{ background:var(--auto-bg); color:var(--ink-soft); resize:none; }
+  .freetext-popover-foot{ padding:8px 12px 12px; border-top:1px solid var(--line); }
+  .freetext-popover-foot .primary-btn{ width:100%; justify-content:center; padding:9px; font-size:13px; }
+
   /* ---------- DEV RECORDS (несколько потенциальных должностей у одного сотрудника) ---------- */
   .dev-records-btn{
     border:1px solid var(--line); background:var(--auto-bg); color:var(--ink);
@@ -572,10 +617,6 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
         Обновить виджеты
       </button>
-      <button class="widgets-refresh-btn" id="toggleWidgetsThemeBtn" title="Переключить тёмную/светлую подложку виджетов и панели инструментов">
-        <svg id="toggleWidgetsThemeIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-        <span id="toggleWidgetsThemeText">Тёмная подложка</span>
-      </button>
       <button class="widgets-refresh-btn" id="toggleWidgetsBtn">
         <svg id="toggleWidgetsIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="m6 9 6 6 6-6"/></svg>
         <span id="toggleWidgetsText">Свернуть виджеты</span>
@@ -594,10 +635,16 @@
       <input id="searchInput" type="text" placeholder="Поиск по ФИО...">
     </div>
     <div class="toolbar-right">
-      <button class="ghost-btn" id="showAssignedBtn">Показать назначенных</button>
-      <button class="ghost-btn" id="clearAllFiltersBtn">Сбросить фильтры</button>
-      <button class="ghost-btn" id="columnVisibilityBtn">Настроить отображение столбцов</button>
-      <button class="ghost-btn" id="exportReportBtn">Выгрузить отчёт</button>
+      <div class="toolbar-btn-group">
+        <button class="ghost-btn" id="showActiveBtn">Показать активных</button>
+        <button class="ghost-btn" id="showAssignedBtn">Показать назначенных</button>
+        <button class="ghost-btn" id="showRemovedBtn">Показать удалённых</button>
+      </div>
+      <div class="toolbar-btn-group">
+        <button class="ghost-btn" id="clearAllFiltersBtn">Сбросить фильтры</button>
+        <button class="ghost-btn" id="columnVisibilityBtn">Настроить отображение</button>
+        <button class="ghost-btn" id="exportReportBtn">Выгрузить отчёт</button>
+      </div>
     </div>
   </div>
 
@@ -662,6 +709,19 @@
   <div class="comment-popover-body" id="commentPopoverBody"></div>
 </div>
 
+<div class="freetext-popover" id="freeTextPopover">
+  <div class="freetext-popover-head">
+    <span id="freeTextPopoverTitle">Комментарий</span>
+    <button class="modal-close" id="freeTextPopoverClose">✕</button>
+  </div>
+  <div class="freetext-popover-body">
+    <textarea class="freetext-popover-textarea" id="freeTextPopoverTextarea" placeholder="Введите текст…"></textarea>
+  </div>
+  <div class="freetext-popover-foot">
+    <button class="primary-btn" id="freeTextPopoverDone">Готово</button>
+  </div>
+</div>
+
 <div class="filter-popover" id="filterPopover">
   <div class="filter-popover-head">
     <span id="filterPopoverTitle">Фильтр</span>
@@ -721,8 +781,20 @@ let positionCategories = []; // категории должностей — оп
 
 let currentRoleId = ''; // '' = без ограничений (полный доступ), иначе id роли из ROLES
 let showLockedRows = false; // "Показать назначенных" — по умолчанию выключено, видимость самого переключателя зависит от права canShowAssigned у роли
+let showRemovedRows = false; // "Показать удалённых" — аналогично, право canShowRemoved
+let showActiveRows = true; // "Показать активных" — включено по умолчанию (сохраняет привычное
+                            // поведение "видно активных сразу"), в отличие от двух других.
+                            // Все три кнопки теперь равноправны и независимы друг от друга —
+                            // просто каждая включает/выключает показ своей категории, их можно
+                            // комбинировать как угодно ("только назначенные", "назначенные и
+                            // удалённые вместе, без активных" и т.д.). Подписи кнопок теперь
+                            // статичные (не меняются на "скрыть...") — состояние видно по
+                            // подсветке самой кнопки, дублировать его словами не нужно.
+                            // Своего отдельного права доступа не требует — сам по себе не
+                            // открывает никаких новых данных, только переключает показ уже
+                            // разрешённого; кнопка показывается всегда.
 
-let hiddenColumns = new Set(); // столбцы, скрытые пользователем через "Настроить отображение столбцов" (по умолчанию пусто — показаны все)
+let hiddenColumns = new Set(); // столбцы, скрытые пользователем через "Настроить отображение" (по умолчанию пусто — показаны все)
 
 // активные фильтры по столбцам: colKey -> Set выбранных значений
 let columnFilters = {};
@@ -771,6 +843,7 @@ let lastWidgetsRows = [];       // строки, по которым видже�
                                  // строк по текущим фильтрам (это дело кнопки "Обновить виджеты")
 let selectedFYEndYear = null;   // null = определять по сегодняшней дате; иначе — явный выбор пользователя
 let selectedAssignmentType = 'Постоянное'; // тип назначения, учитываемый в виджете "История назначений"
+let selectedRelocFilter = ''; // "" = все, "Да"/"Нет" — фильтр по столбцу "Релокация" в том же виджете
 let lastWidgetsData = null;     // последний результат computeWidgetData — нужен попапу по
                                  // наведению и кнопке "Выгрузить в excel" за весь период, чтобы
                                  // не пересчитывать заново, когда сам renderWidgets() уже
@@ -823,7 +896,7 @@ function estimateEligiblePoolSize(positionLabel, currentCount){
 /** Считает все метрики дашборда по переданному набору строк (уже отфильтрованному —
  *  виджеты всегда показывают то, что попадает под текущие фильтры). Никаких обращений
  *  к серверу — вся нужная информация уже загружена на клиенте. */
-function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
+function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType, forcedRelocFilter){
   // "locked" (уже назначенные) сюда тоже попадают (см. getWidgetsRows) — но не для всех
   // метрик их нужно учитывать одинаково. "Сотрудников в КР" и "КР по должностям" — это
   // про тех, кто СЕЙЧАС активно в резерве, поэтому только activeRows. А вот "Средний срок
@@ -868,9 +941,14 @@ function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
 
   // История назначений за финансовый год (сентябрь — август). Считаем только по одному
   // "Типу назначения" за раз — свой отдельный переключатель в самом виджете (по умолчанию
-  // "Постоянное"), не связан с общими фильтрами таблицы над реестром.
+  // "Постоянное"), не связан с общими фильтрами таблицы над реестром. "Релокант" — ещё один
+  // такой же независимый переключатель поверх типа назначения: пусто = не фильтровать,
+  // "Да"/"Нет" — только те, у кого соответствующее значение в столбце "Релокация".
   const assignmentType = forcedAssignmentType || 'Постоянное';
-  const assignmentRows = rows.filter(r => r.values.assignment === assignmentType);
+  const relocFilter = forcedRelocFilter || '';
+  const assignmentRows = rows.filter(r =>
+    r.values.assignment === assignmentType && (!relocFilter || r.values.relocFact === relocFilter)
+  );
 
   const monthNames = ['Сен', 'Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг'];
 
@@ -923,14 +1001,16 @@ function computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType){
     fyEndYear,
     availableFYEndYears: availableFYEndYears.length > 0 ? availableFYEndYears : [fyEndYear],
     assignmentType,
+    relocFilter,
   };
 }
 
-function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
+function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType, forcedRelocFilter){
   lastWidgetsRows = rows;
-  const data = computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType);
+  const data = computeWidgetData(rows, forcedFYEndYear, forcedAssignmentType, forcedRelocFilter);
   selectedFYEndYear = data.fyEndYear; // фиксируем реально применённый год (после всех фолбэков)
   selectedAssignmentType = data.assignmentType;
+  selectedRelocFilter = data.relocFilter;
   const el = document.getElementById('widgets');
 
   let positionsHtml;
@@ -977,6 +1057,15 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
     `<option value="${o.value}" ${o.value === data.assignmentType ? 'selected' : ''}>${o.label}</option>`
   ).join('');
 
+  const relocFilterOptions = [
+    { value: '', label: 'Все' },
+    { value: 'Да', label: 'Релокант' },
+    { value: 'Нет', label: 'Не релокант' },
+  ];
+  const relocFilterSelectHtml = relocFilterOptions.map(o =>
+    `<option value="${o.value}" ${o.value === data.relocFilter ? 'selected' : ''}>${o.label}</option>`
+  ).join('');
+
   // сохраняем данные последнего расчёта, чтобы попап по наведению и кнопка "за весь период"
   // могли достать список строк без пересчёта — сам renderWidgets() каждый раз пересоздаёт
   // всю разметку виджетов через innerHTML, локальные ссылки на DOM/данные тут не выживут
@@ -993,6 +1082,7 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
         <span class="card-label">История назначений</span>
         <span class="card-label-selects">
           <button class="period-export-btn" id="periodExportBtn" title="Выгрузить в Excel все строки текущего периода">Выгрузить в excel</button>
+          <select class="fy-select" id="relocFilterSelect">${relocFilterSelectHtml}</select>
           <select class="fy-select" id="assignmentTypeSelect">${assignmentSelectHtml}</select>
           <select class="fy-select" id="fySelect">${fySelectHtml}</select>
         </span>
@@ -1025,13 +1115,18 @@ function renderWidgets(rows, forcedFYEndYear, forcedAssignmentType){
   // "Обновлено: чч:мм" и не пересчитывает заново по фильтрам таблицы — это просто другой
   // взгляд на уже посчитанные данные (lastWidgetsRows)
   document.getElementById('fySelect').addEventListener('change', e => {
-    renderWidgets(lastWidgetsRows, parseInt(e.target.value, 10), selectedAssignmentType);
+    renderWidgets(lastWidgetsRows, parseInt(e.target.value, 10), selectedAssignmentType, selectedRelocFilter);
   });
   document.getElementById('assignmentTypeSelect').addEventListener('change', e => {
     // при смене типа назначения список доступных FY может быть другим для этого типа —
     // не передаём текущий forcedFYEndYear принудительно, даём computeWidgetData подобрать
     // подходящий год заново (текущий/самый свежий среди доступных для нового типа)
-    renderWidgets(lastWidgetsRows, null, e.target.value);
+    renderWidgets(lastWidgetsRows, null, e.target.value, selectedRelocFilter);
+  });
+  document.getElementById('relocFilterSelect').addEventListener('change', e => {
+    // тот же принцип — год пересчитываем заново под новую комбинацию фильтров, а не
+    // держимся за прежний принудительно
+    renderWidgets(lastWidgetsRows, null, selectedAssignmentType, e.target.value);
   });
   document.getElementById('periodExportBtn').addEventListener('click', () => {
     const d = lastWidgetsData;
@@ -1049,10 +1144,11 @@ function updateWidgetsTimestamp(){
 /** Пересчитывает виджеты по текущим отфильтрованным данным — вызывается один раз при
  *  загрузке страницы и дальше только по кнопке "Обновить виджеты", намеренно не на
  *  каждое изменение в таблице (правку ячейки, смену страницы и т.п.), чтобы не гонять
- *  этот пересчёт лишний раз. Ранее выбранные в "Истории назначений" год и тип назначения
- *  сохраняются — обновление данных не должно молча сбрасывать их на значения по умолчанию. */
+ *  этот пересчёт лишний раз. Ранее выбранные в "Истории назначений" год, тип назначения
+ *  и фильтр по релокантам сохраняются — обновление данных не должно молча сбрасывать их
+ *  на значения по умолчанию. */
 function refreshWidgets(){
-  renderWidgets(getWidgetsRows(), selectedFYEndYear, selectedAssignmentType);
+  renderWidgets(getWidgetsRows(), selectedFYEndYear, selectedAssignmentType, selectedRelocFilter);
   updateWidgetsTimestamp();
 }
 
@@ -1066,19 +1162,6 @@ function setupWidgetsRefresh(){
     widgetsEl.style.display = collapsed ? '' : 'none';
     icon.classList.toggle('collapsed', !collapsed);
     text.textContent = collapsed ? 'Свернуть виджеты' : 'Развернуть виджеты';
-  });
-  // Переключатель "старой" тёмной подложки виджетов (тот самый градиент, что был до
-  // перехода на светлый дизайн портала) — меняет только фон секции виджетов и текст
-  // тулбара поверх него, сами карточки не трогает (они и раньше, и сейчас белые).
-  // Чисто визуальная опция для сравнения вариантов с коллегами, состояние не сохраняется
-  // между перезагрузками страницы — при каждой загрузке снова светлая подложка по умолчанию.
-  document.getElementById('toggleWidgetsThemeBtn').addEventListener('click', () => {
-    const widgetsSection = document.querySelector('.widgets-section');
-    const toolbar = document.querySelector('.toolbar');
-    const text = document.getElementById('toggleWidgetsThemeText');
-    const isDark = widgetsSection.classList.toggle('theme-dark');
-    if (toolbar) toolbar.classList.toggle('theme-dark', isDark);
-    text.textContent = isDark ? 'Светлая подложка' : 'Тёмная подложка';
   });
 }
 
@@ -1114,9 +1197,17 @@ function applyActionPermissions(){
     btn.style.display = canRemove ? '' : 'none';
   });
 
-  // "Показать назначенных" — сам переключатель виден только ролям с этим правом; если
-  // роль сменилась и у неё этого права больше нет — принудительно выключаем и сам показ,
-  // чтобы не оставить в интерфейсе строки, которые эта роль видеть не должна
+  // "Восстановить" по сути то же самое действие, что и "Добавить сотрудника" (вызывает тот
+  // же самый эндпоинт addToReserve) — поэтому завязано на то же самое право, а не на право
+  // удаления
+  document.querySelectorAll('.row-restore-btn').forEach(btn => {
+    btn.style.display = canAdd ? '' : 'none';
+  });
+
+  // Три переключателя видимости ("Показать активных"/"назначенных"/"удалённых") теперь
+  // полностью равноправны и независимы друг от друга — просто каждый включает/выключает
+  // показ своей категории, комбинируются как угодно. Подписи статичные (не меняются на
+  // "скрыть..." при включении) — состояние и так видно по подсветке самой кнопки.
   const canShowAssigned = getEffectiveActionPermission('canShowAssigned');
   const showAssignedBtn = document.getElementById('showAssignedBtn');
   if (showAssignedBtn){
@@ -1125,7 +1216,24 @@ function applyActionPermissions(){
       showLockedRows = false;
     }
     showAssignedBtn.classList.toggle('active', showLockedRows);
-    showAssignedBtn.textContent = showLockedRows ? 'Скрыть назначенных' : 'Показать назначенных';
+  }
+
+  const canShowRemoved = getEffectiveActionPermission('canShowRemoved');
+  const showRemovedBtn = document.getElementById('showRemovedBtn');
+  if (showRemovedBtn){
+    showRemovedBtn.style.display = canShowRemoved ? '' : 'none';
+    if (!canShowRemoved && showRemovedRows){
+      showRemovedRows = false;
+    }
+    showRemovedBtn.classList.toggle('active', showRemovedRows);
+  }
+
+  // "Показать активных" — в отличие от двух других, не открывает никаких новых данных
+  // (активные и так всегда были бы доступны любой роли), только переключает их показ —
+  // поэтому не завязана на права и видна всегда, независимо от canShowAssigned/canShowRemoved
+  const showActiveBtn = document.getElementById('showActiveBtn');
+  if (showActiveBtn){
+    showActiveBtn.classList.toggle('active', showActiveRows);
   }
 }
 
@@ -1279,8 +1387,11 @@ function buildCellInnerHtml(col, row){
   const value = row.values[col.key];
   const perm = getEffectivePermission(col.key);
   // trackState:'locked' (сотрудник уже назначен) — строка полностью нередактируема,
-  // независимо от прав роли на конкретное поле
-  const canEdit = perm.edit && isEditableType(col.type) && row.values.trackState !== 'locked';
+  // независимо от прав роли на конкретное поле. Единственное намеренное исключение —
+  // "Релокация" (relocFact): её смысл именно в том, чтобы отмечать факт релокации при
+  // достижении цели, то есть ровно тогда, когда строка уже заблокирована — см. подробный
+  // комментарий у updateCell в db.js.
+  const canEdit = perm.edit && isEditableType(col.type) && (row.values.trackState !== 'locked' || col.key === 'relocFact');
   let inner = '';
   switch(col.type){
     case 'auto':
@@ -1297,6 +1408,11 @@ function buildCellInnerHtml(col, row){
     case 'select':
       inner = canEdit
         ? `<select class="cell-input" data-row="${row.id}" data-col="${col.key}">` +
+            // если текущее значение пустое или почему-то не входит в список вариантов
+            // (например, "Статус" сброшен в "" при восстановлении удалённого трека, см.
+            // addToReserve в db.js) — показываем явную заглушку вместо того, чтобы select
+            // молча подсветил первый пункт списка, как будто он и выбран
+            (!value || !col.options.includes(value) ? `<option value="" selected>—</option>` : '') +
             col.options.map(o => `<option ${o === value ? 'selected' : ''}>${o}</option>`).join('') +
           `</select>`
         : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
@@ -1353,14 +1469,35 @@ function buildCellInnerHtml(col, row){
       }
       break;
     case 'free':
-      inner = canEdit
-        ? `<input class="cell-input" type="text" data-row="${row.id}" data-col="${col.key}" value="${value === '—' ? '' : value}" placeholder="—">`
-        : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+      if (col.popupEdit){
+        // "Комментарий подбора" / "Комментарий менеджера по оценке" — свободный текст,
+        // которому тесно в обычной ячейке таблицы: вместо строки ввода на месте открываем
+        // по клику попап с textarea (см. setupFreeTextPopover()). Показываем и когда нет
+        // прав на редактирование — тогда попап просто отображает текст целиком, без
+        // возможности его изменить (textarea readonly), это по-прежнему решает исходную
+        // проблему нехватки места для чтения длинного текста.
+        const display = value === '—' ? '' : (value || '');
+        inner = `<div class="cell-auto cell-freepopup" data-row="${row.id}" data-col="${col.key}" title="Клик — открыть полностью">${escapeHtml(display) || '—'}</div>`;
+      } else {
+        inner = canEdit
+          ? `<input class="cell-input" type="text" data-row="${row.id}" data-col="${col.key}" value="${value === '—' ? '' : value}" placeholder="—">`
+          : `<div class="cell-auto" title="${value}">${value || '—'}</div>`;
+      }
       break;
     case 'date':
       inner = canEdit
         ? `<input class="cell-input" type="date" data-row="${row.id}" data-col="${col.key}" value="${value}">`
         : `<div class="cell-auto">${value ? formatIsoToRu(value) : '—'}</div>`;
+      break;
+    case 'citySelect':
+      {
+        // "Города релокации" заполняются только из личного кабинета сотрудника (см.
+        // profile.html и PATCH /api/employee/:id/reloc-cities) — здесь, в общем реестре,
+        // поле всегда только отображается: список городов через запятую или "—", если
+        // сотрудник ещё не готов "в определённые города" либо список пуст.
+        const display = value || '—';
+        inner = `<div class="cell-auto" title="${escapeHtml(display)}">${escapeHtml(display)}</div>`;
+      }
       break;
     case 'empty':
       inner = `<div class="cell-empty">—</div>`;
@@ -1425,17 +1562,24 @@ function renderTable(){
   pageRows.forEach((row, i) => {
     const idx = startIdx + i;
     const isLocked = row.values.trackState === 'locked';
+    const isRemoved = row.values.trackState === 'removed';
     let cells = [`<td class="col-rownum" data-col="__rownum">${idx + 1}</td>`];
     COLUMNS.forEach(col => {
       let fioClass = col.key === 'fio' ? ' col-fio' : '';
       let inner = buildCellInnerHtml(col, row);
-      if (col.key === 'fio' && isLocked){
-        inner = `<span class="locked-badge" title="Сотрудник уже назначен на эту должность — строка заблокирована">Назначен</span>` + inner;
-      }
       cells.push(`<td class="${fioClass}" data-col="${col.key}">${inner}</td>`);
     });
-    cells.push(`<td class="col-actions">${isLocked ? '' : `<button class="row-remove-btn" data-remove-row="${row.id}" title="Убрать из резерва">✕</button>`}</td>`);
-    bodyRows.push(`<tr data-row="${row.id}"${isLocked ? ' class="row-locked"' : ''}>${cells.join('')}</tr>`);
+    let actionCell;
+    if (isLocked){
+      actionCell = '';
+    } else if (isRemoved){
+      actionCell = `<button class="row-restore-btn" data-restore-row="${row.id}" title="Восстановить трек">↺</button>`;
+    } else {
+      actionCell = `<button class="row-remove-btn" data-remove-row="${row.id}" title="Убрать из резерва">✕</button>`;
+    }
+    cells.push(`<td class="col-actions">${actionCell}</td>`);
+    const rowClass = isLocked ? ' class="row-locked"' : (isRemoved ? ' class="row-removed"' : '');
+    bodyRows.push(`<tr data-row="${row.id}"${rowClass}>${cells.join('')}</tr>`);
   });
 
   table.innerHTML = thead + `<tbody>${bodyRows.join('')}</tbody>`;
@@ -1454,6 +1598,7 @@ function updateLocalCellValue(el){
 
 async function saveCell(rowId, col, value){
   let success = false;
+  const changedRowIds = [rowId]; // строки, чьи ячейки нужно обновить на экране после ответа
   try{
     // PATCH /api/reserve/:id теперь возвращает только изменённую строку, а не всё состояние —
     // правка ячейки не имеет побочных эффектов на другие строки, гонять по сети весь реестр
@@ -1467,13 +1612,35 @@ async function saveCell(rowId, col, value){
       const idx = reserveRows.findIndex(r => r.id === rowId);
       if (idx !== -1) reserveRows[idx] = result.row;
     }
+    // relatedRows — другие строки, которые сервер изменил вместе с этой (сейчас — только при
+    // правке "Готовности к релокации": значение общее для всех активных треков человека)
+    if (result && Array.isArray(result.relatedRows)){
+      result.relatedRows.forEach(related => {
+        const relIdx = reserveRows.findIndex(r => r.id === related.id);
+        if (relIdx !== -1) reserveRows[relIdx] = related;
+        changedRowIds.push(related.id);
+      });
+    }
     success = true;
   } catch(err){
     // запрос не прошёл — ниже перерисуем таблицу из последнего известного состояния,
     // чтобы визуально откатить то, что пользователь успел ввести
   }
 
-  if (success && !isFilterActive(columnFilters[col])){
+  if (success && col === 'relocReady'){
+    // меняются сразу две связанные ячейки (готовность и города — они очищаются, если
+    // готовность больше не "в определённые города") и, возможно, другие строки этого же
+    // человека. Если по этим столбцам включён фильтр — строки могли выпасть из выборки или
+    // попасть в неё, нужна полная перерисовка.
+    if (isFilterActive(columnFilters.relocReady) || isFilterActive(columnFilters.relocCities)){
+      renderTable();
+    } else {
+      changedRowIds.forEach(id => {
+        updateCellDom(id, 'relocReady');
+        updateCellDom(id, 'relocCities');
+      });
+    }
+  } else if (success && !isFilterActive(columnFilters[col])){
     // точечное обновление одной ячейки — полная перерисовка всей страницы (table.innerHTML
     // заново) при большом размере страницы пагинации (например, 1000 строк × 31 столбец)
     // ощутимо дороже, чем нужно ради одного изменившегося поля, и именно она давала
@@ -1555,6 +1722,27 @@ function setupTableInputSync(){
       return;
     }
     if (el.tagName === 'SELECT' || (el.tagName === 'INPUT' && el.type === 'date')){
+      // "Статус" = "Назначен" — особый случай: фактически ручной аналог автоматической
+      // блокировки трека (см. раздел 2 документа, "Уже назначен") — строка становится
+      // полностью нередактируемой необратимо. Обязательно предупреждаем, прежде чем
+      // сохранять — обычный saveCell тут не подходит, нужен отдельный эндпоинт, который
+      // меняет сразу и статус, и состояние строки атомарно.
+      if (el.dataset.col === 'status' && el.value === 'Назначен'){
+        const row = reserveRows.find(r => r.id === el.dataset.row);
+        const previousValue = row ? row.values.status : '';
+        const ok = confirm(
+          'Поставить статус «Назначен»?\n\n' +
+          'Это действие необратимо: строка станет полностью нередактируемой (как «уже ' +
+          'назначенная») — ни этот, ни любой другой столбец в ней больше нельзя будет ' +
+          'изменить или удалить строку. Отменить это будет нельзя.'
+        );
+        if (!ok){
+          el.value = previousValue; // откатываем выбор в самом select обратно
+          return;
+        }
+        markRowAsAssigned(el.dataset.row);
+        return;
+      }
       updateLocalCellValue(el);
       const key = el.dataset.row + ':' + el.dataset.col;
       clearTimeout(cellSaveTimers[key]);
@@ -1565,6 +1753,8 @@ function setupTableInputSync(){
   table.addEventListener('click', e => {
     const removeBtn = e.target.closest('[data-remove-row]');
     if (removeBtn){ removeFromReserveRow(removeBtn.dataset.removeRow); return; }
+    const restoreBtn = e.target.closest('[data-restore-row]');
+    if (restoreBtn){ restoreRemovedRow(restoreBtn.dataset.restoreRow); return; }
     const devBtn = e.target.closest('.dev-records-btn');
     if (devBtn){ openDevTracksPopover(devBtn.dataset.devrow, devBtn); return; }
   });
@@ -1574,6 +1764,14 @@ function setupTableInputSync(){
  *  плюс быстрый переключатель "Только заполненные" — кликать по каждой из сотен дат нереально. */
 function isDateFilterColumn(col){
   return col.type === 'date' || col.type === 'autoDate' || (col.type === 'devRecords' && col.recordField === 'hardDate');
+}
+
+/** Столбцы со свободным текстом, где перечислить все уникальные значения галочками не
+ *  имеет смысла (у каждого сотрудника может быть написано что угодно) — вместо списка
+ *  значений показываем один простой переключатель "Есть комментарий", по тому же
+ *  принципу, что и "Только заполненные" у диапазона дат (см. renderHasCommentFilter). */
+function isFreeTextFilterColumn(col){
+  return col.key === 'employeeComment';
 }
 
 /** Активен ли фильтр столбца — работает и для Set (список значений), и для объекта-диапазона дат. */
@@ -1593,6 +1791,41 @@ function filterValueMatches(filter, rawValue){
   return true;
 }
 
+/** Достаёт даты, зашитые в начало отдельных строк накопленного текста "Комментарий
+ *  сотрудника" — каждая причина отказа добавляется отдельной строкой вида
+ *  "ДД.ММ.ГГГГ / текст" (см. declineAllTracksForEmployee/removeFromReserve в db.js).
+ *  Старые/демо-записи без даты в начале строки ("Передумал" и т.п.) просто не дают даты —
+ *  это нормально, не ошибка формата. Возвращает даты в ISO (YYYY-MM-DD) для сравнения. */
+function extractCommentDates(text){
+  if (!text) return [];
+  const dates = [];
+  text.split('\n').forEach(line => {
+    const m = line.match(/^(\d{2})\.(\d{2})\.(\d{4})\s*\//);
+    if (m) dates.push(`${m[3]}-${m[2]}-${m[1]}`);
+  });
+  return dates;
+}
+
+/** Сопоставление фильтра именно для "Комментария сотрудника" — не одно значение, а
+ *  многострочный накопленный текст с несколькими вложенными датами. Если период (с/по) не
+ *  указан — работает как обычное "Есть комментарий" (просто непустой текст). Если период
+ *  указан — достаточно, чтобы под него попадала хотя бы одна из вложенных дат. */
+function commentFilterMatches(filter, rawText){
+  const trimmed = (rawText || '').trim();
+  if (!filter.from && !filter.to){
+    return !!(trimmed && trimmed !== '—');
+  }
+  const dates = extractCommentDates(rawText);
+  return dates.some(d => (!filter.from || d >= filter.from) && (!filter.to || d <= filter.to));
+}
+
+/** "ДД.ММ.ГГГГ" -> "ГГГГ-ММ-ДД" для сравнения с датами из календарных полей фильтра.
+ *  Любое значение, не являющееся такой датой ("—", пустая строка), даёт '' (не заполнено). */
+function ruDateToIso(text){
+  const m = String(text || '').trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+
 /** Подходит ли строка под текущий поиск по ФИО и все активные фильтры столбцов —
  *  единая точка правды, используется и при рендере страницы, и при подсчёте totalRows. */
 function rowMatchesFilters(row, q){
@@ -1602,8 +1835,20 @@ function rowMatchesFilters(row, q){
     const filter = columnFilters[colKey];
     if (!isFilterActive(filter)) continue;
     const col = COLUMNS.find(c => c.key === colKey);
+    if (col && isFreeTextFilterColumn(col)){
+      // особая логика — не одно значение, а накопленный текст с несколькими вложенными
+      // датами, см. commentFilterMatches
+      if (!commentFilterMatches(filter, row.values[colKey])) return false;
+      continue;
+    }
     let val;
-    if (col && col.type === 'devRecords'){
+    if (col && col.type === 'autoDate'){
+      // autoDate-столбцы (Дата заявки, Дата SOFT) хранят дату строкой ДД.ММ.ГГГГ, а границы
+      // диапазона "с/по" из календаря приходят как ГГГГ-ММ-ДД — сравнивать строки напрямую
+      // нельзя ("13.04.2023" < "2023-01-01" просто как текст), поэтому переводим в ISO.
+      // Всё, что не похоже на дату ("—", пусто), считается незаполненным.
+      val = ruDateToIso(row.values[colKey]);
+    } else if (col && col.type === 'devRecords'){
       // Обучение / Дата HARD — значение берём из записи истории, которая сейчас "активна"
       // (совпадает с row.values.potPos), а не по всей истории целиком: фильтр должен
       // отражать именно то, что сейчас реально видно в ячейке, а не прошлые должности
@@ -1621,15 +1866,25 @@ function rowMatchesFilters(row, q){
 
 /** Полный отфильтрованный список (без учёта пагинации) — используется и для рендера
  *  текущей страницы, и для подсчёта totalRows/totalPages. */
-/** Строки для основной таблицы: "removed" (удалённые треки) скрыты всегда — данные
- *  сохранены в базе, но в реестре их быть не должно. "locked" (уже назначенные) —
- *  скрыты по умолчанию, показываются только если включён переключатель "Показать
- *  назначенных" (сам переключатель виден только ролям с правом canShowAssigned). */
+/** Строки для основной таблицы: "removed" (удалённые треки) скрыты по умолчанию, но
+ *  показываются через переключатель "Показать удалённых" (право canShowRemoved) — данные
+ *  сохранены, их можно восстановить прямо отсюда. "locked" (уже назначенные) — тоже скрыты
+ *  по умолчанию, показываются через отдельный переключатель "Показать назначенных" (право
+ *  canShowAssigned). Оба переключателя независимы друг от друга. */
+/** Строки для основной таблицы: три переключателя ("Показать активных"/"назначенных"/
+ *  "удалённых") теперь полностью равноправны и независимы — каждый включает/выключает
+ *  показ своей категории, комбинируются как угодно ("только назначенные", "назначенные и
+ *  удалённые вместе, без активных" и т.д.). "Показать активных" включён по умолчанию
+ *  (сохраняет привычное поведение), остальные два — выключены. "removed"/"locked" к тому
+ *  же требуют соответствующего права роли (canShowRemoved/canShowAssigned) — без него
+ *  свою категорию не покажут, даже если сам переключатель почему-то остался включён. */
 function getFilteredRows(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const canSeeLocked = showLockedRows && getEffectiveActionPermission('canShowAssigned');
+  const canSeeRemoved = showRemovedRows && getEffectiveActionPermission('canShowRemoved');
   return reserveRows.filter(row => {
-    if (row.values.trackState === 'removed') return false;
+    if (row.values.trackState === 'active' && !showActiveRows) return false;
+    if (row.values.trackState === 'removed' && !canSeeRemoved) return false;
     if (row.values.trackState === 'locked' && !canSeeLocked) return false;
     return rowMatchesFilters(row, q);
   });
@@ -1744,6 +1999,43 @@ async function removeFromReserveRow(rowId){
   renderPoolList(document.getElementById('poolSearchInput').value);
 }
 
+/** Ручная простановка статуса "Назначен" — предупреждение о необратимости уже показано и
+ *  подтверждено на уровне обработчика change (см. setupTableInputSync), здесь только сам
+ *  вызов. Меняет сразу и статус, и состояние строки (переводит в locked) атомарно одним
+ *  запросом — обычный saveCell для этого не подходит. */
+async function markRowAsAssigned(rowId){
+  try{
+    applyState(await mutate(`/api/reserve/${encodeURIComponent(rowId)}/mark-assigned`, { method: 'POST' }));
+  } catch(err){
+    // запрос не прошёл — ниже всё равно перерисуем из последнего известного состояния,
+    // чтобы откатить визуально выбранное в select значение
+  }
+  renderTable();
+  applyColumnVisibility();
+}
+
+/** Восстанавливает ранее убранный трек — тот же самый эндпоинт и та же серверная логика,
+ *  что использует и "+ Добавить сотрудника", и повторная простановка галочки в личном
+ *  кабинете: сервер находит существующую строку с этим employeeId+должностью и включает
+ *  её обратно как есть, со всеми прежними данными, а не создаёт новую с нуля. */
+async function restoreRemovedRow(rowId){
+  const row = reserveRows.find(r => r.id === rowId);
+  if (!row) return;
+
+  try{
+    applyState(await mutate('/api/reserve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeId: row.values.employeeId, position: row.values.potPos }),
+    }));
+  } catch(err){
+    return;
+  }
+  renderTable();
+  applyColumnVisibility();
+  renderPoolList(document.getElementById('poolSearchInput').value);
+}
+
 /** Список тех, кого вообще можно сейчас добавить (создать новый трек): и тех, кто ещё
  *  ни разу не в резерве (общий список кандидатов), и тех, кто уже резервист, но не по
  *  всем допустимым для него должностям — им можно завести дополнительный трек. У каждого
@@ -1836,6 +2128,24 @@ function setupShowAssignedToggle(){
     showLockedRows = !showLockedRows;
     applyRowFilters(); // перерисовывает таблицу и вызывает applyColumnVisibility -> applyActionPermissions,
                         // где обновится текст/подсветка самой кнопки
+  });
+}
+
+function setupShowRemovedToggle(){
+  const btn = document.getElementById('showRemovedBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    showRemovedRows = !showRemovedRows;
+    applyRowFilters();
+  });
+}
+
+function setupShowActiveToggle(){
+  const btn = document.getElementById('showActiveBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    showActiveRows = !showActiveRows;
+    applyRowFilters();
   });
 }
 
@@ -1945,15 +2255,55 @@ function renderDateRangeFilter(col){
   updateFilterSelCount();
 }
 
+/** Упрощённый вариант того же механизма, что и у дат (переиспользует ту же форму данных
+ *  { onlyFilled, from:'', to:'' } и ту же логику сопоставления filterValueMatches) — но
+ *  без полей диапазона, которые тут не нужны: одно поле, один явный вопрос "есть текст
+ *  или нет". id чекбокса намеренно совпадает с датным ("dateRangeOnlyFilled") — обработчик
+ *  "Применить" один и тот же для обоих случаев, ничего дублировать не пришлось. */
+function renderHasCommentFilter(col){
+  const filter = (filterDraft && !(filterDraft instanceof Set)) ? filterDraft : { onlyFilled:false, from:'', to:'' };
+  const list = document.getElementById('filterPopoverList');
+  list.innerHTML = `
+    <div class="date-range-filter">
+      <label class="date-range-quick">
+        <input type="checkbox" id="dateRangeOnlyFilled" ${filter.onlyFilled ? 'checked' : ''}>
+        <span>Есть комментарий</span>
+      </label>
+      <div class="date-range-fields">
+        <div class="date-range-field">
+          <label for="dateRangeFrom">С</label>
+          <input type="date" id="dateRangeFrom" value="${filter.from || ''}">
+        </div>
+        <div class="date-range-field">
+          <label for="dateRangeTo">По</label>
+          <input type="date" id="dateRangeTo" value="${filter.to || ''}">
+        </div>
+      </div>
+      <div class="date-range-hint">
+        В этом поле копится несколько причин отказа с датами — если указать период, покажет
+        сотрудников, у которых есть хотя бы одна запись с датой из этого периода (сами старые
+        записи без даты, например из демо-данных, под период не попадают, только галочка выше).
+        Оставьте оба поля пустыми, чтобы искать просто по наличию любого текста.
+      </div>
+    </div>
+  `;
+  updateFilterSelCount();
+}
+
 function updateFilterSelCount(){
   const el = document.getElementById('filterPopoverSelCount');
   if (filterDraft instanceof Set){
     el.textContent = filterDraft.size > 0 ? `Выбрано: ${filterDraft.size}` : 'Показаны все';
   } else if (filterDraft && (filterDraft.onlyFilled || filterDraft.from || filterDraft.to)){
+    const col = COLUMNS.find(c => c.key === openFilterCol);
     const parts = [];
     if (filterDraft.from) parts.push('с ' + formatIsoToRu(filterDraft.from));
     if (filterDraft.to) parts.push('по ' + formatIsoToRu(filterDraft.to));
-    el.textContent = parts.length ? parts.join(' ') : 'Только заполненные';
+    if (col && isFreeTextFilterColumn(col)){
+      el.textContent = parts.length ? parts.join(' ') : 'Есть комментарий';
+    } else {
+      el.textContent = parts.length ? parts.join(' ') : 'Только заполненные';
+    }
   } else {
     el.textContent = 'Показаны все';
   }
@@ -1971,7 +2321,8 @@ function openFilterPopover(colKey, btnEl){
   document.getElementById('filterPopoverTitle').textContent = col.label;
 
   const isDateRange = isDateFilterColumn(col);
-  document.getElementById('filterPopoverSearchWrap').style.display = isDateRange ? 'none' : '';
+  const isFreeText = isFreeTextFilterColumn(col);
+  document.getElementById('filterPopoverSearchWrap').style.display = (isDateRange || isFreeText) ? 'none' : '';
   document.getElementById('filterPopoverSearch').value = '';
 
   // черновик заводим от уже применённого фильтра (если был) — чтобы попап открывался
@@ -1981,6 +2332,9 @@ function openFilterPopover(colKey, btnEl){
   if (isDateRange){
     filterDraft = (existing && !(existing instanceof Set)) ? { ...existing } : { onlyFilled:false, from:'', to:'' };
     renderDateRangeFilter(col);
+  } else if (isFreeText){
+    filterDraft = (existing && !(existing instanceof Set)) ? { ...existing } : { onlyFilled:false, from:'', to:'' };
+    renderHasCommentFilter(col);
   } else {
     filterDraft = existing instanceof Set ? new Set(existing) : new Set();
     renderFilterOptions(col, '');
@@ -1995,7 +2349,7 @@ function openFilterPopover(colKey, btnEl){
   if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
   popover.style.left = Math.max(12, left) + 'px';
   popover.style.top = top + 'px';
-  if (!isDateRange) document.getElementById('filterPopoverSearch').focus();
+  if (!isDateRange && !isFreeText) document.getElementById('filterPopoverSearch').focus();
 }
 function closeFilterPopover(){
   document.getElementById('filterPopover').classList.remove('open');
@@ -2100,6 +2454,82 @@ function setupCommentPopover(){
   });
 }
 
+/** Попап редактирования свободного текста ("Комментарий подбора" / "Комментарий менеджера
+ *  по оценке", см. col.popupEdit в columns.js) — в отличие от commentPopover выше, это не
+ *  только просмотр: textarea можно редактировать (если есть право на это конкретное поле
+ *  и строка не заблокирована — та же проверка canEdit, что и в buildCellInnerHtml), и
+ *  правки сохраняются тем же путём, что и обычная строка ввода в ячейке (saveCell/
+ *  scheduleCellSave), просто с задержкой набора текста, а не сразу по каждому символу. */
+function setupFreeTextPopover(){
+  const table = document.getElementById('mainTable');
+  const popover = document.getElementById('freeTextPopover');
+  const textarea = document.getElementById('freeTextPopoverTextarea');
+  let currentRowId = null;
+  let currentCol = null;
+
+  function closePopover(){
+    // если пользователь успел напечатать что-то и попап закрывается раньше, чем истёк
+    // debounce обычного scheduleCellSave — досрочно сохраняем немедленно, а не ждём таймер
+    // впустую после того, как поле уже скрыто с экрана
+    if (currentRowId && currentCol){
+      const key = currentRowId + ':' + currentCol;
+      if (cellSaveTimers[key]){
+        clearTimeout(cellSaveTimers[key]);
+        delete cellSaveTimers[key];
+        saveCell(currentRowId, currentCol, textarea.value);
+      }
+    }
+    popover.classList.remove('open');
+    currentRowId = null;
+    currentCol = null;
+  }
+
+  table.addEventListener('click', e => {
+    const cell = e.target.closest('.cell-freepopup');
+    if (!cell) return;
+    const rowId = cell.dataset.row;
+    const col = cell.dataset.col;
+    const row = reserveRows.find(r => r.id === rowId);
+    const colDef = COLUMNS.find(c => c.key === col);
+    if (!row || !colDef) return;
+
+    currentRowId = rowId;
+    currentCol = col;
+    const perm = getEffectivePermission(col);
+    const canEdit = perm.edit && (row.values.trackState !== 'locked' || col === 'relocFact');
+
+    document.getElementById('freeTextPopoverTitle').textContent = colDef.label;
+    const value = row.values[col];
+    textarea.value = (value === '—' ? '' : (value || ''));
+    textarea.disabled = !canEdit;
+    textarea.placeholder = canEdit ? 'Введите текст…' : '—';
+
+    popover.classList.add('open');
+    const rect = cell.getBoundingClientRect();
+    const popW = 340, popH = popover.offsetHeight || 260;
+    let left = Math.min(rect.left, window.innerWidth - popW - 12);
+    let top = rect.bottom + 6;
+    if (top + popH > window.innerHeight - 12) top = Math.max(12, rect.top - popH - 6);
+    popover.style.left = Math.max(12, left) + 'px';
+    popover.style.top = top + 'px';
+    if (canEdit) textarea.focus();
+  });
+
+  textarea.addEventListener('input', () => {
+    if (!currentRowId || !currentCol || textarea.disabled) return;
+    updateLocalCellValue({ dataset: { row: currentRowId, col: currentCol }, value: textarea.value });
+    scheduleCellSave(currentRowId, currentCol, textarea.value);
+  });
+
+  document.getElementById('freeTextPopoverClose').addEventListener('click', closePopover);
+  document.getElementById('freeTextPopoverDone').addEventListener('click', closePopover);
+  document.addEventListener('click', e => {
+    if (popover.classList.contains('open') && !popover.contains(e.target) && !e.target.closest('.cell-freepopup')){
+      closePopover();
+    }
+  });
+}
+
 function setupMonthDetailsPopover(){
   const widgetsEl = document.getElementById('widgets');
   const popover = document.getElementById('monthDetailsPopover');
@@ -2187,6 +2617,9 @@ function setupFilterPopover(){
         if (isDateFilterColumn(col)){
           filterDraft = { onlyFilled:false, from:'', to:'' };
           renderDateRangeFilter(col);
+        } else if (isFreeTextFilterColumn(col)){
+          filterDraft = { onlyFilled:false, from:'', to:'' };
+          renderHasCommentFilter(col);
         } else {
           filterDraft = new Set();
           renderFilterOptions(col, document.getElementById('filterPopoverSearch').value);
@@ -2230,10 +2663,14 @@ function setupFilterPopover(){
     const col = COLUMNS.find(c => c.key === openFilterCol);
     if (!col) return;
 
-    if (isDateFilterColumn(col)){
+    if (isDateFilterColumn(col) || isFreeTextFilterColumn(col)){
       const onlyFilled = document.getElementById('dateRangeOnlyFilled').checked;
-      const from = document.getElementById('dateRangeFrom').value;
-      const to = document.getElementById('dateRangeTo').value;
+      // поля диапазона есть только у настоящих дат — у "Есть комментарий" их в разметке
+      // нет вообще, поэтому читаем аккуратно, не считая это отсутствие ошибкой
+      const fromEl = document.getElementById('dateRangeFrom');
+      const toEl = document.getElementById('dateRangeTo');
+      const from = fromEl ? fromEl.value : '';
+      const to = toEl ? toEl.value : '';
       if (onlyFilled || from || to){
         columnFilters[openFilterCol] = { onlyFilled, from, to };
       } else {
@@ -2254,7 +2691,7 @@ function setupFilterPopover(){
 
   document.getElementById('filterPopoverSearch').addEventListener('input', e => {
     const col = COLUMNS.find(c => c.key === openFilterCol);
-    if (col && !isDateFilterColumn(col)) renderFilterOptions(col, e.target.value);
+    if (col && !isDateFilterColumn(col) && !isFreeTextFilterColumn(col)) renderFilterOptions(col, e.target.value);
   });
 
   // чекбоксы из списка значений — меняют только черновик и живой счётчик, таблицу
@@ -2461,9 +2898,12 @@ async function init(){
   setupTableInputSync();
   setupAddModal();
   setupShowAssignedToggle();
+  setupShowRemovedToggle();
+  setupShowActiveToggle();
   setupFilterPopover();
   setupMonthDetailsPopover();
   setupCommentPopover();
+  setupFreeTextPopover();
   setupColumnVisibilityPopover();
   setupDevTracksPopover();
   setupRoleSwitcher();

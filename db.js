@@ -3,10 +3,11 @@ const path = require('path');
 const Database = require('better-sqlite3');
 const columnsModule = require('./columns');
 const {
-  COLUMNS, SOURCE_FIELDS, SELECT_DEFAULTS, INITIAL_EMPLOYEE_POOL,
+  COLUMNS, SOURCE_FIELDS, getSelectDefault, NON_EDITABLE_TYPES, INITIAL_EMPLOYEE_POOL,
   sanitizePermissions, blankPermissions, seedRoles, blankActions, sanitizeActions,
   DEMO_DEV_TRACKS, DEV_TRACKS_VARIANTS, parseLegacyDevTracks,
   POSITION_CATEGORIES_SEED, getEligiblePotentialPositions, sanitizePositionCategory,
+  RELOCATION_CITIES,
 } = columnsModule;
 // Защита от рассинхрона версий файлов при ручном деплое (если columns.js вдруг окажется
 // старее db.js и ещё не экспортирует эту константу) — без неё values[undefined] тихо
@@ -131,6 +132,13 @@ function makeRandomRow(rowIdCounter, index, managerOptions, shopOptions, shopCod
       values[col.key] = krDate;
     } else if (col.key === 'assignDate'){
       values[col.key] = assignDate;
+    } else if (col.key === 'status'){
+      // "Назначен" и "Отказался от развития" сюда осознанно не входят — оба значения
+      // теперь ставятся только по-настоящему связанным действием (см. markAsAssigned и
+      // логику отказа/удаления ниже), случайной генерации попадать в них не следует:
+      // обычная активная демо-строка не должна выглядеть так, будто с ней что-то уже
+      // произошло, чего на самом деле не было
+      values[col.key] = pickRandom(col.options.filter(o => o !== 'Назначен' && o !== 'Отказался от развития'));
     } else if (col.key === 'grade'){
       values[col.key] = pickRandom(STRESS_GRADE_OPTIONS);
     } else if (col.key === 'curPos'){
@@ -211,9 +219,19 @@ function seedState(){
     }
     if (i === 9){
       // демо "уже назначен" — сотрудник фактически занял ту же должность, на которую
-      // развивался; строка блокируется целиком (см. updateCell/removeFromReserve)
+      // развивался; строка блокируется целиком (см. updateCell/removeFromReserve).
+      // Статус проставляем явно — общий дефолт столбца теперь "В КР" (см. columns.js),
+      // а для этого конкретного примера нужен именно "Назначен", раз уж он изображает
+      // строку, реально прошедшую через блокировку.
       row.values.curPos = row.values.potPos;
       row.values.trackState = 'locked';
+      row.values.status = 'Назначен';
+    }
+    if (i === 3){
+      // единственный осознанный пример накопленного комментария с датами (для демонстрации
+      // попапа с полным текстом и фильтра по периоду) — у остальных куратированных строк
+      // комментарий пустой ("—") по умолчанию, без вводящего в заблуждение текста
+      row.values.employeeComment = '12.02.2026 / Хотел попробовать в другом отделе\n03.07.2026 / Передумал, решил остаться на этом направлении';
     }
     reserveRows.push(row);
   }
@@ -280,7 +298,7 @@ function reshapeRowValues(values){
       return;
     }
     if (col.type === 'select'){
-      next[col.key] = SELECT_DEFAULTS[col.key] || col.options[0];
+      next[col.key] = getSelectDefault(col);
     } else if (col.type === 'auto' || col.type === 'autoDate' || col.type === 'autoEditable'){
       next[col.key] = '—';
     } else {
@@ -642,25 +660,60 @@ function findColumn(key){
 function updateCell(rowId, col, value){
   const row = state.reserveRows.find(r => r.id === rowId);
   if (!row) throw new Error('Строка резервиста не найдена');
-  if (row.values.trackState === 'locked'){
+  // "Релокация" (relocFact) — единственное намеренное исключение из общего правила
+  // "locked-строка полностью заморожена". Смысл поля — была ли релокация именно при
+  // достижении цели (совпадении должностей), то есть ровно в момент/после блокировки
+  // строки — если бы поле тоже замораживалось вместе со всем остальным, заполнить его
+  // было бы уже нельзя никогда. Все остальные поля этой строки по-прежнему неприкосновенны.
+  if (row.values.trackState === 'locked' && col !== 'relocFact'){
     throw new Error('Сотрудник уже назначен на эту должность — строка заблокирована и не редактируется');
   }
 
   const colDef = findColumn(col);
   if (!colDef) throw new Error('Неизвестное поле: ' + col);
-  if (colDef.type === 'auto' || colDef.type === 'autoDate' || colDef.type === 'devRecords' || colDef.type === 'empty'){
-    throw new Error('Поле "' + colDef.label + '" недоступно для ручного редактирования');
-  }
   if (colDef.type === 'positionSelect'){
     // у "Потенциальной должности" своя связанная логика (проверка допустимости по категории,
     // поиск/создание записи в истории) — редактируется только через updatePotentialPosition,
     // не через этот общий метод одного поля
     throw new Error('Поле "' + colDef.label + '" редактируется через отдельный запрос');
   }
+  // auto / autoDate / devRecords / empty / citySelect — единый список нередактируемых типов из
+  // columns.js (тот же, по которому роли лишаются права edit на такие поля), чтобы сервер и
+  // права ролей не могли разойтись между собой
+  if (NON_EDITABLE_TYPES.includes(colDef.type)){
+    throw new Error('Поле "' + colDef.label + '" недоступно для ручного редактирования');
+  }
+
+  // "Готовность к релокации" — свойство человека, а не одного трека (см.
+  // updateRelocReadyForEmployee): правка из реестра, как и из личного кабинета, применяется
+  // ко всем его активным трекам сразу и очищает "Города релокации", если готовность больше
+  // не "в определённые города". Изменённые чужие строки возвращаем в relatedRows — клиент
+  // обновит их у себя без перезагрузки всего состояния.
+  if (col === 'relocReady'){
+    const siblings = state.reserveRows.filter(r =>
+      r !== row && r.values.employeeId === row.values.employeeId && r.values.trackState === 'active'
+    );
+    applyRelocReady([row, ...siblings], value);
+    return { row, relatedRows: siblings };
+  }
 
   row.values[col] = value;
   timedSqlite(`updateCell rowId=${rowId}`, () => stmt.updateRow.run(JSON.stringify(row.values), rowId));
-  return row;
+  return { row, relatedRows: [] };
+}
+
+/** Записывает "Готовность к релокации" в переданные строки и, если новое значение — не
+ *  "Готов в определённые города", очищает в них же "Города релокации" (список городов
+ *  без такой готовности не имеет смысла). Единая точка для обоих путей правки: из реестра
+ *  (updateCell) и из личного кабинета (updateRelocReadyForEmployee). */
+function applyRelocReady(rows, value){
+  rows.forEach(r => {
+    r.values.relocReady = value;
+    if (value !== 'Готов в определённые города'){
+      r.values.relocCities = '';
+    }
+    timedSqlite(`applyRelocReady rowId=${r.id}`, () => stmt.updateRow.run(JSON.stringify(r.values), r.id));
+  });
 }
 
 /** Сменить "активную" потенциальную должность сотрудника. Проверяет, что новая должность
@@ -746,10 +799,14 @@ function addToReserve(employeeId, position){
       throw new Error(`У этого сотрудника уже есть активный трек на должность "${pos}"`);
     }
     if (existingTrack.values.trackState === 'locked'){
-      throw new Error(`Сотрудник уже был назначен на должность "${pos}" ранее — этот трек заблокирован`);
+      throw new Error(`Трек на должность "${pos}" уже завершён, повторное добавление не требуется`);
     }
-    // trackState === 'removed' — восстанавливаем как есть, с прежними сохранёнными данными
+    // trackState === 'removed' — восстанавливаем как есть, с прежними сохранёнными данными,
+    // ЗА ИСКЛЮЧЕНИЕМ статуса — "Отказался от развития"/"Исключён бизнесом" относились именно
+    // к факту удаления, которого больше нет; новый статус система не подставляет — столбец
+    // просто становится пустым, а не каким-то "обычным" значением по умолчанию
     existingTrack.values.trackState = 'active';
+    existingTrack.values.status = '';
     timedSqlite(`addToReserve restore rowId=${existingTrack.id}`, () => stmt.updateRow.run(JSON.stringify(existingTrack.values), existingTrack.id));
     resultRow = existingTrack;
   } else {
@@ -760,7 +817,7 @@ function addToReserve(employeeId, position){
       if (SOURCE_FIELDS.includes(col.key)){
         values[col.key] = sourceFieldsSnapshot[col.key] || '';
       } else if (col.type === 'select'){
-        values[col.key] = SELECT_DEFAULTS[col.key] || col.options[0];
+        values[col.key] = getSelectDefault(col);
       } else if (col.type === 'auto'){
         values[col.key] = '—'; // ещё не пришло из смежных систем
       } else if (col.type === 'autoDate'){
@@ -809,7 +866,12 @@ function addToReserve(employeeId, position){
  *  кнопка «Удалить» в самом ЭКР его не передаёт (это действие роли, причина не нужна, как
  *  и раньше), а вот личный кабинет — при снятии одной галочки в «Куда хочу развиваться» —
  *  передаёт обязательно (то же требование, что и у «Не хочу развиваться», только запись
- *  идёт в ЭТУ ОДНУ строку, а не во все активные строки сотрудника разом). */
+ *  идёт в ЭТУ ОДНУ строку, а не во все активные строки сотрудника разом).
+ *
+ *  Заодно проставляет столбец "Статус" — по тому же признаку (передана ли причина) system
+ *  различает, КТО инициировал удаление: причина передана -> это сам сотрудник отказался
+ *  через личный кабинет -> статус "Отказался от развития"; причины нет -> это роль убрала
+ *  строку из ЭКР -> статус "Исключён бизнесом". */
 function removeFromReserve(rowId, reason){
   const row = state.reserveRows.find(r => r.id === rowId);
   if (!row) throw new Error('Строка резервиста не найдена');
@@ -826,6 +888,9 @@ function removeFromReserve(rowId, reason){
     const existing = (row.values.employeeComment || '').trim();
     const newLine = `${dateStr} / ${trimmedReason}`;
     row.values.employeeComment = (existing && existing !== '—') ? `${existing}\n${newLine}` : newLine;
+    row.values.status = 'Отказался от развития';
+  } else {
+    row.values.status = 'Исключён бизнесом';
   }
 
   row.values.trackState = 'removed';
@@ -845,6 +910,31 @@ function removeFromReserve(rowId, reason){
   return getState();
 }
 
+/** Ручная простановка статуса "Назначен" ролью прямо в ЭКР — фактически то же самое
+ *  действие, что и автоматическая проверка совпадения "Текущая должность" = "Потенциальная
+ *  должность" (которая в прототипе не реализована, см. раздел 2 документа), просто
+ *  запускается человеком вручную, а не по расписанию. Переводит трек СРАЗУ в состояние
+ *  `locked` — необратимо: строка замораживается целиком, как и при обычной блокировке
+ *  (ни редактировать, ни удалить её после этого нельзя, ни для одной роли). Интерфейс
+ *  обязан предупредить о необратимости ПЕРЕД вызовом этого эндпоинта — сам эндпоинт
+ *  никакого отдельного подтверждения не запрашивает, доверяет вызывающей стороне. */
+function markAsAssigned(rowId){
+  const row = state.reserveRows.find(r => r.id === rowId);
+  if (!row) throw new Error('Строка резервиста не найдена');
+  if (row.values.trackState === 'locked'){
+    throw new Error('Эта строка уже заблокирована — сотрудник уже назначен');
+  }
+  if (row.values.trackState === 'removed'){
+    throw new Error('Удалённый трек нельзя пометить как назначенный');
+  }
+
+  row.values.status = 'Назначен';
+  row.values.trackState = 'locked';
+  timedSqlite(`markAsAssigned rowId=${rowId}`, () => stmt.updateRow.run(JSON.stringify(row.values), rowId));
+
+  return getState();
+}
+
 /** "Готовность к релокации" — по смыслу свойство самого человека, а не конкретного трека
  *  развития, хотя физически (как и вся личная информация в модели "одна строка = один
  *  трек") хранится в каждой его строке отдельно. Эта функция обновляет значение сразу во
@@ -858,9 +948,37 @@ function removeFromReserve(rowId, reason){
 function updateRelocReadyForEmployee(employeeId, value){
   const rows = state.reserveRows.filter(r => r.values.employeeId === employeeId && r.values.trackState === 'active');
   if (rows.length === 0) throw new Error('Сотрудник не найден среди активных строк резерва');
+  // Города релокации при смене готовности на любой другой вариант очищаются внутри
+  // applyRelocReady — там же и общая логика с правкой из реестра (см. updateCell).
+  applyRelocReady(rows, value);
+  return getState();
+}
+
+/** "Города релокации" — как и "Готовность к релокации", свойство человека, а не трека:
+ *  обновляется сразу во всех активных строках этого employeeId. Заполняется только из
+ *  личного кабинета (см. /profile.html) и только когда relocReady === 'Готов в
+ *  определённые города' — в остальных случаях список не имеет смысла (см.
+ *  updateRelocReadyForEmployee выше, где он автоматически очищается при смене готовности).
+ *  Список городов валидируется по справочнику RELOCATION_CITIES и хранится строкой через
+ *  запятую (для простоты отображения в общем реестре — там это поле только для чтения). */
+function updateRelocCitiesForEmployee(employeeId, cities){
+  const rows = state.reserveRows.filter(r => r.values.employeeId === employeeId && r.values.trackState === 'active');
+  if (rows.length === 0) throw new Error('Сотрудник не найден среди активных строк резерва');
+  const sample = rows[0].values;
+  if (sample.relocReady !== 'Готов в определённые города'){
+    throw new Error('Список городов имеет смысл только при готовности "Готов в определённые города"');
+  }
+  const cleanCities = Array.isArray(cities)
+    ? cities.map(c => (c || '').trim()).filter(Boolean)
+    : [];
+  const invalid = cleanCities.filter(c => !RELOCATION_CITIES.includes(c));
+  if (invalid.length > 0){
+    throw new Error(`Городов нет в справочнике: ${invalid.join(', ')}`);
+  }
+  const value = cleanCities.join(', ');
   rows.forEach(row => {
-    row.values.relocReady = value;
-    timedSqlite(`updateRelocReadyForEmployee rowId=${row.id}`, () => stmt.updateRow.run(JSON.stringify(row.values), row.id));
+    row.values.relocCities = value;
+    timedSqlite(`updateRelocCitiesForEmployee rowId=${row.id}`, () => stmt.updateRow.run(JSON.stringify(row.values), row.id));
   });
   return getState();
 }
@@ -870,7 +988,10 @@ function updateRelocReadyForEmployee(employeeId, value){
  *  активные треки этого employeeId — обязательно требует причину, без неё действие не
  *  выполняется. Причина добавляется в "Комментарий сотрудника" КАЖДОЙ убираемой строки —
  *  дописывается новой строкой с датой к уже накопленному тексту, если он там был, а не
- *  затирает его (сотрудник мог отказываться уже не в первый раз за время работы).
+ *  затирает его (сотрудник мог отказываться уже не в первый раз за время работы). Столбец
+ *  "Статус" каждой убираемой строки становится "Отказался от развития" — причина здесь
+ *  всегда обязательна, значит и статус всегда один и тот же (в отличие от одиночного
+ *  удаления в removeFromReserve, где статус зависит от того, была ли причина).
  *  Заблокированные (locked, "уже назначен") строки не трогаем — они не считаются
  *  "развитием", это уже свершившийся факт, отказываться там не от чего. */
 function declineAllTracksForEmployee(employeeId, reason){
@@ -883,6 +1004,7 @@ function declineAllTracksForEmployee(employeeId, reason){
   const dateStr = todayFormatted();
   rows.forEach(row => {
     row.values.trackState = 'removed';
+    row.values.status = 'Отказался от развития';
     const existing = (row.values.employeeComment || '').trim();
     const newLine = `${dateStr} / ${trimmedReason}`;
     row.values.employeeComment = (existing && existing !== '—') ? `${existing}\n${newLine}` : newLine;
@@ -1011,7 +1133,9 @@ module.exports = {
   updatePotentialPosition,
   addToReserve,
   removeFromReserve,
+  markAsAssigned,
   updateRelocReadyForEmployee,
+  updateRelocCitiesForEmployee,
   declineAllTracksForEmployee,
   createRole,
   updateRole,
